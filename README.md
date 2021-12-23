@@ -3,7 +3,7 @@ App to log daily exercise and and to analyse the data
 
 One could just keep using a spreadsheet, or practise to use some other tools: mysql, python, java, ...
 
-## Create the database
+### Create the database
 As root:
 ```
 sudo mysql -u root
@@ -42,5 +42,15 @@ VALUES (1, '2021-12-20', 19.14, 43*60+39, 90796, 3968*3600+26);
 COMMIT;
 SELECT * FROM fahrrad_rides;
 ```
+
+### Import old values from a csv file
+Either tab or comma separated. The convertion between csv columns to database columns is defined in parameter **entries_for_mysql** in **import_csv_mysql.py**
+```
+python3 import_csv_mysql.py <csv_file.csv>
+```
+
+
+
+
 
 
