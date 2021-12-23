@@ -13,6 +13,7 @@ import sys
 import os
 import mysql.connector
 import datetime
+import time
 import numpy as np
 
 # csv file parameters
@@ -185,17 +186,28 @@ if __name__ == "__main__":
         exit(1)
     csvtext = read_text_file(csvfile, no_empty_lines=True)
     csv_data = convert_readfile(csvtext[number_of_header_lines:], [str]*len(entries_for_mysql), delimiter=',', replaces=[['\t',',']])   # A bit overkill, but reuses tested code
+    # Convert times into seconds
+    for ii in range(len(csv_data)):
+        ii
+    
     
     try:
-        mydb = mysql.connector.connect( host=mysqlsettings['host'], user=mysqlsettings['user'], password=mysqlsettings['password'] )
+        mydb = mysql.connector.connect( host=mysqlsettings['host'], user=mysqlsettings['user'], password=mysqlsettings['password'],  database='fahrrad' )
     except (mysql.connector.Error, mysql.connector.Warning) as e:
         print(e)
         exit(1)
-
-        
-    # get largest entry in database ("EntryID")
+    mycursor = mydb.cursor()
+    #mycursor.execute("USE fahrrad")        # already in the connection
     
-    
-    
+    mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
+    myresult = mycursor.fetchall()
+    print("Found {0} entries in table".format(len(myresult)))
+    #print(myresult)
+    mycursor.nextset()
+    for entry in csv_data:
+        mycursor.execute("INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds) VALUES ('{0}', {1}, {2}, {3}, {4});".format(entry[0], entry[1], entry[2], entry[3], entry[4],))
+        #INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds)
+        #    VALUES ('2021-12-20', 19.14, 43*60+39, 90796, 3968*3600+26);
+    #print(
     
     
