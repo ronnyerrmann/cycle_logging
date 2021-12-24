@@ -171,6 +171,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         print("Please give the csv file as parameter")
         exit(1)
+        
     # Read settings file
     mysqlsettings = dict(host=mysqlhost, user=mysqluser, password=mysqlpassword)
     if os.path.exists(mysqlsettingsfile):
@@ -179,18 +180,72 @@ if __name__ == "__main__":
         print('Read file: {0}, using information: {1}'.format(mysqlsettingsfile, mysqlsettings))
     else:
         print('No file: {0}, using hardcoded information: {1}'.format(mysqlsettingsfile, mysqlsettings))
+        
     # Read csv file
     csvfile = sys.argv[1]
     if not os.path.exists(csvfile):
         print('Error: The parameterfile {0} does not exist.'.format(csvfile))
         exit(1)
     csvtext = read_text_file(csvfile, no_empty_lines=True)
-    csv_data = convert_readfile(csvtext[number_of_header_lines:], [str]*len(entries_for_mysql), delimiter=',', replaces=[['\t',',']])   # A bit overkill, but reuses tested code
-    # Convert times into seconds
+    delimiters = ['\t', ',']
+    worked =False
+    for delimiter in delimiters:
+        if len(csvtext[0].split(delimiter)) == len(entries_for_mysql):
+            worked = True
+            break
+    if not worked:
+        print("Error: Could not find the correct delimiter. Tested: {0}".format(delimiters))
+        exit(1)
+    replace = []
+    if delimiter == '\t':
+        replace = [',']     # remove , in 43,242
+    csv_data = convert_readfile(csvtext[number_of_header_lines:], [str]*len(entries_for_mysql), delimiter=delimiter, replaces=replace)   # A bit overkill, but reuses tested code
+    
+    # Convert times into seconds, convert dates into mysql date format, and prepare INSERT statement:
+    insertstatement = "INSERT INTO fahrrad_rides ("
+    convert_s_index, convert_d_index = [], []
+    time_split = ':'
+    date_convertions = ['%Y-%m-%d', '%d %b %Y', '%d. %b %Y', '%d %b. %Y', '%d. %b. %Y', '%d %B %Y', '%d. %B %Y', '%d %b %y', '%d. %b %y', '%d %b. %y', '%d. %b. %y', '%d %B %y', '%d. %B %y']
+    for ii in range(len(entries_for_mysql)):
+        if entries_for_mysql[ii].lower().find('second') != -1:
+            convert_s_index.append(ii)
+        if entries_for_mysql[ii].lower().find('date') != -1:
+            convert_d_index.append(ii)
+        insertstatement += entries_for_mysql[ii] + ', '
     for ii in range(len(csv_data)):
-        ii
+        for jj in convert_s_index:
+            result = csv_data[ii][jj]
+            mult = 1
+            if csv_data[ii][jj][0] == "-" and int(numbers[0]) == 0:     # Will loose minus sign
+                mult = -1
+            numbers = csv_data[ii][jj].split(time_split)
+            if len(numbers) == 1:       # assuming seconds
+                result = mult * numbers[0]
+            elif len(numbers) == 2:       # hh:mm
+                result = mult * int(numbers[0])*3600 + int(numbers[1])*60
+            elif len(numbers) == 3:       # hh:mm:ss
+                result = mult * int(numbers[0])*3600 + int(numbers[1])*60 + int(numbers[2])
+            else:
+                print("Can't convert {0} into seconds, expected 0, 1, or 2 {1}".format(csv_data[ii][jj], time_split))
+            csv_data[ii][jj] = result
+        for jj in convert_d_index:
+            result = csv_data[ii][jj]
+            for convertion in date_convertions:
+                try:
+                    result = datetime.datetime.strptime(csv_data[ii][jj], convertion).strftime('%Y-%m-%d')
+                    worked = True
+                except  ValueError as error:
+                    #print(error)
+                    worked = False
+                if worked:
+                    break
+            if not worked:
+                print("Can't convert {0} into date, when using the following formats: {1}".format(csv_data[ii][jj], date_convertions))
+            csv_data[ii][jj] = result
     
+    insertstatement = insertstatement[:-2] + ") VALUES" 
     
+    # connect to database
     try:
         mydb = mysql.connector.connect( host=mysqlsettings['host'], user=mysqlsettings['user'], password=mysqlsettings['password'],  database='fahrrad' )
     except (mysql.connector.Error, mysql.connector.Warning) as e:
@@ -201,13 +256,24 @@ if __name__ == "__main__":
     
     mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
     myresult = mycursor.fetchall()
-    print("Found {0} entries in table".format(len(myresult)))
+    numbers = [len(myresult), 0, 0]
+    print("Found {0} entries in table".format(numbers[0]))
     #print(myresult)
     mycursor.nextset()
     for entry in csv_data:
-        mycursor.execute("INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds) VALUES ('{0}', {1}, {2}, {3}, {4});".format(entry[0], entry[1], entry[2], entry[3], entry[4],))
+        this_insert = "{5} ('{0}', {1}, {2}, {3}, {4});".format(entry[0], entry[1], entry[2], entry[3], entry[4], insertstatement)
+        try:
+            mycursor.execute(this_insert)
+            numbers[1] += 1
+        except (mysql.connector.Error, mysql.connector.Warning) as e:
+            print("Problem with statement: {0}\nError message: {1}".format(this_insert, e))
+            numbers[2] += 1
         #INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds)
         #    VALUES ('2021-12-20', 19.14, 43*60+39, 90796, 3968*3600+26);
-    #print(
-    
+    mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
+    myresult = mycursor.fetchall()
+    print("Entries before adding this file: {0}, entries added: {1}, entries failed: {2}, entries in table now: {3}".format( numbers[0], numbers[1], numbers[2], len(myresult) ))
+    mycursor.nextset()
+    mycursor.execute("COMMIT")
+    print("Commited")
     
