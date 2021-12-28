@@ -203,15 +203,18 @@ if __name__ == "__main__":
     
     # Convert times into seconds, convert dates into mysql date format, and prepare INSERT statement:
     insertstatement = "INSERT INTO fahrrad_rides ("
+    insertindex = []
     convert_s_index, convert_d_index = [], []
     time_split = ':'
     date_convertions = ['%Y-%m-%d', '%d %b %Y', '%d. %b %Y', '%d %b. %Y', '%d. %b. %Y', '%d %B %Y', '%d. %B %Y', '%d %b %y', '%d. %b %y', '%d %b. %y', '%d. %b. %y', '%d %B %y', '%d. %B %y']
     for ii in range(len(entries_for_mysql)):
-        if entries_for_mysql[ii].lower().find('second') != -1:
-            convert_s_index.append(ii)
-        if entries_for_mysql[ii].lower().find('date') != -1:
-            convert_d_index.append(ii)
-        insertstatement += entries_for_mysql[ii] + ', '
+        if entries_for_mysql[ii].lower() != 'dummy':
+            if entries_for_mysql[ii].lower().find('second') != -1:
+                convert_s_index.append(ii)
+            if entries_for_mysql[ii].lower().find('date') != -1:
+                convert_d_index.append(ii)
+            insertstatement += entries_for_mysql[ii] + ', '
+            insertindex.append(ii)
     for ii in range(len(csv_data)):
         for jj in convert_s_index:
             result = csv_data[ii][jj]
@@ -243,7 +246,7 @@ if __name__ == "__main__":
                 print("Can't convert {0} into date, when using the following formats: {1}".format(csv_data[ii][jj], date_convertions))
             csv_data[ii][jj] = result
     
-    insertstatement = insertstatement[:-2] + ") VALUES" 
+    insertstatement = insertstatement[:-2] + ")" 
     
     # connect to database
     try:
@@ -261,7 +264,13 @@ if __name__ == "__main__":
     #print(myresult)
     mycursor.nextset()
     for entry in csv_data:
-        this_insert = "{5} ('{0}', {1}, {2}, {3}, {4});".format(entry[0], entry[1], entry[2], entry[3], entry[4], insertstatement)
+        this_insert = insertstatement +' VALUES ('
+        for ii in insertindex:
+            if ii in convert_d_index:
+                this_insert += "'{0}', ".format(entry[ii])
+            else:
+                this_insert += "{0}, ".format(entry[ii])
+        this_insert = this_insert[:-2] + ");"
         try:
             mycursor.execute(this_insert)
             numbers[1] += 1

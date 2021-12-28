@@ -26,7 +26,7 @@ CREATE TABLE fahrrad_rides (EntryID mediumint NOT NULL AUTO_INCREMENT PRIMARY KE
     TotalKMH float(10,4),
     CulmKM float,
     CulmSeconds int,
-    UNIQUE (TotalKM, TotalSeconds),
+    UNIQUE (TotalKM),
     CONSTRAINT UC_daily UNIQUE (Date, DayKM, DaySeconds) );
 COMMIT;
 ```
