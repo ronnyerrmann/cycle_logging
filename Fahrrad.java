@@ -1,24 +1,22 @@
 import java.sql.*;
 import java.io.*;
 import java.util.*;
+//import Connection_MYSQL; the Connection_MYSQL just needs to be in the same folder
 
-public class Connection_MYSQL {
+public class Fahrrad {
     Dictionary mysql_Settings = new Hashtable();
+    Dictionary fahrrad_values = new Hashtable();
     
     static final String mysqlsettingsfile = "fahrrad_mysql.params";
     //static final Connection conn;
-    Connection conn;
     String DB_URL;
     {
         // This code is executed before every constructor.
-        //if (DB != "") {DB_URL += "/" + DB;}
         mysql_Settings.put("host", "localhost");
         mysql_Settings.put("user", "yourusername");
         mysql_Settings.put("password", "yourpassword");
         mysql_Settings.put("db", "");
     }
-    
-    static final String QUERY = "SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides";
     
     public List<String> Load_File(String filename){
         File file = new File(filename);
@@ -77,32 +75,80 @@ public class Connection_MYSQL {
             this.mysql_Settings.put(key_value.get(0).trim(), key_value.get(1).trim());  // trim(): remove leading and trailing whitespace
         }
     }
-    
-    public void Connection_MYSQL()
-    {
-        DB_URL = "jdbc:mysql://" + this.mysql_Settings.get("host");
-        if (this.mysql_Settings.get("db") != "") {DB_URL += "/" + this.mysql_Settings.get("db");}
-       
-        try(Connection temp_conn = DriverManager.getConnection(DB_URL, (String)mysql_Settings.get("user"), (String)mysql_Settings.get("password"));
-            Statement stmt = conn.createStatement();
-        ) {
-           this.conn = temp_conn;   // doesn't work due to Cannot invoke "java.sql.Connection.createStatement()" because "this.conn" is null
-        } catch (SQLException e) {
-            e.printStackTrace();}
-        
-    }
-    
+
     public static void main (String[] args)
     {
         try
         {
-            Connection_MYSQL obj = new Connection_MYSQL ();     // initialise
+            Fahrrad obj = new Fahrrad ();     // initialise
             obj.run (args);
         }
         catch (Exception e)
         {
             e.printStackTrace ();
         }
+    }
+
+    public Statement Initialise_MYSQL_connection(String DB_URL){
+        try (Connection conn = DriverManager.getConnection(DB_URL, (String)mysql_Settings.get("user"), (String)mysql_Settings.get("password"));
+            Statement stmt = conn.createStatement();) {
+            return stmt;
+        } catch (SQLException e) {
+            System.out.println("The database connection failed with:");
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    public ResultSet MYSQL_query(Statement stmt, String QUERY){
+        try (ResultSet rs = stmt.executeQuery(QUERY);) {
+            return rs;
+        } catch (SQLException e) {
+            System.out.println("The following command failed: "+QUERY);
+            System.out.println("with:");
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    public Boolean MYSQL_execute(Statement stmt, String QUERY){
+        // stmt.executeUpdate(QUERY);
+        return true;
+        /*  // Below doesn't work:
+            // error: the try-with-resources resource must either be a variable declaration or an expression denoting a reference to a final or effectively final variable
+        final Statement stmt1 = stmt;
+        final String QUERY_l = QUERY;
+        try (stmt1.executeUpdate(QUERY_l);) {
+            return true;
+        } catch (SQLException e) {
+            System.out.println("The following command failed: "+QUERY);
+            System.out.println("with:");
+            e.printStackTrace();
+            return false;
+        }*/
+    }
+    
+    public void get_fahrrad_values() {
+        Scanner myObj = new Scanner(System.in);  // Create a Scanner object
+        Boolean success = false;
+        while (!success){
+            System.out.println("Start with which option:");
+            System.out.println("  1: Day Kilometres");
+            System.out.println("  2: Day Time");
+            System.out.println("  3: Total Kilometres");
+            System.out.println("  4: Total Time");
+            Byte start = myObj.nextByte();  // Read user input
+            if ((start >= 1) && (start <= 4)){success = true;}
+        }
+        Byte index[] = {start, start, start, start};
+        Byte jj = start + 1;
+        for (Byte ii=1; ii<=3; ii++){
+            if (jj > 4) {jj = 1;}
+            index[ii] = jj;
+            jj ++;
+        }
+        System.out.println(index);  // Output user input
+    
     }
 
     public void run (String[] args) throws Exception
@@ -117,28 +163,29 @@ public class Connection_MYSQL {
         }*/
         
         // Open a connection
-        //Class.forName("com.mysql.jdbc.Driver");     // depreciation warning
         Class.forName("com.mysql.cj.jdbc.Driver");      // java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar Connection_MYSQL.java
-        // Connection_MYSQL();                      // this could replace the try - catch below
         DB_URL = "jdbc:mysql://" + mysql_Settings.get("host");
         if (mysql_Settings.get("db") != "") {DB_URL += "/" + mysql_Settings.get("db");}
-        try(Connection conn = DriverManager.getConnection(DB_URL, (String)mysql_Settings.get("user"), (String)mysql_Settings.get("password"));
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(QUERY);) {
-            // Extract data from result set
-            while (rs.next()) {
-                // Retrieve by column name
-                System.out.print("ID: " + rs.getInt("id"));
-                System.out.print(", Age: " + rs.getInt("age"));
-                System.out.print(", First: " + rs.getString("first"));
-                System.out.println(", Last: " + rs.getString("last"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        String QUERY = "SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides";
+        Statement stmt = Initialise_MYSQL_connection(DB_URL);        // stmt is still closed, as the try-catch block is finished
+        if (stmt == null) {System.exit(1); }
+        // recreating the connection, as Initialise_MYSQL_connection doesn't keep it open
+        Connection conn = DriverManager.getConnection(DB_URL, (String)mysql_Settings.get("user"), (String)mysql_Settings.get("password"));
+        stmt = conn.createStatement();
+        ResultSet rs = MYSQL_query(stmt, QUERY);
+        if (rs == null) {System.exit(1); }
+        // Extract data from result set
+        //while (rs.next()) {
+            // Retrieve by column name
+        //    System.out.print("ID: " + rs.getInt("id"));
+        //    System.out.print(", First: " + rs.getString("first"));
+        //}
+        fahrrad_values = 
         
-    }
-    
-    
-       
+        QUERY = "INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds) VALUES (";
+        QUERY += ", ";
+        stmt.executeUpdate(QUERY);
+        //Boolean success = MYSQL_execute(stmt, QUERY);
+        
+    }   
 }
