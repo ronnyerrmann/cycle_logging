@@ -128,26 +128,110 @@ public class Fahrrad {
         }*/
     }
     
+    public static boolean isNumeric(String str) {
+        return str != null && str.matches("[-+]?\\d*\\.?\\d+");
+    }
+    
     public void get_fahrrad_values() {
-        Scanner myObj = new Scanner(System.in);  // Create a Scanner object
+        // Get date
+        System.out.println("Date (dd or dd-mm or dd-mm-yy, empty for today):");
+        Scanner myObj1 = new Scanner(System.in);  // Create a Scanner object
+        String date_s = myObj1.nextLine();  // Read user input
+        // code missing
+        
+        //myObj1.close();
+        // Get start value
         Boolean success = false;
+        byte start = 1;
         while (!success){
             System.out.println("Start with which option:");
             System.out.println("  1: Day Kilometres");
             System.out.println("  2: Day Time");
             System.out.println("  3: Total Kilometres");
             System.out.println("  4: Total Time");
-            Byte start = myObj.nextByte();  // Read user input
-            if ((start >= 1) && (start <= 4)){success = true;}
+            Scanner myObj = new Scanner(System.in);  // Create a Scanner object
+            if(myObj.hasNextInt()) {
+                start = myObj.nextByte();
+                if ((start >= 1) && (start <= 4)){success = true;}
+                else {System.out.println("Error: Expect a number between 1 and 4");}
+                System.out.println(start + " " + success);
+            } else {
+                System.out.println("Error: Expect a number between 1 and 4");
+            }
         }
-        Byte index[] = {start, start, start, start};
-        Byte jj = start + 1;
-        for (Byte ii=1; ii<=3; ii++){
+        // Make a list with all the values to be asked for, starting at the selected one
+        byte index[] = {start, -1, -1, -1};
+        byte jj = (byte)(start + 1);
+        for (byte ii=1; ii<=3; ii++){
             if (jj > 4) {jj = 1;}
             index[ii] = jj;
             jj ++;
+            //System.out.println(ii +", "+ index[ii]);
         }
-        System.out.println(index);  // Output user input
+        // Getting the values
+        for (byte ii=0; ii<=3; ii++){
+            success = false;
+            float value_f;
+            String value_s;
+            while (!success){
+                Scanner myObj = new Scanner(System.in);  // Create a Scanner object
+                switch (index[ii]) {
+                    case 1:
+                        System.out.println("Give Day Kilometres:");
+                        if(myObj.hasNextFloat()) {
+                            value_f = myObj.nextFloat();  // Read user input
+                            success = true;
+                            fahrrad_values.put("DayKM", value_f);
+                        } else {
+                            System.out.println("Error: Expect a float");
+                        }
+                        break;
+                    case 2:
+                        System.out.println("Give Day Time");
+                        value_s = myObj.nextLine();  // Read user input
+                        if ( isNumeric(value_s) ) {
+                            Integer value_i = Integer.valueOf(value_s);
+                            success = true;
+                            fahrrad_values.put("DaySeconds", value_i);
+                        } else {
+                            String[] values_t = value_s.trim().split(":");
+                            switch (values_t.length) {
+                                case 2:
+                                    if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) ) {
+                                        Integer value_i = Integer.valueOf(values_t[0])*60 + Integer.valueOf(values_t[0]);
+                                        success = true;
+                                        fahrrad_values.put("DaySeconds", value_i);
+                                    }
+                                    break;
+                                case 3:
+                                    if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) ) {
+                                        Integer value_i = Integer.valueOf(values_t[0])*60 + Integer.valueOf(values_t[0]);
+                                        success = true;
+                                        fahrrad_values.put("DaySeconds", value_i);
+                                    }
+                                    break;
+                                default:
+                                    System.out.println("Error: Expect ss or mm:ss or hh:mm:ss");
+                            }
+                        }
+                        break;
+                    case 3:
+                        System.out.println("Give Total Kilometres:");
+                        if(myObj.hasNextFloat()) {
+                            value_f = myObj.nextFloat();  // Read user input
+                            success = true;
+                        } else {
+                            System.out.println("Error: Expect a float");
+                        }
+                        break;
+                    default:
+                        System.out.println("Error: Mistake in the code: index[ii] = " + index[ii] + " is not coded");
+                        System.exit(1);
+                }
+                
+            }
+        }
+
     
     }
 
@@ -180,12 +264,13 @@ public class Fahrrad {
         //    System.out.print("ID: " + rs.getInt("id"));
         //    System.out.print(", First: " + rs.getString("first"));
         //}
-        fahrrad_values = 
+        
+        get_fahrrad_values();
         
         QUERY = "INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds) VALUES (";
         QUERY += ", ";
         stmt.executeUpdate(QUERY);
         //Boolean success = MYSQL_execute(stmt, QUERY);
-        
+        conn.commit( );
     }   
 }
