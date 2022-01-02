@@ -1,0 +1,4 @@
+host = localhost
+user = fahrrad
+password = good_password
+db = fahrrad
