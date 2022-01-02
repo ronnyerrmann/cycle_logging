@@ -1,7 +1,10 @@
 import java.sql.*;
 import java.io.*;
 import java.util.*;
+import java.time.LocalDate;
+import java.time.Month;
 //import Connection_MYSQL; the Connection_MYSQL just needs to be in the same folder
+// java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
 
 public class Fahrrad {
     Dictionary mysql_Settings = new Hashtable();
@@ -134,14 +137,54 @@ public class Fahrrad {
     
     public void get_fahrrad_values() {
         // Get date
-        System.out.println("Date (dd or dd-mm or dd-mm-yy, empty for today):");
-        Scanner myObj1 = new Scanner(System.in);  // Create a Scanner object
-        String date_s = myObj1.nextLine();  // Read user input
-        // code missing
-        
-        //myObj1.close();
-        // Get start value
+        LocalDate currentdate = LocalDate.now();        // Getting the current date value
+        int currentDay = currentdate.getDayOfMonth();   // Getting the current day
+        int currentMonth = currentdate.getMonth().getValue();    // Getting the current month
+        int currentYear = currentdate.getYear();        // getting the current year
         Boolean success = false;
+        while (!success){
+            System.out.println("Date (dd or dd-mm or dd-mm-yy, empty for today):");
+            Scanner myObj1 = new Scanner(System.in);  // Create a Scanner object
+            String date_s = myObj1.nextLine();  // Read user input
+            if ( isNumeric(date_s) ) {
+                currentDay = Integer.valueOf(date_s);
+                success = true;
+            } else if ( date_s.length() == 0 ) {
+                success = true;     // do nothing, keep current values
+            } else {
+                String[] values_t = date_s.trim().split("-");
+                switch (values_t.length) {
+                    case 2:
+                        if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) ) {
+                            currentDay = Integer.valueOf(values_t[0]);
+                            currentMonth = Integer.valueOf(values_t[1]);
+                            success = true;
+                        }
+                        break;
+                    case 3:
+                        if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) && isNumeric(values_t[2]) ) {
+                            currentDay = Integer.valueOf(values_t[0]);
+                            currentMonth = Integer.valueOf(values_t[1]);
+                            currentYear = Integer.valueOf(values_t[2]);
+                            success = true;
+                        }
+                        break;
+                    default:
+                        System.out.println("Error: Expect dd or dd-mm or dd-mm-yy or empty");
+                }
+            }
+        }
+        String date_s = "";
+        if ( currentYear < 100) { date_s += "20" + String.valueOf(currentYear) + "-"; }
+        else { date_s += String.valueOf(currentYear) + "-"; }
+        if (currentMonth < 10) { date_s += "0" + String.valueOf(currentMonth) + "-"; }
+        else { date_s += String.valueOf(currentMonth) + "-"; }
+        if (currentDay < 10) { date_s += "0" + String.valueOf(currentDay); }
+        else { date_s += String.valueOf(currentDay); }
+        fahrrad_values.put("Date", date_s);
+        //myObj1.close();       // This will close also the other Scanner sessions
+        // Get start value
+        success = false;
         byte start = 1;
         while (!success){
             System.out.println("Start with which option:");
@@ -154,7 +197,6 @@ public class Fahrrad {
                 start = myObj.nextByte();
                 if ((start >= 1) && (start <= 4)){success = true;}
                 else {System.out.println("Error: Expect a number between 1 and 4");}
-                System.out.println(start + " " + success);
             } else {
                 System.out.println("Error: Expect a number between 1 and 4");
             }
@@ -187,7 +229,7 @@ public class Fahrrad {
                         }
                         break;
                     case 2:
-                        System.out.println("Give Day Time");
+                        System.out.println("Give Day Time (expect ss or mm:ss or hh:mm:ss)");
                         value_s = myObj.nextLine();  // Read user input
                         if ( isNumeric(value_s) ) {
                             Integer value_i = Integer.valueOf(value_s);
@@ -198,14 +240,14 @@ public class Fahrrad {
                             switch (values_t.length) {
                                 case 2:
                                     if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) ) {
-                                        Integer value_i = Integer.valueOf(values_t[0])*60 + Integer.valueOf(values_t[0]);
+                                        Integer value_i = Integer.valueOf(values_t[0])*60 + Integer.valueOf(values_t[1]);
                                         success = true;
                                         fahrrad_values.put("DaySeconds", value_i);
                                     }
                                     break;
                                 case 3:
-                                    if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) ) {
-                                        Integer value_i = Integer.valueOf(values_t[0])*60 + Integer.valueOf(values_t[0]);
+                                    if ( isNumeric(values_t[0]) && isNumeric(values_t[1])  && isNumeric(values_t[2]) ) {
+                                        Integer value_i = Integer.valueOf(values_t[0])*3600 + Integer.valueOf(values_t[1])*60 + Integer.valueOf(values_t[2]);
                                         success = true;
                                         fahrrad_values.put("DaySeconds", value_i);
                                     }
@@ -219,9 +261,32 @@ public class Fahrrad {
                         System.out.println("Give Total Kilometres:");
                         if(myObj.hasNextFloat()) {
                             value_f = myObj.nextFloat();  // Read user input
+                            fahrrad_values.put("TotalKM", value_f);
                             success = true;
                         } else {
                             System.out.println("Error: Expect a float");
+                        }
+                        break;
+                    case 4:
+                        System.out.println("Give Total Time (expect hh or hh:mm)");
+                        value_s = myObj.nextLine();  // Read user input
+                        if ( isNumeric(value_s) ) {
+                            Integer value_i = Integer.valueOf(value_s)*3600;
+                            success = true;
+                            fahrrad_values.put("TotalSeconds", value_i);
+                        } else {
+                            String[] values_t = value_s.trim().split(":");
+                            switch (values_t.length) {
+                                case 2:
+                                    if ( isNumeric(values_t[0]) && isNumeric(values_t[1]) ) {
+                                        Integer value_i = Integer.valueOf(values_t[0])*3600 + Integer.valueOf(values_t[1])*60;
+                                        success = true;
+                                        fahrrad_values.put("TotalSeconds", value_i);
+                                    }
+                                    break;
+                                default:
+                                    System.out.println("Error: Expect hh or hh:mm");
+                            }
                         }
                         break;
                     default:
@@ -266,11 +331,18 @@ public class Fahrrad {
         //}
         
         get_fahrrad_values();
+        // check that TotalKM or TotalSeconds not yet in database
         
-        QUERY = "INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds) VALUES (";
-        QUERY += ", ";
-        stmt.executeUpdate(QUERY);
+        // check that entry not yet in database
+        
+        
+        QUERY = "INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds) VALUES ('";
+        QUERY += fahrrad_values.get("Date") + "', " + String.valueOf(fahrrad_values.get("DayKM")) + ", " + String.valueOf(fahrrad_values.get("DaySeconds")) + ", ";
+        QUERY += String.valueOf(fahrrad_values.get("TotalKM")) + ", " + String.valueOf(fahrrad_values.get("TotalSeconds")) + ")";
+        
+        stmt.executeUpdate(QUERY);      // can't try except -> need to catch problems before
         //Boolean success = MYSQL_execute(stmt, QUERY);
-        conn.commit( );
+        //conn.commit( );       // not necessary when autocommit
+        System.out.println("Successfully inserted new values into database");
     }   
 }

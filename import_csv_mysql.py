@@ -250,7 +250,7 @@ if __name__ == "__main__":
     
     # connect to database
     try:
-        mydb = mysql.connector.connect( host=mysqlsettings['host'], user=mysqlsettings['user'], password=mysqlsettings['password'],  database='fahrrad' )
+        mydb = mysql.connector.connect( host=mysqlsettings['host'], user=mysqlsettings['user'], password=mysqlsettings['password'],  database=mysqlsettings['db'] )
     except (mysql.connector.Error, mysql.connector.Warning) as e:
         print(e)
         exit(1)
@@ -284,5 +284,5 @@ if __name__ == "__main__":
     print("Entries before adding this file: {0}, entries added: {1}, entries failed: {2}, entries in table now: {3}".format( numbers[0], numbers[1], numbers[2], len(myresult) ))
     mycursor.nextset()
     mycursor.execute("COMMIT")
-    print("Commited")
+    print("Commited - Successfully finished")
     
