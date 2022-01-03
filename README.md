@@ -62,7 +62,7 @@ python3 import_csv_mysql.py <csv_file.csv>
 
 ### Add daily values
 #### Compile (Linux)
-(classpath might not necessary, need if *java.lang.ClassNotFoundException: com.mysql.cj.jdbc.Drive*
+(classpath might not necessary, need if *java.lang.ClassNotFoundException: com.mysql.cj.jdbc.Drive*. The package can be downloaded from https://dev.mysql.com/downloads/connector/j/ )
 ```
 javac -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
 ```
