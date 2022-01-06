@@ -45,6 +45,8 @@ COMMIT;
 SELECT * FROM fahrrad_rides;
 ```
 
+More MySQL settings (e.g. fill in missing values, create summarising tables) are described in file [MySQL_scheduler.md](MySQL_scheduler.md)
+
 ### Create settings file to use for programs:
 Create a file `fahrrad_mysql.params` with entries:
 ```
