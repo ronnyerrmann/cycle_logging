@@ -36,7 +36,7 @@ As user `fahrrad`:
 ```
 mysql -u fahrrad -p
 ```
-Run: 
+Run an example insert and select: 
 ```
 USE fahrrad;
 INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds)

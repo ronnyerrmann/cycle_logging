@@ -89,38 +89,63 @@ DELIMITER ;
 COMMIT;
 ```
 
-Summarize the data (if there were updates): - not yet done
+Summarize the data (if there were updates): - done for years, not yet done for months and weeks
 ```
 DELIMITER $$
 
+DROP PROCEDURE IF EXISTS proc_summarise$$
+CREATE PROCEDURE proc_summarise()
+BEGIN
+    DECLARE number_years INT DEFAULT 0;
+    DECLARE ii INT DEFAULT 0;
+    DECLARE This_year INT DEFAULT 0;
+    DECLARE YearKM FLOAT DEFAULT 0;
+    DECLARE YearSeconds INT DEFAULT 0;
+    DECLARE YearDays INT DEFAULT 0;
+    SELECT COUNT(DISTINCT YEAR(Date)) INTO number_years FROM fahrrad_rides WHERE wasupdated=1;
+    SET ii = 0;
+    WHILE ii < number_years DO
+        SELECT DISTINCT YEAR(Date) INTO This_year FROM fahrrad_rides WHERE wasupdated=1 LIMIT ii,1;
+        SELECT SUM(DayKM), SUM(DaySeconds) INTO YearKM, YearSeconds FROM fahrrad_rides WHERE YEAR(Date) = This_year;
+        SELECT COUNT(wasupdated) INTO YearDays FROM fahrrad_rides WHERE YEAR(Date) = This_year;
+        DELETE FROM fahrrad_yearly_summary WHERE Year_starting_on = CONCAT(This_year,'-01-01');
+        INSERT INTO fahrrad_yearly_summary (Year_starting_on, YearKM, YearSeconds, YearDays) 
+            VALUES (CONCAT(This_year,'-01-01'), YearKM, YearSeconds, YearDays);
+        SET ii = ii+1;
+    END WHILE;
+    UPDATE fahrrad_rides SET wasupdated=0 WHERE wasupdated=1;
+END;
+$$
+
+DROP EVENT IF EXISTS Summarize$$
 CREATE EVENT Summarize
     ON SCHEDULE EVERY 1 MINUTE
     DO BEGIN
-        UPDATE fahrrad_rides (
-        INSERT INTO tbl_Students 
-        VALUES (1,'Anvesh');
+        IF (SELECT COUNT(wasupdated) FROM fahrrad_rides WHERE wasupdated=1) > 0 THEN
+            CALL proc_summarise();
+        END IF;
     END$$
 
 DELIMITER ;
 ```
 
-Update the main table in case values where added before the trigger `before_fahrrad_rides_insert` was created. Only do it daily and only on the coloumns necessary. Functions are necessary in that case
+Update the main table in case values where added before the trigger `before_fahrrad_rides_insert` was created. Only do it daily and only on the coloumns necessary. Functions are necessary to create a sum up to a date.
 ```
 DELIMITER $$
-
-CREATE FUNCTION `fn_get_CulmSeconds`(_Date DATE) RETURNS INT
-    READS SQL DATA
-    BEGIN
-        DECLARE r INT;
-        SELECT SUM(DaySeconds) INTO r FROM fahrrad_rides WHERE Date <= _Date;
-        RETURN r;
-    END $$
 
 CREATE FUNCTION `fn_get_CulmKM`(_Date DATE) RETURNS FLOAT
     READS SQL DATA
     BEGIN
         DECLARE r FLOAT;
         SELECT SUM(DayKM) INTO r FROM fahrrad_rides WHERE Date <= _Date;
+        RETURN r;
+    END $$
+
+CREATE FUNCTION `fn_get_CulmSeconds`(_Date DATE) RETURNS INT
+    READS SQL DATA
+    BEGIN
+        DECLARE r INT;
+        SELECT SUM(DaySeconds) INTO r FROM fahrrad_rides WHERE Date <= _Date;
         RETURN r;
     END $$
 
