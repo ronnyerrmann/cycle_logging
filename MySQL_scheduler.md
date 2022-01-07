@@ -89,7 +89,7 @@ DELIMITER ;
 COMMIT;
 ```
 
-Summarize the data (if there were updates): - done for years, not yet done for months and weeks
+Summarize the data (if there were updates):
 ```
 DELIMITER $$
 
@@ -97,22 +97,66 @@ DROP PROCEDURE IF EXISTS proc_summarise$$
 CREATE PROCEDURE proc_summarise()
 BEGIN
     DECLARE number_years INT DEFAULT 0;
+    DECLARE number_months INT DEFAULT 0;
+    -- DECLARE number_weeks INT DEFAULT 0;
     DECLARE ii INT DEFAULT 0;
+    DECLARE jj INT DEFAULT 0;
     DECLARE This_year INT DEFAULT 0;
-    DECLARE YearKM FLOAT DEFAULT 0;
-    DECLARE YearSeconds INT DEFAULT 0;
-    DECLARE YearDays INT DEFAULT 0;
+    DECLARE This_month INT DEFAULT 0;
+    DECLARE This_date DATE DEFAULT '2000-01-01';
+    DECLARE End_date DATE DEFAULT '2000-01-01';
+    DECLARE Max_date DATE DEFAULT '2000-01-01';
+    DECLARE This_day INT DEFAULT 0;
+    DECLARE ThisKM FLOAT DEFAULT 0;
+    DECLARE ThisSeconds INT DEFAULT 0;
+    DECLARE ThisDays INT DEFAULT 0;
+    -- get the years with new data
     SELECT COUNT(DISTINCT YEAR(Date)) INTO number_years FROM fahrrad_rides WHERE wasupdated=1;
     SET ii = 0;
     WHILE ii < number_years DO
+        -- get the current year as int
         SELECT DISTINCT YEAR(Date) INTO This_year FROM fahrrad_rides WHERE wasupdated=1 LIMIT ii,1;
-        SELECT SUM(DayKM), SUM(DaySeconds) INTO YearKM, YearSeconds FROM fahrrad_rides WHERE YEAR(Date) = This_year;
-        SELECT COUNT(wasupdated) INTO YearDays FROM fahrrad_rides WHERE YEAR(Date) = This_year;
+        SELECT SUM(DayKM), SUM(DaySeconds) INTO ThisKM, ThisSeconds FROM fahrrad_rides WHERE YEAR(Date) = This_year;
+        SELECT COUNT(wasupdated) INTO ThisDays FROM fahrrad_rides WHERE YEAR(Date) = This_year;
         DELETE FROM fahrrad_yearly_summary WHERE Year_starting_on = CONCAT(This_year,'-01-01');
         INSERT INTO fahrrad_yearly_summary (Year_starting_on, YearKM, YearSeconds, YearDays) 
-            VALUES (CONCAT(This_year,'-01-01'), YearKM, YearSeconds, YearDays);
+            VALUES (CONCAT(This_year,'-01-01'), ThisKM, ThisSeconds, ThisDays);
+        -- get the months within the year with new data
+        SELECT COUNT(DISTINCT MONTH(Date)) INTO number_months FROM fahrrad_rides WHERE wasupdated=1 AND YEAR(Date) = This_year;
+        SET jj = 0;
+        WHILE jj < number_months DO
+            -- get the current month as int
+            SELECT DISTINCT MONTH(Date) INTO This_month FROM fahrrad_rides WHERE wasupdated=1 AND YEAR(Date) = This_year LIMIT jj,1;
+            SELECT SUM(DayKM), SUM(DaySeconds) INTO ThisKM, ThisSeconds FROM fahrrad_rides WHERE YEAR(Date) = This_year AND MONTH(Date) = This_month;
+            SELECT COUNT(wasupdated) INTO ThisDays FROM fahrrad_rides WHERE YEAR(Date) = This_year AND MONTH(Date) = This_month;
+            DELETE FROM fahrrad_monthly_summary WHERE Month_starting_on = CONCAT(This_year,'-',This_month,'-01');
+            INSERT INTO fahrrad_monthly_summary (Month_starting_on, MonthKM, MonthSeconds, MonthDays) 
+                VALUES (CONCAT(This_year,'-',This_month,'-01'), ThisKM, ThisSeconds, ThisDays);
+            SET jj = jj+1;
+        END WHILE;
         SET ii = ii+1;
     END WHILE;
+    -- get the weeks with updates
+    -- WEEK(Date) could be used, but then weeks 1 and 53 (of prev year) need to be combined
+    -- SET number_weeks = CEIL(DATEDIFF(SELECT MAX(Date) FROM fahrrad_rides WHERE wasupdated=1, SELECT MIN(Date) FROM fahrrad_rides WHERE wasupdated=1)/7) + 2;7
+    SELECT MAX(Date) INTO Max_date FROM fahrrad_rides WHERE wasupdated=1;
+    SET Max_date = ADDDATE(Max_date, INTERVAL 7 DAY); 
+    -- Find the first Monday
+    SELECT MIN(Date) INTO This_date FROM fahrrad_rides WHERE wasupdated=1;
+    SET This_day = WEEKDAY(This_date);
+    SET This_date = SUBDATE(This_date, INTERVAL This_day DAY); 
+    WHILE This_date < Max_date DO
+        SET End_date = ADDDATE(This_date, INTERVAL 6 DAY);
+        SELECT COUNT(wasupdated) INTO ThisDays FROM fahrrad_rides WHERE Date BETWEEN This_date AND End_date;
+        IF ThisDays > 0 THEN
+            SELECT SUM(DayKM), SUM(DaySeconds) INTO ThisKM, ThisSeconds FROM fahrrad_rides WHERE Date BETWEEN This_date AND End_date;
+            DELETE FROM fahrrad_weekly_summary WHERE Week_starting_on = This_date;
+            INSERT INTO fahrrad_weekly_summary (Week_starting_on, WeekKM, WeekSeconds, WeekDays) 
+                VALUES (This_date, ThisKM, ThisSeconds, ThisDays);
+        END IF;
+        SET This_date = ADDDATE(This_date, INTERVAL 7 DAY); 
+    END WHILE;
+    -- not run the procedure again on the same data
     UPDATE fahrrad_rides SET wasupdated=0 WHERE wasupdated=1;
 END;
 $$
@@ -122,6 +166,7 @@ CREATE EVENT Summarize
     ON SCHEDULE EVERY 1 MINUTE
     DO BEGIN
         IF (SELECT COUNT(wasupdated) FROM fahrrad_rides WHERE wasupdated=1) > 0 THEN
+            -- GROUP BY could be used, but then can't count the entries for that
             CALL proc_summarise();
         END IF;
     END$$
