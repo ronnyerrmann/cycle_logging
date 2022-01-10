@@ -5,7 +5,16 @@
 <body>
 <h1>Cycle Rides Results</h1>
 <?php
-
+  $root_dir = $_SERVER['DOCUMENT_ROOT'];
+  //echo "test ".$root_dir;
+  // Path to the settings file: one level above the server settings -> can't be accessed from the internet to keep the password secure, however, needs root access to put the file, tested with Apache
+  $mysqlsettingsfile = $root_dir."/../fahrrad_mysql.params";
+  
+  function format_time($t,$f=':') // t = seconds, f = separator 
+  {
+     return sprintf("%02d%s%02d%s%02d", floor($t/3600), $f, ($t/60)%60, $f, $t%60);
+  }
+  
   // create short variable names
   $searchtype=$_POST['searchtype'];
   $startdate=trim($_POST['startdate']);
@@ -54,7 +63,7 @@
      "db" => "",
   ];
   // better: save it as variable in another script and include that script: https://stackoverflow.com/questions/17020651/how-to-hide-protect-password-details-in-php/17021458#17021458
-  $myfile = fopen("../fahrrad_mysql.params", "r") or die("Unable to open file!");
+  $myfile = fopen($root_dir."../fahrrad_mysql.params", "r") or die("Unable to open file!");
   while(!feof($myfile)) {
      $arrayString = explode("=", fgets($myfile) );
      //Print_r($arrayString);
@@ -84,8 +93,8 @@
      echo htmlspecialchars(stripslashes($row['Date']));
      echo "</strong><br />Distance [km]: ";
      echo stripslashes($row['KM']);
-     echo "</strong><br />Time [s]: ";
-     echo stripslashes($row['Seconds']);
+     echo "</strong><br />Time [s -> hh:mm:ss]: ";
+     echo stripslashes($row['Seconds'])."  ->  ".format_time($row['Seconds']);
      echo "<br />Speed [km/h]: ";
      echo stripslashes($row['KMH']);
      echo "</p>";
