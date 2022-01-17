@@ -30,7 +30,7 @@
     $startdate = addslashes($startdate);
     $enddate = addslashes($enddate);
   }
-  echo "<p>searchtype: ".$searchtype."</p>";
+  //echo "<p>searchtype: ".$searchtype."</p>";
   switch ($searchtype) {
    case "Days":
      $searchtype="fahrrad_rides";
