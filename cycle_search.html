@@ -1,26 +1,35 @@
 <html>
 <head>
   <title>Cycle rides search</title>
+  <link rel="stylesheet" href="cycle_search.css">
 </head>
 
 <body>
   <h1>Cycle rides search</h1>
 
   <form action="cycle_logging.php" method="post">
-    Choose Search Type:<br />
-    <select name="searchtype">
-      <option value="Days">Days</option>
-      <option value="Weeks">Weeks</option>
-      <option value="Months">Months</option>
-      <option value="Years">Years</option>
-    </select>
-    <br />
-    Enter Start Date (MySQL format: YYYY-MM-DD):<br />
-    <input name="startdate" type=""text" size="10"/>
-    <br />
-    Enter End Date (MySQL format: YYYY-MM-DD):<br />
-    <input name="enddate" type=""text" size="10"/>
-    <br />
+    <table  class="table_no_borders">
+      <tr>
+        <td>Type</td>
+        <td>
+          <select name="searchtype">
+            <option value="Days">Days</option>
+            <option value="Weeks">Weeks</option>
+            <option value="Months">Months</option>
+            <option value="Years">Years</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>Start Date</td>
+        <td><input name="startdate" type="date" size="10"/></td>
+      </tr>
+      <tr>
+        <td>End Date</td>
+        <td><input name="enddate" type="date" size="10"/></td>
+      </tr>
+    </table> 
+    
     <input type="submit" name="submit" value="Search"/>
   </form>
 

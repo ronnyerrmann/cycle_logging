@@ -1,7 +1,7 @@
 # cycle_logging
-App to log daily exercise and and to analyse the data
+App to log daily exercise and and to analyse the data.
 
-One could just keep using a spreadsheet, or practise to use some other tools: mysql, python, java, ...
+One could just keep using a spreadsheet, or alternatively practise to use some other tools: MySQL, Python, Java, PHP...
 
 ### Create the database
 As root:
@@ -78,4 +78,5 @@ java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad
 Open `cycle_search.html` in your webserver (php needs to be activated). This will call `cycle_logging.php`. The settings file needs to be one level above the document root directory (e.g. */var/www/*) or **$mysqlsettingsfile** needs to be changed in `cycle_logging.php`.
 
 
-
+### Final notes:
+If you tried it, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com
