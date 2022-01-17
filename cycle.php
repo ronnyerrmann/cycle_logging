@@ -29,22 +29,22 @@
     //echo "<p>searchtype: ".$searchtype."</p>";
     switch ($searchtype) {
      case "Days":
-       $searchtype="fahrrad_rides";
+       $searchtable="fahrrad_rides";
        $extratxt="Day";
        $datekey="Date";
        break;
     case "Weeks":
-       $searchtype="fahrrad_weekly_summary";
+       $searchtable="fahrrad_weekly_summary";
        $extratxt="Week";
        $datekey="Week_starting_on";
        break;
     case "Months":
-       $searchtype="fahrrad_monthly_summary";
+       $searchtable="fahrrad_monthly_summary";
        $extratxt="Month";
        $datekey="Month_starting_on";
        break;
     case "Years":
-       $searchtype="fahrrad_yearly_summary";
+       $searchtable="fahrrad_yearly_summary";
        $extratxt="Year";
        $datekey="Year_starting_on";
        break;
@@ -75,7 +75,7 @@
        exit;
     }
 
-    $query = "SELECT ".$datekey." AS Date, ".$extratxt."KM AS KM, ".$extratxt."Seconds AS Seconds, ".$extratxt."KMH AS KMH FROM ".$searchtype." WHERE ".$datekey." BETWEEN '".$startdate."' AND '".$enddate."'";
+    $query = "SELECT ".$datekey." AS Date, ".$extratxt."KM AS KM, ".$extratxt."Seconds AS Seconds, ".$extratxt."KMH AS KMH FROM ".$searchtable." WHERE ".$datekey." BETWEEN '".$startdate."' AND '".$enddate."'";
     //echo "<p>Query: ".$query."</p>";
     $result = $db->query($query);
 
@@ -104,20 +104,20 @@
         <td>Type</td>
         <td>
           <select name="searchtype">
-            <option value="Days">Days</option>
-            <option value="Weeks">Weeks</option>
-            <option value="Months">Months</option>
-            <option value="Years">Years</option>
+            <option value="Days" <?php if($searchtype=="Days"){echo "selected";} ?> >Days</option>
+            <option value="Weeks" <?php if($searchtype=="Weeks"){echo "selected";} ?> >Weeks</option>
+            <option value="Months" <?php if($searchtype=="Months"){echo "selected";} ?> >Months</option>
+            <option value="Years" <?php if($searchtype=="Years"){echo "selected";} ?> >Years</option>
           </select>
         </td>
       </tr>
       <tr>
         <td>Start Date</td>
-        <td><input name="startdate" type="date" size="10"/></td>
+        <td><input name="startdate" type="date" size="10" value="<?php echo htmlspecialchars($startdate); ?>" /></td>
       </tr>
       <tr>
         <td>End Date</td>
-        <td><input name="enddate" type="date" size="10"/></td>
+        <td><input name="enddate" type="date" size="10"  value="<?php echo htmlspecialchars($enddate); ?>" /></td>
       </tr>
     </table> 
     
