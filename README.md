@@ -74,9 +74,11 @@ javac -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
 java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad
 ```
 
+Here I want to add checks to the input data, split classes, and add a GUI later.
+
 ### Get results in a Webbrowser:
-Open `cycle.php` in your webserver (php needs to be activated). This will call itself. The [settings file](#create-settings-file-to-use-for-programs) needs to be one level above the document root directory (e.g. */var/www/*) or **$mysqlsettingsfile** needs to be changed in `cycle.php`.
+Open `cycle.php` in your webserver (php needs to be activated). This will call itself. The [settings file](#create-settings-file-to-use-for-programs) needs to be one level above the document root directory (e.g. */var/www/*) or **$mysqlsettingsfile** needs to be changed in the fist few lines of `cycle.php`.
 
 
 ### Final notes:
-If you tried it, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com
+If you tried some or all of the scripts, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com
