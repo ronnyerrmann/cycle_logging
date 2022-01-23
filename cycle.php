@@ -96,7 +96,11 @@
 
       $num_results = $result->num_rows;
       // results are shown below search
-
+      $data = array();      // prepare for javascript
+      foreach ($result as $row) {
+	    $data[] = $row;
+      }
+      $result->free(); 
       $db->close();
     }
   }
@@ -124,6 +128,19 @@
 <head>
   <title>Cycle rides</title>
   <link rel="stylesheet" href="cycle.css">
+  <style type="text/css">
+    BODY {
+        width: 550PX;
+    }
+
+    #chart-container {
+        width: 100%;
+        height: auto;
+    }
+  </style>
+  <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
+  <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>  if not locally installed -->
 </head>
 
 <body>
@@ -157,6 +174,53 @@
     <input type="submit" name="submit" value="Search"/>
   </form>
 
+  <div id="chart-container">
+        <canvas id="graphCanvas"></canvas>
+        <p id="errormsg"></p>
+  </div>
+
+  <script>
+    var is_post = <?php echo json_encode($is_post); ?>;
+    var no_problem = <?php echo json_encode($no_problem); ?>;
+    if (is_post && no_problem) {
+      var data = <?php echo json_encode($data); ?>;
+      var xx = [];
+      var yy = [];
+      for (var ii in data) {
+        // document.write(data[ii].KM);
+        xx.push(data[ii].Date);
+        yy.push(data[ii].KM);
+      }
+//      $(document).ready(function () {
+//            showGraph();
+//        });
+
+//        function showGraph(){
+        var chartdata = {
+                        labels: xx,
+                        datasets: [
+                            {
+                                label: 'Distance [km]',
+                                backgroundColor: '#49e2ff',
+                                borderColor: '#46d5f1',
+                                hoverBackgroundColor: '#CCCCCC',
+                                hoverBorderColor: '#666666',
+                                data: yy
+                            }
+                        ]
+         };
+
+         var graphTarget = document.querySelector("#graphCanvas");
+                    var barGraph = new Chart(graphTarget, {
+                        type: 'bar',
+                        data: chartdata
+        });
+
+    }
+  </script>
+ 
+
+
 </body>
 </html>
 
@@ -166,9 +230,9 @@
       echo "<h1>Results</h1>";
       echo "<p>Number of entries found: ".$num_results."</p>";
   
-      for ($i=0; $i <$num_results; $i++) {
-         $row = $result->fetch_assoc();
-         echo "<p><strong>".($i+1).". Date: ";
+      for ($ii=0; $ii < sizeof($data); $ii++) {
+         $row = $data[$ii];
+         echo "<p><strong>".($ii+1).". Date: ";
          echo htmlspecialchars(stripslashes($row['Date']));
          echo "</strong><br />Distance [km]: ";
          echo stripslashes($row['KM']);
@@ -178,7 +242,7 @@
          echo stripslashes($row['KMH']);
          echo "</p>";
       }
-    $result->free(); 
+     
     } else {
       echo $error_msg;
     }
