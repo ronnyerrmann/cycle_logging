@@ -140,6 +140,7 @@
   </style>
   <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
   <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
+  <script type="text/javascript" src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>  if not locally installed -->
 </head>
 
@@ -211,10 +212,27 @@
          };
 
          var graphTarget = document.querySelector("#graphCanvas");
-                    var barGraph = new Chart(graphTarget, {
-                        type: 'bar',
-                        data: chartdata
-        });
+         var barGraph = new Chart(graphTarget, {
+           type: 'bar',
+           data: chartdata,
+           
+           options: {
+             plugins: {
+      zoom: {
+        zoom: {
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: true
+          },
+          mode: 'xy',
+        }
+      }
+    }
+           }        
+         });
+         
 
     }
   </script>
