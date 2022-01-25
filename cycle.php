@@ -3,11 +3,6 @@
   // Path to the settings file: one level above the server settings -> can't be accessed from the internet to keep the password secure, however, needs root access to put the file, tested with Apache
   $mysql_settingsfile = $root_dir."/../fahrrad_mysql.params";
   
-  function format_time($t,$f=':') // t = seconds, f = separator 
-  {
-     return sprintf("%02d%s%02d%s%02d", floor($t/3600), $f, ($t/60)%60, $f, $t%60);
-  }
-  
   // initiate the DB connection
   $no_problem = True;
   $error_msg = '';
@@ -35,6 +30,32 @@
      $error_msg .=  'Error: Could not connect to database.  Please try again later.';
      $no_problem = False;
   }
+  
+  function format_time($t,$f=':') // t = seconds, f = separator 
+  {
+     return sprintf("%02d%s%02d%s%02d", floor($t/3600), $f, ($t/60)%60, $f, $t%60);
+  }
+  
+  function print_results($data) 
+  {
+     echo "<h1>Results</h1>";
+     echo "<p>Number of entries found: ".sizeof($data)."</p>";
+ 
+     for ($ii=0; $ii < sizeof($data); $ii++) {
+        $row = $data[$ii];
+        echo "<p><strong>".($ii+1).". Date: ";
+        echo htmlspecialchars(stripslashes($row['Date']));
+        echo "</strong><br />Distance [km]: ";
+        echo stripslashes($row['KM']);
+        echo "</strong><br />Time [s -> hh:mm:ss]: ";
+        echo stripslashes($row['Seconds'])."  ->  ".format_time($row['Seconds']);
+        echo "<br />Speed [km/h]: ";
+        echo stripslashes($row['KMH']);
+        echo "</p>";
+     }
+  }
+  
+  
 ?>
 
 <?php   // do the query
@@ -44,6 +65,8 @@
     $searchtype=$_POST['searchtype'];
     $startdate=trim($_POST['startdate']);
     $enddate=trim($_POST['enddate']);
+    $x_axis=trim($_POST['x_axis_temp']);
+    $y1_axis=trim($_POST['y1_axis_temp']);
 
     if (!$searchtype || !$startdate || !$enddate) {
        $error_msg .= 'You have not entered all search details.  Please check and try again. ';
@@ -121,26 +144,19 @@
         $enddate = $result->fetch_assoc()["result"];
       }
     }
+    $x_axis="Date";
+    $y1_axis="Distance";
   }
 ?>
 
 <html>
 <head>
   <title>Cycle rides</title>
-  <link rel="stylesheet" href="cycle.css">
-  <style type="text/css">
-    BODY {
-        width: 550PX;
-    }
-
-    #chart-container {
-        width: 100%;
-        height: auto;
-    }
-  </style>
+  <link rel="stylesheet" href="cycle.css?<?=filemtime('cycle.css')?>">      <!-- css is cached in a browser, so this causes it to reload everytime the file is changed-->
   <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
   <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
   <script type="text/javascript" src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+  <script type="text/javascript" src="cycle.js"></script>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>  if not locally installed -->
 </head>
 
@@ -171,7 +187,8 @@
         <td><input name="enddate" type="date" size="10"  value="<?php echo htmlspecialchars($enddate); ?>" /></td>
       </tr>
     </table> 
-    
+    <input name="x_axis_temp" id="x_axis_temp" type="hidden" value="<?php echo htmlspecialchars($x_axis); ?>" >
+    <input name="y1_axis_temp" id="y1_axis_temp"type="hidden"  value="<?php echo htmlspecialchars($y1_axis); ?>" >
     <input type="submit" name="submit" value="Search"/>
   </form>
 
@@ -180,64 +197,40 @@
         <p id="errormsg"></p>
   </div>
 
+  <form class="hidden-form" method="post">
+    <p id="to_log">Select data to show</p>
+    <div class="form-group">
+      <label for="x_axis">Data in x-axis</label>
+      <select id="x_axis" name="x_axis" onchange="update_axis_event(event, 'x_axis')">
+        <option value="Date" <?php if($x_axis=="Date"){echo "selected";} ?> >Date</option>
+        <option value="Distance" <?php if($x_axis=="Distance"){echo "selected";} ?> >Distance</option>
+        <option value="Time" <?php if($x_axis=="Time"){echo "selected";} ?> >Time</option>
+        <option value="Speed" <?php if($x_axis=="Speed"){echo "selected";} ?> >Speed</option>
+      </select>
+      <label for="y1_axis">Data in y-axis</label>
+      <select id="y1_axis" name="y1_axis" onchange="update_axis_event(event, 'y1_axis')">
+        <option value="Date" <?php if($y1_axis=="Date"){echo "selected";} ?> >Date</option>
+        <option value="Distance" <?php if($y1_axis=="Distance"){echo "selected";} ?> >Distance</option>
+        <option value="Time" <?php if($y1_axis=="Time"){echo "selected";} ?> >Time</option>
+        <option value="Speed" <?php if($y1_axis=="Speed"){echo "selected";} ?> >Speed</option>
+      </select> 
+    </div>
+  </form>
+
   <script>
     var is_post = <?php echo json_encode($is_post); ?>;
     var no_problem = <?php echo json_encode($no_problem); ?>;
     if (is_post && no_problem) {
+      $('.hidden-form').show();
+      var x_axis = <?php echo json_encode($x_axis); ?>;
+      var y1_axis = <?php echo json_encode($y1_axis); ?>;
       var data = <?php echo json_encode($data); ?>;
-      var xx = [];
-      var yy = [];
-      for (var ii in data) {
-        // document.write(data[ii].KM);
-        xx.push(data[ii].Date);
-        yy.push(data[ii].KM);
-      }
-//      $(document).ready(function () {
-//            showGraph();
-//        });
-
-//        function showGraph(){
-        var chartdata = {
-                        labels: xx,
-                        datasets: [
-                            {
-                                label: 'Distance [km]',
-                                backgroundColor: '#49e2ff',
-                                borderColor: '#46d5f1',
-                                hoverBackgroundColor: '#CCCCCC',
-                                hoverBorderColor: '#666666',
-                                data: yy
-                            }
-                        ]
-         };
-
-         var graphTarget = document.querySelector("#graphCanvas");
-         var barGraph = new Chart(graphTarget, {
-           type: 'bar',
-           data: chartdata,
-           
-           options: {
-             plugins: {
-      zoom: {
-        zoom: {
-          wheel: {
-            enabled: true,
-          },
-          pinch: {
-            enabled: true
-          },
-          mode: 'xy',
-        }
-      }
-    }
-           }        
-         });
-         
-
+      var graphTarget = document.querySelector("#graphCanvas");
+      update_graph_data(x_axis, y1_axis, graphTarget)
+    } else {
+      $('.hidden-form').hide();
     }
   </script>
- 
-
 
 </body>
 </html>
@@ -245,22 +238,7 @@
 <?php   // results or errors
   if ($is_post){
     if ($no_problem) { 
-      echo "<h1>Results</h1>";
-      echo "<p>Number of entries found: ".$num_results."</p>";
-  
-      for ($ii=0; $ii < sizeof($data); $ii++) {
-         $row = $data[$ii];
-         echo "<p><strong>".($ii+1).". Date: ";
-         echo htmlspecialchars(stripslashes($row['Date']));
-         echo "</strong><br />Distance [km]: ";
-         echo stripslashes($row['KM']);
-         echo "</strong><br />Time [s -> hh:mm:ss]: ";
-         echo stripslashes($row['Seconds'])."  ->  ".format_time($row['Seconds']);
-         echo "<br />Speed [km/h]: ";
-         echo stripslashes($row['KMH']);
-         echo "</p>";
-      }
-     
+      print_results($data);
     } else {
       echo $error_msg;
     }

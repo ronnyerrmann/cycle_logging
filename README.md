@@ -1,7 +1,7 @@
 # cycle_logging
 App to log daily exercise and and to analyse the data.
 
-One could just keep using a spreadsheet, or alternatively practise to use some other tools: MySQL, Python, Java, PHP...
+One could just keep using a spreadsheet, or alternatively practise to use some other tools: MySQL, Python, Java, PHP, Javascript, ...
 
 ### Create the database
 As root:
@@ -79,7 +79,13 @@ Here I want to add checks to the input data, split classes, and add a GUI later.
 ### Get results in a Webbrowser:
 Open `cycle.php` in your webserver (php needs to be activated). The folder `node_modules` needs to be copied to be located in the same path as `cycle.php`. When the search is performed, the file will call itself. The [settings file](#create-settings-file-to-use-for-programs) needs to be one level above the document root directory (e.g. */var/www/*) or **$mysqlsettingsfile** needs to be changed in the fist few lines of `cycle.php`.
 
-
+#### Install the javascript dependencies manually
+To use the most actual java script files, instead of copying the folder `node_modules` it can be created manually, using for example using **npm**. First npm is initiated in the current folder and then the required packages are installed:
+```
+cd <path/to/webserver/folder>
+npm init --y
+npm install chart.js jquery.min.js chartjs-plugin-zoom
+```
 
 ### Final notes:
 If you tried some or all of the scripts, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com

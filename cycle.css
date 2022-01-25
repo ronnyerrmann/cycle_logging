@@ -2,3 +2,14 @@ table.table_no_borders {border-style: none;}
 table.table_no_borders th {}
 table.table_no_borders tr {}
 table.table_no_borders td {}
+BODY {
+        width: 550PX;
+}
+#chart-container {
+        width: 100%;
+        height: auto;
+}
+.hidden-form {
+    display: none;
+<!--    visibility: hidden; -->
+}
