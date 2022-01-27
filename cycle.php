@@ -67,6 +67,7 @@
     $enddate=trim($_POST['enddate']);
     $x_axis=trim($_POST['x_axis_temp']);
     $y1_axis=trim($_POST['y1_axis_temp']);
+    $graph_type=trim($_POST['graph_type_temp']);
 
     if (!$searchtype || !$startdate || !$enddate) {
        $error_msg .= 'You have not entered all search details.  Please check and try again. ';
@@ -146,6 +147,7 @@
     }
     $x_axis="Date";
     $y1_axis="Distance";
+    $graph_type = "scatter";
   }
 ?>
 
@@ -156,6 +158,7 @@
   <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
   <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
   <script type="text/javascript" src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+  <script type="text/javascript" src="node_modules/moment/moment.js"></script>
   <script type="text/javascript" src="cycle.js"></script>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>  if not locally installed -->
 </head>
@@ -189,6 +192,7 @@
     </table> 
     <input name="x_axis_temp" id="x_axis_temp" type="hidden" value="<?php echo htmlspecialchars($x_axis); ?>" >
     <input name="y1_axis_temp" id="y1_axis_temp"type="hidden"  value="<?php echo htmlspecialchars($y1_axis); ?>" >
+    <input name="graph_type_temp" id="graph_type_temp"type="hidden"  value="<?php echo htmlspecialchars($graph_type); ?>" >
     <input type="submit" name="submit" value="Search"/>
   </form>
 
@@ -214,6 +218,11 @@
         <option value="Time" <?php if($y1_axis=="Time"){echo "selected";} ?> >Time</option>
         <option value="Speed" <?php if($y1_axis=="Speed"){echo "selected";} ?> >Speed</option>
       </select> 
+      <label for="graph_type">Graph Type</label>
+      <select id="graph_type" name="graph_type" onchange="update_axis_event(event, 'graph_type')">
+        <option value="scatter" <?php if($graph_type=="scatter"){echo "selected";} ?> >Scatter</option>
+        <option value="bar" <?php if($graph_type=="bar"){echo "selected";} ?> >Bar</option>
+      </select> 
     </div>
   </form>
 
@@ -224,9 +233,10 @@
       $('.hidden-form').show();
       var x_axis = <?php echo json_encode($x_axis); ?>;
       var y1_axis = <?php echo json_encode($y1_axis); ?>;
+      var graph_type = <?php echo json_encode($graph_type); ?>;
       var data = <?php echo json_encode($data); ?>;
       var graphTarget = document.querySelector("#graphCanvas");
-      update_graph_data(x_axis, y1_axis, graphTarget)
+      update_graph_data(x_axis, y1_axis, graph_type, graphTarget)
     } else {
       $('.hidden-form').hide();
     }
