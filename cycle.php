@@ -38,7 +38,7 @@
   
   function print_results($data) 
   {
-     echo "<h1>Results</h1>";
+     echo "<h3>Results</h3>";
      echo "<p>Number of entries found: ".sizeof($data)."</p>";
  
      for ($ii=0; $ii < sizeof($data); $ii++) {
@@ -68,7 +68,9 @@
     $x_axis=trim($_POST['x_axis_temp']);
     $y1_axis=trim($_POST['y1_axis_temp']);
     $graph_type=trim($_POST['graph_type_temp']);
-
+    $phase_fold=trim($_POST['phase_fold_temp']);
+    $min_date = trim($_POST['min_date']);
+    
     if (!$searchtype || !$startdate || !$enddate) {
        $error_msg .= 'You have not entered all search details.  Please check and try again. ';
        $no_problem = False;
@@ -90,16 +92,19 @@
        $searchtable="fahrrad_weekly_summary";
        $extratxt="Week";
        $datekey="Week_starting_on";
+       if ($phase_fold < 31 && $phase_fold > 0) {$phase_fold=30.4;}
        break;
     case "Months":
        $searchtable="fahrrad_monthly_summary";
        $extratxt="Month";
        $datekey="Month_starting_on";
+       if ($phase_fold < 366 && $phase_fold > 0) {$phase_fold=365.25;}
        break;
     case "Years":
        $searchtable="fahrrad_yearly_summary";
        $extratxt="Year";
        $datekey="Year_starting_on";
+       $phase_fold=0;
        break;
     default:
        $error_msg .= 'Somthing went wrong with input "'.$searchtype.'". Expected: "Days", "Weeks", "Months", or "Years". Please check and try again.';
@@ -130,6 +135,7 @@
   }
   else {
     $is_post = False;
+    $min_date = "1970-01-01";
     // Get mimimum and maximum year from data base
     if ($no_problem) {
       $stmt = $db->prepare("SELECT MIN(Year_starting_on) AS result FROM fahrrad_yearly_summary");
@@ -137,6 +143,7 @@
       $result = $stmt->get_result();
       if ($result->num_rows > 0){
         $startdate = $result->fetch_assoc()["result"];
+        $min_date = $startdate;
       }
       $stmt = $db->prepare("SELECT MAX(Date) AS result FROM fahrrad_rides");
       $stmt->execute();
@@ -148,12 +155,14 @@
     $x_axis="Date";
     $y1_axis="Distance";
     $graph_type = "scatter";
+    $phase_fold = 0;
   }
 ?>
 
 <html>
 <head>
   <title>Cycle rides</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="stylesheet" href="cycle.css?<?=filemtime('cycle.css')?>">      <!-- css is cached in a browser, so this causes it to reload everytime the file is changed-->
   <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
   <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
@@ -164,10 +173,9 @@
 </head>
 
 <body>
-  <h1>Search</h1>
+  <h3>Search</h3>
   
-  
-  <form method="post">
+  <form id="mysqlform" method="post">
   <!-- <form action="cycle_logging.php" method="post"> -->
     <table  class="table_no_borders">
       <tr>
@@ -191,9 +199,11 @@
       </tr>
     </table> 
     <input name="x_axis_temp" id="x_axis_temp" type="hidden" value="<?php echo htmlspecialchars($x_axis); ?>" >
-    <input name="y1_axis_temp" id="y1_axis_temp"type="hidden"  value="<?php echo htmlspecialchars($y1_axis); ?>" >
-    <input name="graph_type_temp" id="graph_type_temp"type="hidden"  value="<?php echo htmlspecialchars($graph_type); ?>" >
-    <input type="submit" name="submit" value="Search"/>
+    <input name="y1_axis_temp" id="y1_axis_temp" type="hidden"  value="<?php echo htmlspecialchars($y1_axis); ?>" >
+    <input name="graph_type_temp" id="graph_type_temp" type="hidden"  value="<?php echo htmlspecialchars($graph_type); ?>" >
+    <input name="phase_fold_temp" id="phase_fold_temp" type="hidden"  value="<?php echo htmlspecialchars($phase_fold); ?>" >
+    <input name="min_date" id="min_date" type="hidden"  value="<?php echo htmlspecialchars($min_date); ?>" >
+    <input type="submit" name="submitbutton" value="Search"/>
   </form>
 
   <div id="chart-container">
@@ -202,7 +212,7 @@
   </div>
 
   <form class="hidden-form" method="post">
-    <p id="to_log">Select data to show</p>
+    <h3 id="to_log">Select data to show</h3>
     <div class="form-group">
       <label for="x_axis">Data in x-axis</label>
       <select id="x_axis" name="x_axis" onchange="update_axis_event(event, 'x_axis')">
@@ -222,7 +232,26 @@
       <select id="graph_type" name="graph_type" onchange="update_axis_event(event, 'graph_type')">
         <option value="scatter" <?php if($graph_type=="scatter"){echo "selected";} ?> >Scatter</option>
         <option value="bar" <?php if($graph_type=="bar"){echo "selected";} ?> >Bar</option>
-      </select> 
+      </select>
+      <br>
+      <div class="option1">
+        <label for="phase_fold">Fold data</label>
+        <select id="phase_fold" name="phase_fold" onchange="update_axis_event(event, 'phase_fold')">
+          <option value=0 <?php if($phase_fold==0){echo "selected";} ?> >None</option>
+          <option id=phase_fold_year" value=365.25 <?php 
+                if($phase_fold==365.25){echo "selected";}
+                if($searchtype=="Years"){echo "disabled";} 
+          ?> >Year</option>
+          <option id=phase_fold_month" value=30.4 <?php 
+                if($phase_fold==30.4){echo "selected";}
+                if($searchtype=="Months" || $searchtype=="Years"){echo "disabled";} 
+          ?> >Month</option>
+          <option id=phase_fold_week" value=7 <?php 
+                if($phase_fold==7){echo "selected";}
+                if($searchtype=="Weeks" || $searchtype=="Months" || $searchtype=="Years"){echo "disabled";} 
+          ?> >Week</option>
+        </select>
+      </div>
     </div>
   </form>
 
@@ -230,13 +259,18 @@
     var is_post = <?php echo json_encode($is_post); ?>;
     var no_problem = <?php echo json_encode($no_problem); ?>;
     if (is_post && no_problem) {
-      $('.hidden-form').show();
+      $('.hidden-form').show();         // show the form with the data to plot
+      var searchtype = <?php echo json_encode($searchtype); ?>;
       var x_axis = <?php echo json_encode($x_axis); ?>;
       var y1_axis = <?php echo json_encode($y1_axis); ?>;
       var graph_type = <?php echo json_encode($graph_type); ?>;
+      var min_date = (new Date(<?php echo json_encode($min_date); ?>))*1;
+      if (x_axis=='Date' && graph_type == 'scatter' && searchtype != 'Years') { $('.option1').show(); }
+      else { $('.option1').hide(); }
+      var phase_fold = <?php echo json_encode($phase_fold); ?>;
       var data = <?php echo json_encode($data); ?>;
       var graphTarget = document.querySelector("#graphCanvas");
-      update_graph_data(x_axis, y1_axis, graph_type, graphTarget)
+      update_graph_data(x_axis, y1_axis, graph_type, phase_fold, graphTarget)
     } else {
       $('.hidden-form').hide();
     }
