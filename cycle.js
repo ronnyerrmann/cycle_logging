@@ -98,7 +98,9 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                    display: true,           // Chart.js version 3
                    text: y1_axis            // Chart.js version 3
                  },
-                 ticks: chartoption_y_ticks
+                 ticks: chartoption_y_ticks,
+                 min: Math.min(yy1),        // doesn't work?
+                 max: Math.max(yy1),        // doesn't work?
                },
                x: {
                  scaleLabel: {
@@ -118,8 +120,11 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                   wheel: {
                     enabled: true,
                   },
+                  drag: {
+                    enabled: true,
+                  },
                   pinch: {
-                    enabled: true
+                    enabled: false,
                   },
                   mode: 'xy',
                 }
@@ -133,8 +138,10 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
     var chartdata = {
             datasets: [{
               label: y1_axis,     // this is for legend
-              pointRadius: 2,
               pointBackgroundColor: "rgba(0,0,255,1)",
+              hoverBackgroundColor: '#CCCCCC',
+              hoverBorderColor: '#666666',
+              pointRadius: 2,
               data: xy
             }]
     };
@@ -147,6 +154,7 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                                 borderColor: '#46d5f1',
                                 hoverBackgroundColor: '#CCCCCC',
                                 hoverBorderColor: '#666666',
+                                pointRadius: 2,
                                 data: yy1
                 }]
     };

@@ -231,6 +231,7 @@
       <label for="graph_type">Graph Type</label>
       <select id="graph_type" name="graph_type" onchange="update_axis_event(event, 'graph_type')">
         <option value="scatter" <?php if($graph_type=="scatter"){echo "selected";} ?> >Scatter</option>
+         <option value="line" <?php if($graph_type=="line"){echo "selected";} ?> >Line</option>
         <option value="bar" <?php if($graph_type=="bar"){echo "selected";} ?> >Bar</option>
       </select>
       <br>
@@ -256,6 +257,7 @@
   </form>
 
   <script>
+    // won't work on smartphones
     var is_post = <?php echo json_encode($is_post); ?>;
     var no_problem = <?php echo json_encode($no_problem); ?>;
     if (is_post && no_problem) {
