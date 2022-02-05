@@ -79,6 +79,8 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                     }
                  }
     chartoption_y_ticks =  {
+                    // min: Math.min(yy1),        // v2, but not necessary
+                    // max: Math.max(yy1),        // v2, but not necessary
                     callback: function(value, index, ticks) {
                         //return new Date(value).toLocaleDateString(undefined, {day: "numeric", month: "numeric",year: "numeric"});
                         if (y1_axis=="Date") {return new Date(value).toISOString().substring(0, 10);}
@@ -99,8 +101,8 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                    text: y1_axis            // Chart.js version 3
                  },
                  ticks: chartoption_y_ticks,
-                 min: Math.min(yy1),        // doesn't work?
-                 max: Math.max(yy1),        // doesn't work?
+                 // suggestedMin: Math.min(yy1),        // v3, but not necessary
+                 // suggestedMax: Math.max(yy1),        // v3, but not necessary
                },
                x: {
                  scaleLabel: {
@@ -124,7 +126,7 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                     enabled: true,
                   },
                   pinch: {
-                    enabled: false,
+                    enabled: true,
                   },
                   mode: 'xy',
                 }

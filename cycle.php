@@ -203,7 +203,7 @@
     <input name="graph_type_temp" id="graph_type_temp" type="hidden"  value="<?php echo htmlspecialchars($graph_type); ?>" >
     <input name="phase_fold_temp" id="phase_fold_temp" type="hidden"  value="<?php echo htmlspecialchars($phase_fold); ?>" >
     <input name="min_date" id="min_date" type="hidden"  value="<?php echo htmlspecialchars($min_date); ?>" >
-    <input type="submit" name="submitbutton" value="Search"/>
+    <input type="submit" name="submitbutton" value="Get the data from database"/>
   </form>
 
   <div id="chart-container">
