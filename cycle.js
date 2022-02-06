@@ -38,28 +38,43 @@ function update_graph_data(x_axis, y1_axis, graph_type, phase_fold, graphTarget)
   var yy1 = [];
   var xy = [];
   var dividor = 0;
+  var phase_fold_number = 0;
   const sec_per_day = 24*3600;
   const millisec_per_day = sec_per_day*1000;
-  if (phase_fold > 0 && x_axis=='Date' && graph_type == 'scatter') {dividor=phase_fold*millisec_per_day;}
+  if (phase_fold=='Year') {phase_fold_number = 365.25}
+  else if (phase_fold=='Month') {phase_fold_number = 30.4}
+  else if (phase_fold=='Week') {phase_fold_number = 7}
+  if (phase_fold_number > 0 && x_axis=='Date' && graph_type == 'scatter') {
+    dividor=phase_fold_number*millisec_per_day;
+    var xy = {};
+  } else {
+    var xy = [];
+  }
   
   for (var ii in data) {
     x1 = assign_data_to_axis(x_axis,ii, graph_type);
-    if (dividor > 0) {
-      var phase = (x1-min_date)/dividor;
-      //document.write(x1+' '+x1/1000+' '+phase);
-      x1 = new Date( (phase - Math.floor(phase))*dividor+min_date );
-      //document.write(' '+x1+' '+(phase - Math.floor(phase))*millisec_per_day+'\n');
-    }
     y1 = assign_data_to_axis(y1_axis,ii, graph_type);
+    if (dividor > 0) {
+      var phase = (x1-min_date)/dividor;        // cycle.phase
+      //document.write(x1+' '+x1/1000+' '+phase);
+      cycle = Math.floor(phase)
+      x1 = new Date( (phase - cycle)*dividor+min_date );
+      //document.write(' '+x1+' '+(phase - Math.floor(phase))*millisec_per_day+'\n');
+      if (!xy[cycle]) {xy[cycle] = [];}
+      xy[cycle].push({x:x1, y:y1});
+    }
+    else {
+      xy.push({x:x1, y:y1});
+    }
     xx.push(x1);
     yy1.push(y1);
-    xy.push({x:x1, y:y1});
+    
   }
-  showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget); 
+  showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_fold, phase_fold_number); 
   
 }
 
-function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
+function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_fold, phase_fold_number){
   //graphTarget.remove();
   // doesn't work, can't create chart and Canvas is already in use // document.querySelector("#graphCanvas").remove(); $(document).ready(function(){$("#chart-container").append('<canvas id="graphCanvas"></canvas>');}); graphTarget = document.querySelector("#graphCanvas");
   //document.querySelector("#chart-container").append('<canvas id="graphCanvas"></canvas>');
@@ -130,13 +145,16 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                   },
                   mode: 'xy',
                 }
+              },
+              colorschemes: {
+                scheme: 'brewer.Paired12' //'tableau.Tableau20'
               }
             }
             //scales: {xAxes: [{type: "datetime"}]}
             //scales: {xAxes: [{ticks: {callback: (value) => {return new Date(value).toLocaleDateString("fa-IR", {month: "short",year: "numeric"});}}}]}
   }
 
-  if (graph_type=="scatter") {
+  if (graph_type=="scatter" && phase_fold_number == 0) {
     var chartdata = {
             datasets: [{
               label: y1_axis,     // this is for legend
@@ -147,6 +165,23 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
               data: xy
             }]
     };
+  } else if (graph_type=="scatter") {
+    var chartdata_entries = [];
+    var first_entry_txt = y1_axis+'_';
+    for (const key in xy) {
+      //document.write(Object.keys(xy).length);
+      chartdata_entries.push({
+              label: first_entry_txt+phase_fold+key,     // this is for legend
+              //pointBackgroundColor: "rgba(0,0,255,1)",
+              //hoverBackgroundColor: '#CCCCCC',
+              //hoverBorderColor: '#666666',
+              pointRadius: 2,
+              showLine: true,
+              data: xy[key]
+      });
+      first_entry_txt = '';
+    }
+    var chartdata = {datasets: chartdata_entries};
   } else {
     var chartdata = {
                 labels: xx,
@@ -161,7 +196,7 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget ){
                 }]
     };
   }
-  
+
   var myGraph = new Chart(graphTarget, {
            type: graph_type,
            data: chartdata,

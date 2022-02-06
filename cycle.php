@@ -167,7 +167,7 @@
   <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
   <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
   <script type="text/javascript" src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
-  <script type="text/javascript" src="node_modules/moment/moment.js"></script>
+  <script type="text/javascript" src="node_modules/chartjs-plugin-colorschemes/dist/chartjs-plugin-colorschemes.js"></script>
   <script type="text/javascript" src="cycle.js"></script>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>  if not locally installed -->
 </head>
@@ -239,16 +239,16 @@
         <label for="phase_fold">Fold data</label>
         <select id="phase_fold" name="phase_fold" onchange="update_axis_event(event, 'phase_fold')">
           <option value=0 <?php if($phase_fold==0){echo "selected";} ?> >None</option>
-          <option id=phase_fold_year" value=365.25 <?php 
-                if($phase_fold==365.25){echo "selected";}
+          <option id=phase_fold_year" value='Year' <?php 
+                if($phase_fold=='Year'){echo "selected";}
                 if($searchtype=="Years"){echo "disabled";} 
           ?> >Year</option>
-          <option id=phase_fold_month" value=30.4 <?php 
-                if($phase_fold==30.4){echo "selected";}
+          <option id=phase_fold_month" value='Month' <?php 
+                if($phase_fold=='Month'){echo "selected";}
                 if($searchtype=="Months" || $searchtype=="Years"){echo "disabled";} 
           ?> >Month</option>
-          <option id=phase_fold_week" value=7 <?php 
-                if($phase_fold==7){echo "selected";}
+          <option id=phase_fold_week" value='Week' <?php 
+                if($phase_fold=='Week'){echo "selected";}
                 if($searchtype=="Weeks" || $searchtype=="Months" || $searchtype=="Years"){echo "disabled";} 
           ?> >Week</option>
         </select>

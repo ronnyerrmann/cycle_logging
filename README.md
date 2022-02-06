@@ -92,6 +92,7 @@ cd <path/to/webserver/folder>
 npm init --y
 npm install chart.js jquery.min.js chartjs-plugin-zoom
 ```
+The changes described in https://github.com/nagix/chartjs-plugin-colorschemes/issues/28#issuecomment-930930205 have to be applied to `node_modules/chartjs-plugin-colorschemes/dist/chartjs-plugin-colorschemes.js`
 
 ### Final notes:
 If you tried some or all of the scripts, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com
