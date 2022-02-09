@@ -3,7 +3,7 @@ table.table_no_borders th {}
 table.table_no_borders tr {}
 table.table_no_borders td {}
 BODY {
-        width: 550PX;
+        width: 800PX;
 }
 #chart-container {
         width: 100%;

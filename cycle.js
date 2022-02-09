@@ -129,7 +129,7 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
                    text: x_axis            // Chart.js version 3
                  },
                  ticks: chartoption_x_ticks
-               }
+               },
              },
              plugins: {
               zoom: {
@@ -146,8 +146,15 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
                   mode: 'xy',
                 }
               },
-              colorschemes: {
-                scheme: 'brewer.Paired12' //'tableau.Tableau20'
+              legend: {
+                labels: {
+                  boxWidth: 5,      // make the box in the legend smaller
+                  boxHeight: 10,    // make the box in the legend smaller
+                  padding:5         // space between label and box
+                }
+              },
+              colorschemes: {               // doesn't work
+                scheme: 'brewer.Paired12' //'tableau.Tableau20'    
               }
             }
             //scales: {xAxes: [{type: "datetime"}]}
@@ -166,20 +173,24 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
             }]
     };
   } else if (graph_type=="scatter") {
+    var available_colours = ['#9999ff', '#993366', '#ffffcc', '#ccffff', '#660066', '#ff8080', '#0066cc', '#ccccff', '#000080', '#ff00ff', '#ffff00', '#0000ff', '#800080', '#800000', '#008080', '#0000ff']
     var chartdata_entries = [];
     var first_entry_txt = y1_axis+'_';
+    var ii = 0;
     for (const key in xy) {
-      //document.write(Object.keys(xy).length);
+      //document.write(ii+' '+ available_colours.length+'  ');
       chartdata_entries.push({
               label: first_entry_txt+phase_fold+key,     // this is for legend
-              //pointBackgroundColor: "rgba(0,0,255,1)",
-              //hoverBackgroundColor: '#CCCCCC',
-              //hoverBorderColor: '#666666',
+              pointBackgroundColor: available_colours[ii],
               pointRadius: 2,
+              backgroundColor: available_colours[ii],   // changes the colour in the legend
               showLine: true,
+              borderColor: available_colours[ii],       // cahnges the line colour
               data: xy[key]
       });
       first_entry_txt = '';
+      ii += 1;
+      if (ii == available_colours.length) { ii = 0; }   // restart colours
     }
     var chartdata = {datasets: chartdata_entries};
   } else {
