@@ -332,6 +332,7 @@ public class Fahrrad {
         
         get_fahrrad_values();
         // check that TotalKM or TotalSeconds not yet in database
+        //check_values_with_db(rs);
         
         // check that entry not yet in database
         

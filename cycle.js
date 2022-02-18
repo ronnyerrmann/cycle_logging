@@ -23,22 +23,22 @@ function update_axis_event(e, axis) {
 
 function assign_data_to_axis(axis, ii, graph_type) {
   if (axis=="Date"){
-    if (graph_type=="scatter") {var temp=new Date(data[ii].Date);}
-    else {var temp=data[ii].Date;}
+    if (graph_type=="scatter") {let temp=new Date(data[ii].Date);}
+    else {let temp=data[ii].Date;}
   }
-  else if (axis=="Distance"){var temp=data[ii].KM;}
-  else if (axis=="Time"){var temp=data[ii].Seconds;}
-  else if (axis=="Speed"){var temp=data[ii].KMH;}
+  else if (axis=="Distance"){let temp=data[ii].KM;}
+  else if (axis=="Time"){let temp=data[ii].Seconds;}
+  else if (axis=="Speed"){let temp=data[ii].KMH;}
   //document.write(temp);
   return temp;
 }
 
 function update_graph_data(x_axis, y1_axis, graph_type, phase_fold, graphTarget) { 
-  var xx = [];
-  var yy1 = [];
-  var xy = [];
-  var dividor = 0;
-  var phase_fold_number = 0;
+  let xx = [];
+  let yy1 = [];
+  let xy = [];
+  let dividor = 0;
+  let phase_fold_number = 0;
   const sec_per_day = 24*3600;
   const millisec_per_day = sec_per_day*1000;
   if (phase_fold=='Year') {phase_fold_number = 365.25}
@@ -46,16 +46,16 @@ function update_graph_data(x_axis, y1_axis, graph_type, phase_fold, graphTarget)
   else if (phase_fold=='Week') {phase_fold_number = 7}
   if (phase_fold_number > 0 && x_axis=='Date' && graph_type == 'scatter') {
     dividor=phase_fold_number*millisec_per_day;
-    var xy = {};
+    let xy = {};
   } else {
-    var xy = [];
+    let xy = [];
   }
   
-  for (var ii in data) {
+  for (let ii in data) {
     x1 = assign_data_to_axis(x_axis,ii, graph_type);
     y1 = assign_data_to_axis(y1_axis,ii, graph_type);
     if (dividor > 0) {
-      var phase = (x1-min_date)/dividor;        // cycle.phase
+      let phase = (x1-min_date)/dividor;        // cycle.phase
       //document.write(x1+' '+x1/1000+' '+phase);
       cycle = Math.floor(phase)
       x1 = new Date( (phase - cycle)*dividor+min_date );
@@ -82,8 +82,8 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
   // doesn't work, is always undefined, probably as in fucntion // if (window.barGraph != undefined) window.barGraph.destroy();
   //document.getElementById("to_log").innerHTML = graph_type;
   
-  var chartoption_x_ticks = {};
-  var chartoption_y_ticks = {};
+  let chartoption_x_ticks = {};
+  let chartoption_y_ticks = {};
   if (graph_type=="scatter") {
     chartoption_x_ticks =  {
                     callback: function(value, index, ticks) {
@@ -104,7 +104,7 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
     }
   };
   
-  var chartoption = {
+  let chartoption = {
              scales: {
                y: {
                  scaleLabel: {
@@ -162,7 +162,7 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
   }
 
   if (graph_type=="scatter" && phase_fold_number == 0) {
-    var chartdata = {
+    let chartdata = {
             datasets: [{
               label: y1_axis,     // this is for legend
               pointBackgroundColor: "rgba(0,0,255,1)",
@@ -173,10 +173,10 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
             }]
     };
   } else if (graph_type=="scatter") {
-    var available_colours = ['#9999ff', '#993366', '#ffffcc', '#ccffff', '#660066', '#ff8080', '#0066cc', '#ccccff', '#000080', '#ff00ff', '#ffff00', '#0000ff', '#800080', '#800000', '#008080', '#0000ff']
-    var chartdata_entries = [];
-    var first_entry_txt = y1_axis+'_';
-    var ii = 0;
+    let available_colours = ['#9999ff', '#993366', '#ffffcc', '#ccffff', '#660066', '#ff8080', '#0066cc', '#ccccff', '#000080', '#ff00ff', '#ffff00', '#0000ff', '#800080', '#800000', '#008080', '#0000ff']
+    let chartdata_entries = [];
+    let first_entry_txt = y1_axis+'_';
+    let ii = 0;
     for (const key in xy) {
       //document.write(ii+' '+ available_colours.length+'  ');
       chartdata_entries.push({
@@ -192,9 +192,9 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
       ii += 1;
       if (ii == available_colours.length) { ii = 0; }   // restart colours
     }
-    var chartdata = {datasets: chartdata_entries};
+    let chartdata = {datasets: chartdata_entries};
   } else {
-    var chartdata = {
+    let chartdata = {
                 labels: xx,
                 datasets: [{
                                 label: y1_axis,
