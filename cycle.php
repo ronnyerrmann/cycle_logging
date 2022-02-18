@@ -258,8 +258,8 @@
 
   <script>
     // won't work on smartphones
-    var is_post = <?php echo json_encode($is_post); ?>;
-    var no_problem = <?php echo json_encode($no_problem); ?>;
+    const is_post = <?php echo json_encode($is_post); ?>;
+    const no_problem = <?php echo json_encode($no_problem); ?>;
     if (is_post && no_problem) {
       $('.hidden-form').show();         // show the form with the data to plot
       var searchtype = <?php echo json_encode($searchtype); ?>;

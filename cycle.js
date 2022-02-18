@@ -22,13 +22,14 @@ function update_axis_event(e, axis) {
 }
 
 function assign_data_to_axis(axis, ii, graph_type) {
-  if (axis=="Date"){
-    if (graph_type=="scatter") {let temp=new Date(data[ii].Date);}
-    else {let temp=data[ii].Date;}
+  let temp;
+  if (axis==="Date"){
+    if (graph_type==="scatter") {temp=new Date(data[ii].Date);}
+    else {temp=data[ii].Date;}
   }
-  else if (axis=="Distance"){let temp=data[ii].KM;}
-  else if (axis=="Time"){let temp=data[ii].Seconds;}
-  else if (axis=="Speed"){let temp=data[ii].KMH;}
+  else if (axis==="Distance"){temp=data[ii].KM;}
+  else if (axis==="Time"){temp=data[ii].Seconds;}
+  else if (axis==="Speed"){temp=data[ii].KMH;}
   //document.write(temp);
   return temp;
 }
@@ -55,7 +56,7 @@ function update_graph_data(x_axis, y1_axis, graph_type, phase_fold, graphTarget)
     x1 = assign_data_to_axis(x_axis,ii, graph_type);
     y1 = assign_data_to_axis(y1_axis,ii, graph_type);
     if (dividor > 0) {
-      let phase = (x1-min_date)/dividor;        // cycle.phase
+      const phase = (x1-min_date)/dividor;        // cycle.phase
       //document.write(x1+' '+x1/1000+' '+phase);
       cycle = Math.floor(phase)
       x1 = new Date( (phase - cycle)*dividor+min_date );
@@ -160,9 +161,9 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
             //scales: {xAxes: [{type: "datetime"}]}
             //scales: {xAxes: [{ticks: {callback: (value) => {return new Date(value).toLocaleDateString("fa-IR", {month: "short",year: "numeric"});}}}]}
   }
-
-  if (graph_type=="scatter" && phase_fold_number == 0) {
-    let chartdata = {
+  let chartdata = {};
+  if (graph_type==="scatter" && phase_fold_number == 0) {
+    chartdata = {
             datasets: [{
               label: y1_axis,     // this is for legend
               pointBackgroundColor: "rgba(0,0,255,1)",
@@ -172,12 +173,12 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
               data: xy
             }]
     };
-  } else if (graph_type=="scatter") {
-    let available_colours = ['#9999ff', '#993366', '#ffffcc', '#ccffff', '#660066', '#ff8080', '#0066cc', '#ccccff', '#000080', '#ff00ff', '#ffff00', '#0000ff', '#800080', '#800000', '#008080', '#0000ff']
+  } else if (graph_type==="scatter") {
+    const available_colours = ['#9999ff', '#993366', '#ffffcc', '#ccffff', '#660066', '#ff8080', '#0066cc', '#ccccff', '#000080', '#ff00ff', '#ffff00', '#0000ff', '#800080', '#800000', '#008080', '#0000ff']
     let chartdata_entries = [];
     let first_entry_txt = y1_axis+'_';
     let ii = 0;
-    for (const key in xy) {
+    for (let key in xy) {
       //document.write(ii+' '+ available_colours.length+'  ');
       chartdata_entries.push({
               label: first_entry_txt+phase_fold+key,     // this is for legend
@@ -192,9 +193,9 @@ function showGraph(xx, yy1, xy, x_axis, y1_axis, graph_type, graphTarget, phase_
       ii += 1;
       if (ii == available_colours.length) { ii = 0; }   // restart colours
     }
-    let chartdata = {datasets: chartdata_entries};
+    chartdata = {datasets: chartdata_entries};
   } else {
-    let chartdata = {
+    chartdata = {
                 labels: xx,
                 datasets: [{
                                 label: y1_axis,
