@@ -3,7 +3,7 @@ import java.io.*;
 import java.util.*;
 import java.time.LocalDate;
 import java.time.Month;
-//import Connection_MYSQL; the Connection_MYSQL just needs to be in the same folder
+import Connection_MYSQL; the Connection_MYSQL just needs to be in the same folder
 // java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
 
 public class Fahrrad {
@@ -13,8 +13,7 @@ public class Fahrrad {
     static final String mysqlsettingsfile = "fahrrad_mysql.params";
     //static final Connection conn;
     String DB_URL;
-    {
-        // This code is executed before every constructor.
+    {   // This code is executed before every constructor.
         mysql_Settings.put("host", "localhost");
         mysql_Settings.put("user", "yourusername");
         mysql_Settings.put("password", "yourpassword");
