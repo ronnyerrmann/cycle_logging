@@ -3,8 +3,9 @@ import java.io.*;
 import java.util.*;
 import java.time.LocalDate;
 import java.time.Month;
-import Connection_MYSQL; the Connection_MYSQL just needs to be in the same folder
-// java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
+import javaCycle.ConnectionMYSQL;
+import javaCycle.StringModifications;
+// javac -d . StringModifications.java && javac -d . -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. ConnectionMYSQL.java && java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
 
 public class Fahrrad {
     Dictionary mysql_Settings = new Hashtable();
@@ -47,31 +48,9 @@ public class Fahrrad {
         return content;
     }
     
-    public ArrayList<String> Array2ArrayList(String[] input){
-        // Convert Array into an Arraylist
-        ArrayList<String> output = new ArrayList<String>();
-        for (int ii=0; ii<input.length; ii++){
-            output.add(input[ii]); }
-        return output;
-    }
-    
-    public List<ArrayList<String>> Split_string(List<String> content, String delimiter ){
-        List<ArrayList<String>> content_split = new ArrayList<ArrayList<String>>();
-            
-        content.forEach((content_entry)  -> 
-        {
-            String[] splitStr = content_entry.trim().split(delimiter);
-            ArrayList<String> splitStr_a = Array2ArrayList(splitStr);   // Convert Array into an Arraylist
-            content_split.add(splitStr_a);
-        }
-                );    
-            
-        return content_split;
-    }
-    
     public void Load_settings(String filename){
         List<String> content = Load_File(filename);
-        List<ArrayList<String>> content_split = Split_string(content, "=");
+        List<ArrayList<String>> content_split = StringModifications.SplitStringTrim(content, "=");
         for (int ii=0; ii<content_split.size(); ii++){
             ArrayList<String> key_value = content_split.get(ii);
             this.mysql_Settings.put(key_value.get(0).trim(), key_value.get(1).trim());  // trim(): remove leading and trailing whitespace

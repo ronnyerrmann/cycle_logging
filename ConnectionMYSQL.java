@@ -1,8 +1,11 @@
+package javaCycle;
 import java.sql.*;
 import java.io.*;
 import java.util.*;
+import stringModifications.StringModifications;
+// javac -d . -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. ConnectionMYSQL.java
 
-public class Connection_MYSQL {
+public class ConnectionMYSQL {
     Dictionary mysql_Settings = new Hashtable();
     
     static final String mysqlsettingsfile = "fahrrad_mysql.params";
@@ -10,7 +13,7 @@ public class Connection_MYSQL {
     Connection conn;
     String DB_URL;
     {   // This code is executed before every constructor.
-        //if (DB != "") {DB_URL += "/" + DB;}
+        // fill array with dummy values
         mysql_Settings.put("host", "localhost");
         mysql_Settings.put("user", "yourusername");
         mysql_Settings.put("password", "yourpassword");
@@ -46,38 +49,16 @@ public class Connection_MYSQL {
         return content;
     }
     
-    public ArrayList<String> Array2ArrayList(String[] input){
-        // Convert Array into an Arraylist
-        ArrayList<String> output = new ArrayList<String>();
-        for (int ii=0; ii<input.length; ii++){
-            output.add(input[ii]); }
-        return output;
-    }
-    
-    public List<ArrayList<String>> Split_string(List<String> content, String delimiter ){
-        List<ArrayList<String>> content_split = new ArrayList<ArrayList<String>>();
-            
-        content.forEach((content_entry)  -> 
-        {
-            String[] splitStr = content_entry.trim().split(delimiter);
-            ArrayList<String> splitStr_a = Array2ArrayList(splitStr);   // Convert Array into an Arraylist
-            content_split.add(splitStr_a);
-        }
-                );    
-            
-        return content_split;
-    }
-    
     public void Load_settings(String filename){
         List<String> content = Load_File(filename);
-        List<ArrayList<String>> content_split = Split_string(content, "=");
+        List<ArrayList<String>> content_split = StringModifications.SplitStringTrim(content, "=");
         for (int ii=0; ii<content_split.size(); ii++){
             ArrayList<String> key_value = content_split.get(ii);
             this.mysql_Settings.put(key_value.get(0).trim(), key_value.get(1).trim());  // trim(): remove leading and trailing whitespace
         }
     }
     
-    public Connection Connection_MYSQL_aa()
+    public Connection ConnectionMYSQL_aa()     // was a try that didn't work
     {
         DB_URL = "jdbc:mysql://" + this.mysql_Settings.get("host");
         if (this.mysql_Settings.get("db") != "") {DB_URL += "/" + this.mysql_Settings.get("db");}
@@ -94,11 +75,10 @@ public class Connection_MYSQL {
         
     }
     
-    public Connection Connection_MYSQL()
+    public Connection ConnectionMYSQL()
     {
         DB_URL = "jdbc:mysql://" + this.mysql_Settings.get("host");
         if (this.mysql_Settings.get("db") != "") {DB_URL += "/" + this.mysql_Settings.get("db");}
-       
         try {
             Connection temp_conn = DriverManager.getConnection(DB_URL, (String)mysql_Settings.get("user"), (String)mysql_Settings.get("password"));
             Statement stmt = temp_conn.createStatement();
@@ -114,7 +94,7 @@ public class Connection_MYSQL {
     {
         try
         {
-            Connection_MYSQL obj = new Connection_MYSQL ();     // initialise
+            ConnectionMYSQL obj = new ConnectionMYSQL ();     // initialise
             obj.run (args);
         }
         catch (Exception e)
@@ -136,16 +116,16 @@ public class Connection_MYSQL {
         
         // Open a connection
         //Class.forName("com.mysql.jdbc.Driver");     // depreciation warning
-        Class.forName("com.mysql.cj.jdbc.Driver");      // java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar Connection_MYSQL.java
-        // 202202020: trying to get conn back from Connection_MYSQL();
-        /*Connection conn = Connection_MYSQL_aa();
+        Class.forName("com.mysql.cj.jdbc.Driver");      // java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar ConnectionMYSQL.java
+        // 202202020: trying to get conn back from ConnectionMYSQL();
+        /*Connection conn = ConnectionMYSQL_aa();
         Statement stmt = conn.createStatement();    // fails, as the connection is already closed       */
-        // 202202020: trying to get conn back from Connection_MYSQL();
-        Connection conn = Connection_MYSQL();
+        // 202202020: trying to get conn back from ConnectionMYSQL();
+        Connection conn = ConnectionMYSQL();
         Statement stmt = conn.createStatement();    // fails, as the connection is already closed
         
         System.out.print("222: ");
-        // Connection_MYSQL();                      // this could replace the try - catch below
+        // ConnectionMYSQL();                      // this could replace the try - catch below
         DB_URL = "jdbc:mysql://" + mysql_Settings.get("host");
         if (mysql_Settings.get("db") != "") {DB_URL += "/" + mysql_Settings.get("db");}
         try(Connection conn1 = DriverManager.getConnection(DB_URL, (String)mysql_Settings.get("user"), (String)mysql_Settings.get("password"));
