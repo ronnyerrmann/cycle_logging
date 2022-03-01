@@ -40,19 +40,15 @@
   {
      echo "<h3>Results</h3>";
      echo "<p>Number of entries found: ".sizeof($data)."</p>";
- 
+     echo "<table  class='table_inner_borders'>";
+     echo "  <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>";
+     $tableString = "<tr> <td>%d</td> <td>%s</td> <td>%4.2f</td> <td>%s</td> <td>%4.2f</td> </tr>";
      for ($ii=0; $ii < sizeof($data); $ii++) {
         $row = $data[$ii];
-        echo "<p><strong>".($ii+1).". Date: ";
-        echo htmlspecialchars(stripslashes($row['Date']));
-        echo "</strong><br />Distance [km]: ";
-        echo stripslashes($row['KM']);
-        echo "</strong><br />Time [s -> hh:mm:ss]: ";
-        echo stripslashes($row['Seconds'])."  ->  ".format_time($row['Seconds']);
-        echo "<br />Speed [km/h]: ";
-        echo stripslashes($row['KMH']);
-        echo "</p>";
+        //echo "<tr> <td>".($ii+1)."</td> <td>".htmlspecialchars(stripslashes($row['Date']))."</td> <td>".stripslashes($row['KM'])."</td> <td>".format_time($row['Seconds'])."</td> <td>".stripslashes($row['KMH'])."</td> </tr>";
+        echo sprintf( $tableString, $ii+1, htmlspecialchars(stripslashes($row['Date'])), stripslashes($row['KM']), format_time($row['Seconds']), stripslashes($row['KMH']) );
      }
+     echo "</table>";
   }
   
   
