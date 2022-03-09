@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Ronny Errmann"
-__copyright__ = "Copyright 2021, Ronny"
+__copyright__ = "Copyright 2022, Ronny"
 __credits__ = ["Thanks"]
 __license__ = "GPL"
 __version__ = "1.0.0"
@@ -15,6 +15,7 @@ import mysql.connector
 import datetime
 import time
 import numpy as np
+from my_proc import mysqlset
 
 # csv file parameters
 number_of_header_lines = 1          # Number of lines in the header
@@ -24,6 +25,7 @@ entries_for_mysql = ["Date", "DayKM", "DaySeconds", "TotalKM", "TotalSeconds"]  
 mysqlhost = "localhost"             # will be overwritten by value in mysqlsettingsfile, if exists
 mysqluser = "yourusername"          # will be overwritten by value in mysqlsettingsfile, if exists
 mysqlpassword = "yourpassword"      # will be overwritten by value in mysqlsettingsfile, if exists
+db = "fahrrad"                      # will be overwritten by value in mysqlsettingsfile, if exists
 # Parameters host, user, password can come from mysqlsettingsfile
 mysqlsettingsfile = "fahrrad_mysql.params"      # optional settings file (sensitive information is not hardcoded); Format: "parameter = value", Comments start with "#", number of spaces doesn't matter
 
@@ -139,47 +141,14 @@ def convert_readfile(input_list, textformats, delimiter='\t', replaces=[], ignor
         result_list.append(entry)
     return result_list
 
-def read_parameterfile(parameterfile):
-    # load text file (remove all white spaces)
-    if not os.path.exists(parameterfile):
-        print('Error: The parameterfile {0} does not exist.'.format(parameterfile))
-    """ # Extra steps to check that the user didn't make mistakes in the file:
-    data = read_text_file(textfile, no_empty_lines=True)
-    data = convert_readfile(data, [str,str], delimiter='=', replaces=[' ', '\t',['\\',' ']], ignorelines=['#'])         # this replaces too many spaces
-    for line in data:
-        if len(line) != 2:
-            print(('Error: The line in file {0} containing the entries {1} has the wrong format. Expected was "parameter = value(s)" .'+\
-                    'Please check if the "=" sign is there or if a comment "#" is missing.').format(textfile, line))"""
-    try:
-        keys, values = np.genfromtxt(parameterfile, dtype=str, comments='#', delimiter='=', filling_values='', autostrip=True, unpack=True)
-    except ValueError as error:
-        print(error)
-        print(('Error: One line (see previous output (empty lines are missing in the line number counting)) in file {0} has the wrong format. Expected was "parameter = value(s)" .'+\
-                'Please check if the "=" sign is there or if a comment "#" is missing.').format(textfile))
-        # raise                 # just this to show the error
-        # raise ValueError      # Don't do this, you'll lose the stack trace!
-    if len(keys) == 0 or len(values) == 0:
-        print('Error: No values found when reading the parameterfile {0}.'.format(textfile))
-    textparams = dict(zip(keys, values))
-    
-    return textparams
-
-
-
 if __name__ == "__main__":
     # Get Parameter:
     if len(sys.argv) == 1:
         print("Please give the csv file as parameter")
         exit(1)
-        
-    # Read settings file
-    mysqlsettings = dict(host=mysqlhost, user=mysqluser, password=mysqlpassword)
-    if os.path.exists(mysqlsettingsfile):
-        mysqlsettings_read = read_parameterfile(mysqlsettingsfile)
-        mysqlsettings.update(mysqlsettings_read)        # Parameters from the settingsfile have priority
-        print('Read file: {0}, using information: {1}'.format(mysqlsettingsfile, mysqlsettings))
-    else:
-        print('No file: {0}, using hardcoded information: {1}'.format(mysqlsettingsfile, mysqlsettings))
+    mysqlsettings_temp = dict(host=mysqlhost, user=mysqluser, password=mysqlpassword, db=db)
+    mysqlset = mysqlset(mysqlsettings_temp)
+    mysqlset.read_file(mysqlsettingsfile)
         
     # Read csv file
     csvfile = sys.argv[1]
@@ -250,7 +219,8 @@ if __name__ == "__main__":
     
     # connect to database
     try:
-        mydb = mysql.connector.connect( host=mysqlsettings['host'], user=mysqlsettings['user'], password=mysqlsettings['password'],  database=mysqlsettings['db'] )
+        mysqldata = mysqlset.mysqlsettings
+        mydb = mysql.connector.connect( host=mysqldata['host'], user=mysqldata['user'], password=mysqldata['password'],  database=mysqldata['db'] )
     except (mysql.connector.Error, mysql.connector.Warning) as e:
         print(e)
         exit(1)

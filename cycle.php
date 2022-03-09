@@ -38,7 +38,7 @@
   
   function print_results($data) 
   {
-     echo "<h3>Results</h3>";
+     echo "<h3>Result table</h3>";
      echo "<p>Number of entries found: ".sizeof($data)."</p>";
      echo "<table  class='table_inner_borders'>";
      echo "  <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>";
@@ -163,7 +163,8 @@
   <script type="text/javascript" src="node_modules/jquery.min.js/jquery.min.js"></script>
   <script type="text/javascript" src="node_modules/chart.js/dist/chart.min.js"></script>
   <script type="text/javascript" src="node_modules/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
-  <script type="text/javascript" src="node_modules/chartjs-plugin-colorschemes/dist/chartjs-plugin-colorschemes.js"></script>
+  <!-- <script type="text/javascript" src="node_modules/chartjs-plugin-colorschemes/dist/chartjs-plugin-colorschemes.js"></script>
+  The changes described in https://github.com/nagix/chartjs-plugin-colorschemes/issues/28#issuecomment-930930205 have to be applied to `node_modules/chartjs-plugin-colorschemes/dist/chartjs-plugin-colorschemes.js` -->
   <script type="text/javascript" src="cycle.js"></script>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>  if not locally installed -->
 </head>

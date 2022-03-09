@@ -8,11 +8,12 @@ As root:
 ```
 sudo mysql -u root
 ```
-Run: 
+Run: (CREATE, ALTER, REFERENCES, INDEX only necessary when using Django later)
 ```
 CREATE USER fahrrad@localhost IDENTIFIED BY 'good_password';
 CREATE DATABASE fahrrad;
 GRANT INSERT, UPDATE, DELETE, SELECT on fahrrad.* TO fahrrad@localhost;
+GRANT CREATE, ALTER, REFERENCES, INDEX on fahrrad.* TO fahrrad@localhost;
 GRANT SELECT, LOCK TABLES ON fahrrad.* TO fahrrad@localhost;
 FLUSH PRIVILEGES;
 USE fahrrad;
@@ -63,20 +64,15 @@ python3 import_csv_mysql.py <csv_file.csv>
 ```
 
 ### Add daily values
-#### Compile (Linux)
+#### Compile and run (Linux)
 (classpath might not necessary, need if *java.lang.ClassNotFoundException: com.mysql.cj.jdbc.Drive*. The package can be downloaded from https://dev.mysql.com/downloads/connector/j/ )
 ```
-javac -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
+javac -d . StringModifications.java && javac -d . ConnectionMYSQL.java && java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad.java
 ```
 
-#### Run
-```
-java -classpath /usr/share/java/mysql-connector-java-8.0.27.jar:. Fahrrad
-```
+Todo: Here I want to add checks to the input data to check it's consistent with existing values and add a GUI later.
 
-Here I want to add checks to the input data, split classes, and add a GUI later.
-
-### Get results in a Webbrowser:
+### Show results in a Webbrowser, using clasic methods:
 Open `cycle.php` in your webserver (php needs to be activated). The folder `node_modules` needs to be copied to be located in the same path as `cycle.php`. When the search is performed, the file will call itself. The [settings file](#create-settings-file-to-use-for-programs) needs to be one level above the document root directory (e.g. */var/www/*) or **$mysqlsettingsfile** needs to be changed in the fist few lines of `cycle.php`.
 
 #### Copy all neccessary files:
@@ -92,10 +88,15 @@ cd <path/to/webserver/folder>
 npm init --y
 npm install chart.js jquery.min.js chartjs-plugin-zoom
 ```
-The changes described in https://github.com/nagix/chartjs-plugin-colorschemes/issues/28#issuecomment-930930205 have to be applied to `node_modules/chartjs-plugin-colorschemes/dist/chartjs-plugin-colorschemes.js`
 
-### Running example:
+#### Running example:
 The website runs on a test server. Feel free to give it a try: [Cycle Results](http://90.243.6.91:8040).
+
+### Show results in a Webbrowser, using Django:
+To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/development_environment]
+
+In progress, once ready it can be accessed under: [Cycle Results](http://90.243.6.91:8050).
 
 ### Final notes:
 If you tried some or all of the scripts, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com
+
