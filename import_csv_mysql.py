@@ -229,18 +229,40 @@ if __name__ == "__main__":
     
     mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
     myresult = mycursor.fetchall()
-    numbers = [len(myresult), 0, 0]
+    numbers = [len(myresult), 0, 0, 0]
     print("Found {0} entries in table".format(numbers[0]))
-    #print(myresult)
+    #print(myresult[-1]) # (datetime.date(2022, 3, 6), 55.1, 8147, 92833.0, 14579280)
+    #print(csv_data[-1]) # 2022-03-06 <class 'str'>, 55.10 <class 'str'>, 8147 <class 'int'>, 92833 <class 'str'>, 14579280 <class 'int'>
+    dates_in_db = np.array(['YYYY-MM-DD']*numbers[0])
+    for ii in range(numbers[0]):
+        dates_in_db[ii]=myresult[ii][0].strftime('%Y-%m-%d')
     mycursor.nextset()
     for entry in csv_data:
+        # before inserting, check if already there; as also a failed entry will increase an AUTO_INCREMENT PRIMARY KEY
+        where_date_in_db = np.where(entry[insertindex[0]] == dates_in_db)[0]
+        already_in_db = False
+        for jj in where_date_in_db:     # check for all entries in the database that have the same date
+            matching_fields = []
+            for kk,ii in enumerate(insertindex[1:]):    # check for all fields, assuming that mycursor.execute selects the same values in the right order
+                if type(entry[ii]).__name__ == 'str':
+                    matching_fields.append( myresult[jj][kk+1] == float(entry[ii]) )
+                else:
+                    matching_fields.append( myresult[jj][kk+1] == entry[ii] )
+            already_in_db = np.all(matching_fields)
+            if already_in_db:
+                break
+        if already_in_db:   # Don't insert, if already in the database
+            numbers[3] += 1
+            continue
+        # Prepare the insert statement
         this_insert = insertstatement +' VALUES ('
         for ii in insertindex:
             if ii in convert_d_index:
-                this_insert += "'{0}', ".format(entry[ii])
+                this_insert += "'{0}', ".format(entry[ii])  # Date needs a string conversion
             else:
                 this_insert += "{0}, ".format(entry[ii])
         this_insert = this_insert[:-2] + ");"
+        # Add the values into the database
         try:
             mycursor.execute(this_insert)
             numbers[1] += 1
@@ -251,7 +273,7 @@ if __name__ == "__main__":
         #    VALUES ('2021-12-20', 19.14, 43*60+39, 90796, 3968*3600+26);
     mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
     myresult = mycursor.fetchall()
-    print("Entries before adding this file: {0}, entries added: {1}, entries failed: {2}, entries in table now: {3}".format( numbers[0], numbers[1], numbers[2], len(myresult) ))
+    print("Entries in database table before: {0}, entries added: {1}, entries failed: {2}, csv-entries already in database: {4}, entries in table now: {3}".format( numbers[0], numbers[1], numbers[2], len(myresult), numbers[3] ))
     mycursor.nextset()
     mycursor.execute("COMMIT")
     print("Commited - Successfully finished")
