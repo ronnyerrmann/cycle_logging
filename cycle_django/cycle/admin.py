@@ -6,6 +6,19 @@ from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, F
 @admin.register(FahrradRides)
 class FahrradRidesAdmin(admin.ModelAdmin):
     list_display = ('date', 'daykm', 'display_sec_day', 'daykmh', 'totalkm', 'display_sec_total', 'totalkmh', 'culmkm', 'display_sec_culm')    # make it into a nice list
+    #fields = ['date', 'daykm', 'dayseconds', 'totalkm', 'totalseconds', 'wasupdated']
+    fieldsets = (
+        (None, {
+            'fields': ('date', 'daykm', 'dayseconds')
+        }),
+        ('Total', {
+            'fields': ('totalkm', 'totalseconds')
+        }),
+        ('For database automatic process', {
+            'fields': ('wasupdated',)       # , at end is necessary otherwise it's not a tuple
+        }),
+
+    )
 
 #admin.site.register(FahrradWeeklySummary)
 @admin.register(FahrradWeeklySummary)

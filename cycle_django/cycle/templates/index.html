@@ -1,0 +1,15 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <p>Welcome to Ronny's cycle rides, a website developed by <em>Ronny Errmann</em>!</p>
+  <h3>Dynamic content</h3>
+  <p>The database has the following records:</p>
+  <ul>
+    <li><strong>Start date:</strong> {{ start_date }}<strong> End date:</strong> {{ end_date }}</li>
+    <li><strong>Number of entries:</strong> {{ number_of_days }}
+      <strong> Covered weeks:</strong> {{ number_of_weeks }}
+      <strong> Covered months:</strong> {{ number_of_months }}
+      <strong> Covered years:</strong> {{ number_of_years }}</li>
+  </ul>
+  <h3>Search</h3>
+{% endblock %}

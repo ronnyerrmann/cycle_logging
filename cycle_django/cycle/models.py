@@ -15,7 +15,7 @@ class FahrradRides(models.Model):
     totalkmh = models.FloatField(db_column='TotalKMH', blank=True, null=True, help_text='Will be filled automatically')  # Field name made lowercase.
     culmkm = models.FloatField(db_column='CulmKM', blank=True, null=True, help_text='Will be filled automatically')  # Field name made lowercase.
     culmseconds = models.IntegerField(db_column='CulmSeconds', blank=True, null=True, help_text='Will be filled automatically')  # Field name made lowercase.
-    wasupdated = models.IntegerField(blank=True, null=True, help_text='Will be filled automatically')
+    wasupdated = models.IntegerField(blank=True, null=True, help_text='Will be filled automatically when new')
 
     class Meta:
         managed = False     # Won't apply any changes to
