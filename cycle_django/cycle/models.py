@@ -1,4 +1,5 @@
 from django.db import models
+from django.urls import reverse
 # using: python manage.py inspectdb > models.py
 
 def convert_sec(seconds):
@@ -25,7 +26,7 @@ class FahrradRides(models.Model):
 
     def get_absolute_url(self):
         """Returns the url to access a detail record for this day."""
-        return reverse('entry-detail', args=[str(self.Date)])
+        return reverse('cycle-detail', args=[str(self.entryid)])
    
     def display_sec_day(self):      # To show time instead of seconds in the Admin List view
         return convert_sec(self.dayseconds)
@@ -47,7 +48,8 @@ class FahrradMonthlySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'fahrrad_monthly_summary'
-    
+    def get_absolute_url(self):
+        return reverse('cycle-detail', args=["m"+str(self.month_starting_on)])
     def display_sec(self):      # To show time instead of seconds in the Admin List view
         return convert_sec(self.monthseconds)
     display_sec.short_description = 'Time'
@@ -62,7 +64,8 @@ class FahrradWeeklySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'fahrrad_weekly_summary'
-
+    def get_absolute_url(self):
+        return reverse('cycle-detail', args=["w"+str(self.week_starting_on)])
     def display_sec(self):      # To show time instead of seconds in the Admin List view
         return convert_sec(self.weekseconds)
     display_sec.short_description = 'Time'
@@ -77,9 +80,13 @@ class FahrradYearlySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'fahrrad_yearly_summary'
+    def get_absolute_url(self):
+        return reverse('cycle-detail', args=["y"+str(self.year_starting_on)])
     def display_sec(self):      # To show time instead of seconds in the Admin List view
         return convert_sec(self.yearseconds)
     display_sec.short_description = 'Time'
 
-
+#class cycle_data(FahrradRides):
+#    def __init__(self):
+#        super().__init__()
 

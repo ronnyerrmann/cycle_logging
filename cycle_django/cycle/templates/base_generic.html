@@ -16,7 +16,10 @@
       {% block sidebar %}
         <ul class="sidebar-nav">
           <li><a href="{% url 'index' %}">Home</a></li>
-            <li><a href="{% url 'cycle' %}">All day cycles</a></li>
+          <li><a href="{% url 'cycle_data' %}">All cycle data</a></li>
+          <li><a href="{% url 'cycle_data_w' %}">Combined week</a></li>
+          <li><a href="{% url 'cycle_data_m' %}">Combined month</a></li>
+          <li><a href="{% url 'cycle_data_y' %}">Combined year</a></li>
           <li><a href="http://90.243.61.204:8040/">PHP and JavaScript version</a></li>
         </ul>
      {% endblock %}

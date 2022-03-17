@@ -1,0 +1,37 @@
+{% extends "base_generic.html" %}
+{# {% load convert_tags %} -> this doesn't work #}
+
+{% block content %}
+  <h3>Cycle ride list</h3>
+  {% if cycle_data_list %}
+  <ul>
+    <p>Number of Entries: {{ cycle_data_list.count }}</p>
+    <table  class='table_inner_borders'>
+      <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>
+      {% for entry in cycle_data_list %}
+        <tr> <td>
+        {% if dataset == 'day' %}
+          <a href="{{ entry.get_absolute_url }}">{{ entry.entryid}}</a></td> <td>{{entry.date}}</td>
+          <td>{{entry.daykm}}</td> <td>{{entry.display_sec_day}}</td> <td>{{entry.daykmh}}
+        {% elif dataset == "week" %}
+          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.week_starting_on}}</a></td>
+          <td>{{entry.weekkm}}</td> <td>{{entry.display_sec}}</td> <td>{{entry.weekkmh}}
+        {% elif dataset == "month" %}
+          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.month_starting_on}}</a></td>
+          <td>{{entry.monthkm}}</td> <td>{{entry.display_sec}}</td> <td>{{entry.monthkmh}}
+        {% elif dataset == "year" %}
+          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.year_starting_on}}</a></td>
+          <td>{{entry.yearkm}}</td> <td>{{entry.display_sec}}</td> <td>{{entry.yearkmh}}
+        {% else %}
+          Do not know dataset: {{ dataset }}
+        {% endif %}
+        </td> </tr>
+    {% empty %}
+      There are no entries in the database.
+    {% endfor %}
+    </table>
+  </ul>
+  {% else %}
+    <p>There is a problem with the database.</p>
+  {% endif %}
+{% endblock %}

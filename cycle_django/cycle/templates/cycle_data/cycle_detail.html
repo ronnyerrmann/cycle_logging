@@ -1,0 +1,51 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  {% if dataType == 'd' %}
+    <h3><a href="">{{ cycle.entryid }}: {{ cycle.date }}</a></h3><!-- author detail link not yet defined -->
+    <div style="margin-left:20px;margin-top:20px">
+      <h4>Day/Trip</h4>
+      <p><strong>Distance:</strong> {{ cycle.daykm }}</p>
+      <p><strong>Time:</strong> {{ cycle.display_sec_day }}</p>
+      <p><strong>Speed:</strong> {{ cycle.daykmh }}</p>
+    </div>
+    <div style="margin-left:20px;margin-top:20px">
+      <h4>Total (from bicycle computer)</h4>
+      <p><strong>Distance:</strong> {{ cycle.totalkm }}</p>
+      <p><strong>Time:</strong> {{ cycle.display_sec_total }}</p>
+      <p><strong>Speed:</strong> {{ cycle.totalkmh }}</p>
+    </div>
+    <div style="margin-left:20px;margin-top:20px">
+      <h4>Culmulative values</h4>
+      <p><strong>Distance:</strong> {{ cycle.culmkm }}</p>
+      <p><strong>Time:</strong> {{ cycle.display_sec_culm }}</p>
+    </div>
+  {% elif dataType == 'w' %}
+    <h3><a href="">{{ cycle.week_starting_on }}</a></h3>
+    <div style="margin-left:20px;margin-top:20px">
+      <p><strong>Number of Days/Trips:</strong> {{ cycle.weekdays }}</p>
+      <p><strong>Distance:</strong> {{ cycle.weekkm }}</p>
+      <p><strong>Time:</strong> {{ cycle.display_sec }}</p>
+      <p><strong>Speed:</strong> {{ cycle.weekkmh }}</p>
+    </div>
+  {% elif dataType == 'm' %}
+    <h3><a href="">{{ cycle.month_starting_on }}</a></h3>
+    <div style="margin-left:20px;margin-top:20px">
+      <p><strong>Number of Days/Trips:</strong> {{ cycle.monthdays }}</p>
+      <p><strong>Distance:</strong> {{ cycle.monthkm }}</p>
+      <p><strong>Time:</strong> {{ cycle.display_sec }}</p>
+      <p><strong>Speed:</strong> {{ cycle.monthkmh }}</p>
+    </div>
+  {% elif dataType == 'y' %}
+    <h3>{{ cycle.year_starting_on }}</h3>
+    <div style="margin-left:20px;margin-top:20px">
+      <p><strong>Number of Days/Trips:</strong> {{ cycle.yeardays }}</p>
+      <p><strong>Distance:</strong> {{ cycle.yearkm }}</p>
+      <p><strong>Time:</strong> {{ cycle.display_sec }}</p>
+      <p><strong>Speed:</strong> {{ cycle.yearkmh }}</p>
+    </div>
+  {% else %}
+    Unknown dataType: {{ dataType }}
+  {% endif %}
+
+{% endblock %}
