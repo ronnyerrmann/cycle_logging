@@ -90,12 +90,12 @@ npm install chart.js jquery.min.js chartjs-plugin-zoom
 ```
 
 #### Running example:
-The website runs on a test server. Feel free to give it a try: [Cycle Results](http://90.243.6.91:8040).
+The website runs on a test server. Feel free to give it a try: [Cycle Results](http://90.243.61.204:8040).
 
 ### Show results in a Webbrowser, using Django:
 To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/development_environment]
 
-In progress, once ready it can be accessed under: [Cycle Results](http://90.243.6.91:8050).
+In progress, once ready it can be accessed under: [Cycle Results](http://90.243.61.204:8050).
 
 ### Final notes:
 If you tried some or all of the scripts, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com

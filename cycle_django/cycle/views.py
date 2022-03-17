@@ -30,3 +30,10 @@ def index(request):
 
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'index.html', context=context)
+
+from django.views import generic
+
+class DataListView(generic.ListView):
+    model = FahrradRides
+    context_object_name = 'cycle_list'
+    template_name = 'cycle/cycle_list.html'   # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views
