@@ -95,7 +95,7 @@ The website runs on a test server. Feel free to give it a try: [Cycle Results](h
 ### Show results in a Webbrowser, using Django:
 To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/development_environment]
 
-In progress, once ready it can be accessed under: [Cycle Results](http://ronnyerrmann.ddns.net/:8050).
+In progress, once ready it can be accessed under: [Cycle Results](http://ronnyerrmann.ddns.net/:8000).
 
 ### Learnings
 * Be more consistent with your names: instead of using "MonthKM" or "YearDays" for the front end it is easier to use the same column names for each table.
