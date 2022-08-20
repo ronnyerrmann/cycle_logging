@@ -38,6 +38,7 @@ class DataListView(generic.ListView):
     #model = FahrradRides
     context_object_name = 'cycle_data_list'     # This is used as variable in cycle_data_list.html
     template_name = 'cycle_data/cycle_data_list.html'   # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views
+    paginate_by = 200
     def get_queryset(self):
         # executed when the page is opened
         return FahrradRides.objects.all()
@@ -53,6 +54,7 @@ class DataListView(generic.ListView):
 class DataWListView(generic.ListView):
     context_object_name = 'cycle_data_list'  # This is used as variable in cycle_data_list.html
     template_name = 'cycle_data/cycle_data_list.html'  # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views
+    paginate_by = 100
     def get_queryset(self):
         return FahrradWeeklySummary.objects.all()
     def get_context_data(self, **kwargs):
