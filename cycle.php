@@ -36,17 +36,31 @@
      return sprintf("%02d%s%02d%s%02d", floor($t/3600), $f, ($t/60)%60, $f, $t%60);
   }
   
-  function print_results($data) 
+  function print_results($data, $searchtable)
   {
      echo "<h3>Result table</h3>";
      echo "<p>Number of entries found: ".sizeof($data)."</p>";
      echo "<table  class='table_inner_borders'>";
-     echo "  <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>";
-     $tableString = "<tr> <td>%d</td> <td>%s</td> <td>%4.2f</td> <td>%s</td> <td>%4.2f</td> </tr>";
+     $tableHead = "  <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th>";
+     $tableString = "<tr> <td>%d</td> <td>%s</td> <td>%4.2f</td> <td>%s</td> <td>%4.2f</td>";
+     if ($searchtable=="fahrrad_rides") {
+       $tableHead = $tableHead."<th>Total Distance</th> <th>Total Hours</th>";
+       $tableString = $tableString."<td>%4.2f</td> <td>%s</td>";
+     } else {
+       $tableHead = $tableHead."<th>Number Days</th>";
+       $tableString = $tableString."<td>%s</td>";
+     }
+     echo $tableHead."</tr>";
+     $tableString = $tableString."</tr>";
      for ($ii=0; $ii < sizeof($data); $ii++) {
         $row = $data[$ii];
         //echo "<tr> <td>".($ii+1)."</td> <td>".htmlspecialchars(stripslashes($row['Date']))."</td> <td>".stripslashes($row['KM'])."</td> <td>".format_time($row['Seconds'])."</td> <td>".stripslashes($row['KMH'])."</td> </tr>";
-        echo sprintf( $tableString, $ii+1, htmlspecialchars(stripslashes($row['Date'])), stripslashes($row['KM']), format_time($row['Seconds']), stripslashes($row['KMH']) );
+        if ($searchtable=="fahrrad_rides") {
+          echo sprintf( $tableString, $ii+1, htmlspecialchars(stripslashes($row['Date'])), stripslashes($row['KM']), format_time($row['Seconds']), stripslashes($row['KMH']), stripslashes($row['TKM']), format_time($row['TSeconds']) );
+        } else {
+          echo sprintf( $tableString, $ii+1, htmlspecialchars(stripslashes($row['Date'])), stripslashes($row['KM']), format_time($row['Seconds']), stripslashes($row['KMH']), stripslashes($row['Days']) );
+
+        }
      }
      echo "</table>";
   }
@@ -114,7 +128,14 @@
       //$result = $db->query($query);
     
       // safe way:
-      $stmt = $db->prepare("SELECT ".$datekey." AS Date, ".$extratxt."KM AS KM, ".$extratxt."Seconds AS Seconds, ".$extratxt."KMH AS KMH FROM ".$searchtable." WHERE ".$datekey." BETWEEN ? AND ?");
+      $base_select = "SELECT ".$datekey." AS Date, ".$extratxt."KM AS KM, ".$extratxt."Seconds AS Seconds, ".$extratxt."KMH AS KMH";
+      if ($searchtable=="fahrrad_rides") {
+        $base_select = $base_select.", TotalKM AS TKM, TotalSeconds AS TSeconds";
+      } else {
+        $base_select = $base_select.", ".$extratxt."Days As Days";
+      }
+      $base_select = $base_select . " FROM ".$searchtable." WHERE ".$datekey." BETWEEN ? AND ?";
+      $stmt = $db->prepare($base_select);
       $stmt->bind_param('ss', $startdate, $enddate); // 'is' => 'interger, string', string can be used for date
       $stmt->execute();
       $result = $stmt->get_result();
@@ -217,6 +238,7 @@
         <option value="Distance" <?php if($x_axis=="Distance"){echo "selected";} ?> >Distance</option>
         <option value="Time" <?php if($x_axis=="Time"){echo "selected";} ?> >Time</option>
         <option value="Speed" <?php if($x_axis=="Speed"){echo "selected";} ?> >Speed</option>
+        <option value="Days" <?php if($x_axis=="Days"){echo "selected";} ?> >Days</option>
       </select>
       <label for="y1_axis">Data in y-axis</label>
       <select id="y1_axis" name="y1_axis" onchange="update_axis_event(event, 'y1_axis')">
@@ -224,6 +246,7 @@
         <option value="Distance" <?php if($y1_axis=="Distance"){echo "selected";} ?> >Distance</option>
         <option value="Time" <?php if($y1_axis=="Time"){echo "selected";} ?> >Time</option>
         <option value="Speed" <?php if($y1_axis=="Speed"){echo "selected";} ?> >Speed</option>
+        <option value="Days" <?php if($y1_axis=="Days"){echo "selected";} ?> >Days</option>
       </select> 
       <label for="graph_type">Graph Type</label>
       <select id="graph_type" name="graph_type" onchange="update_axis_event(event, 'graph_type')">
@@ -281,7 +304,7 @@
 <?php   // results or errors
   if ($is_post){
     if ($no_problem) { 
-      print_results($data);
+      print_results($data, $searchtable);
     } else {
       echo $error_msg;
     }

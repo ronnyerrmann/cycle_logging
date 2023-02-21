@@ -36,15 +36,15 @@ def read_text_file(filename, no_empty_lines=False, warn_missing_file=True):
     """
     text = []
     if os.path.isfile(filename):
-        text1 = open(filename,'r').readlines()
-        for line in text1:
-            line = line.replace(os.linesep, '')
-            linetemp = line.replace('\t', '')
-            linetemp = linetemp.replace(',', '')
-            linetemp = linetemp.replace(' ', '')
-            if ( line == '' or linetemp == '') and no_empty_lines:
-                continue
-            text.append(line)
+        with open(filename,'r') as file:
+            for line in file.readlines():
+                line = line.replace(os.linesep, '')
+                linetemp = line.replace('\t', '')
+                linetemp = linetemp.replace(',', '')
+                linetemp = linetemp.replace(' ', '')
+                if ( line == '' or linetemp == '') and no_empty_lines:
+                    continue
+                text.append(line)
     elif warn_missing_file:
         print('Warn: File {0} does not exist, assuming empty file'.format(filename))    
     return text
@@ -188,11 +188,11 @@ if __name__ == "__main__":
         for jj in convert_s_index:
             result = csv_data[ii][jj]
             mult = 1
-            if csv_data[ii][jj][0] == "-" and int(numbers[0]) == 0:     # Will loose minus sign
-                mult = -1
             numbers = csv_data[ii][jj].split(time_split)
-            if len(numbers) == 1:       # assuming seconds
-                result = mult * numbers[0]
+            if csv_data[ii][jj][0] == "-" and numbers[0] == 0:     # Will lose minus sign
+                mult = -1
+            if len(numbers) == 1:       # assuming hours
+                result = mult * int(numbers[0])*3600
             elif len(numbers) == 2:       # hh:mm
                 result = mult * int(numbers[0])*3600 + int(numbers[1])*60
             elif len(numbers) == 3:       # hh:mm:ss
@@ -205,13 +205,11 @@ if __name__ == "__main__":
             for convertion in date_convertions:
                 try:
                     result = datetime.datetime.strptime(csv_data[ii][jj], convertion).strftime('%Y-%m-%d')
-                    worked = True
-                except  ValueError as error:
-                    #print(error)
-                    worked = False
-                if worked:
                     break
-            if not worked:
+                except ValueError as error:
+                    #print(error)
+                    pass
+            else:
                 print("Can't convert {0} into date, when using the following formats: {1}".format(csv_data[ii][jj], date_convertions))
             csv_data[ii][jj] = result
     

@@ -30,6 +30,7 @@ function assign_data_to_axis(axis, ii, graph_type) {
   else if (axis==="Distance"){temp=data[ii].KM;}
   else if (axis==="Time"){temp=data[ii].Seconds;}
   else if (axis==="Speed"){temp=data[ii].KMH;}
+  else if (axis==="Days"){temp=data[ii].Days;}
   //document.write(temp);
   return temp;
 }
