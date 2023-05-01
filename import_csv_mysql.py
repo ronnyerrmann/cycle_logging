@@ -9,6 +9,7 @@ __maintainer__ = "Ronny Errmann"
 __email__ = "ronny.errmann@gmail.com"
 __status__ = "Development"
 
+import argparse
 import sys
 import os
 import mysql.connector
@@ -16,6 +17,7 @@ import datetime
 import time
 import numpy as np
 from my_proc import mysqlset
+from typing import List, Union, Type
 
 # csv file parameters
 number_of_header_lines = 1          # Number of lines in the header
@@ -28,6 +30,7 @@ mysqlpassword = "yourpassword"      # will be overwritten by value in mysqlsetti
 db = "fahrrad"                      # will be overwritten by value in mysqlsettingsfile, if exists
 # Parameters host, user, password can come from mysqlsettingsfile
 mysqlsettingsfile = "fahrrad_mysql.params"      # optional settings file (sensitive information is not hardcoded); Format: "parameter = value", Comments start with "#", number of spaces doesn't matter
+
 
 def read_text_file(filename, no_empty_lines=False, warn_missing_file=True):
     """
@@ -49,7 +52,12 @@ def read_text_file(filename, no_empty_lines=False, warn_missing_file=True):
         print('Warn: File {0} does not exist, assuming empty file'.format(filename))    
     return text
 
-def convert_readfile(input_list, textformats, delimiter='\t', replaces=[], ignorelines=[], expand_input=False, shorten_input=False, ignore_badlines=False, replacewithnan=False):
+def convert_readfile(
+        input_list: List[str], textformats: List[Union[List[Type], Type]], delimiter: str = '\t',
+        replaces: List[Union[List, str]] = [], ignorelines: List[Union[List, str]] = [],
+        expand_input: bool = False, shorten_input: bool = False, ignore_badlines: bool = False,
+        replacewithnan: bool = False
+):
     """
     Can be used convert a read table into entries with the correct format. E.g integers, floats
         Ignories the lines which have less entries than entries in textformats
@@ -70,35 +78,25 @@ def convert_readfile(input_list, textformats, delimiter='\t', replaces=[], ignor
     :retrun result_list: 2D list with numbers or strings, formated acording to textformats
     """
     # Make the textformats, replaces, and ignorelines consistent
-    for index in range(len(textformats)):
-        if type(textformats[index]) != list:
-            textformats[index] = [textformats[index]]     # convert the single entries into list, e.g. make a list of lists
-    for index in range(len(ignorelines)):
-        error = False
-        if type(ignorelines[index]) == str:     # only one entry
-            ignorelines[index] = [ignorelines[index], 1E10]
-        elif type(ignorelines[index]) == list:  # list with two entries: string, and position after which the string will be ignored
-            if len(ignorelines[index]) != 2:
-                error = True
-        else:
-            error = True
-        if error:
-            print('Error: Programming error: ignorelines which where hand over to convert_readfile are wrong. '+\
-                   'It has to be a list consisting of strings and/or 2-entry lists of string and integer. Please check ignorelines: {0}'.format(ignorelines))
-    for index in range(len(replaces)):
-        error = False
-        if type(replaces[index]) == str:     # only one entry
-            replaces[index] = [replaces[index], '']
-        elif type(replaces[index]) == list:  # list with two entries: search-string and replace-string
-            if len(replaces[index]) != 2:
-                error = True
-        else:
-            error = True
-        if error:
-            print('Error: Programming error: replaces which where hand over to convert_readfile are wrong. '+\
-                   'It has to be a list consisting of strings and/or 2-entry lists of strings. Please check replaces: {0}'.format(replaces))
+
+    # convert the single entries into list, e.g. make a list of lists
+    textformats = [entry if type(entry) == list else [entry] for entry in textformats]
+    replaces = [entry if type(entry) == list else [entry, ""] for entry in replaces]
+    ignorelines = [entry if type(entry) == list else [entry, 1E10] for entry in ignorelines]
+
+    error_replaces = [entry for entry in replaces if type(entry[0]) != str or len(entry) > 2]
+    if error_replaces:
+        print(f"Error: Programming error: replaces which where hand over to convert_readfile are wrong. "
+              f"It has to be a list consisting of strings and/or 2-entry lists of strings. "
+              f"Please check replaces: {error_replaces}")
+    error_ignore = [entry for entry in ignorelines if type(entry[0]) != str or len(entry) > 2]
+    if error_ignore:
+        print(f"Error: Programming error: ignorelines which where hand over to convert_readfile are wrong. "
+              f"It has to be a list consisting of strings and/or 2-entry lists of string and integer. "
+              f"Please check ignorelines: {error_ignore}")
+
     # Convert the text
-    error = {False:'Error:',True:'Warn:'}[ignore_badlines]
+    error = {False: 'Error:', True: 'Warn:'}[ignore_badlines]
     result_list = []
     for entry in input_list:
         notuse = False
@@ -109,7 +107,7 @@ def convert_readfile(input_list, textformats, delimiter='\t', replaces=[], ignor
         if notuse:
             continue
         for replce in replaces:
-            entry = entry.replace(replce[0],replce[1])
+            entry = entry.replace(replce[0], replce[1])
         entry = entry.split(delimiter)
         if len(entry) < len(textformats):           # add extra fields, if not enough
             if expand_input:
@@ -142,47 +140,44 @@ def convert_readfile(input_list, textformats, delimiter='\t', replaces=[], ignor
     return result_list
 
 if __name__ == "__main__":
-    # Get Parameter:
-    if len(sys.argv) == 1:
-        print("Please give the csv file as parameter")
-        exit(1)
+    parser = argparse.ArgumentParser(description="Import values from a csv file")
+    parser.add_argument(metavar="csv-file", dest="csvfile", help="The csv file with the entrie to import.")
+    args = parser.parse_args()
+
     mysqlsettings_temp = dict(host=mysqlhost, user=mysqluser, password=mysqlpassword, db=db)
     mysqlset = mysqlset(mysqlsettings_temp)
     mysqlset.read_file(mysqlsettingsfile)
         
     # Read csv file
-    csvfile = sys.argv[1]
-    if not os.path.exists(csvfile):
-        print('Error: The parameterfile {0} does not exist.'.format(csvfile))
-        exit(1)
-    csvtext = read_text_file(csvfile, no_empty_lines=True)
+    csvtext = read_text_file(args.csvfile, no_empty_lines=True)
     delimiters = ['\t', ',']
-    worked =False
     for delimiter in delimiters:
         if len(csvtext[0].split(delimiter)) == len(entries_for_mysql):
-            worked = True
             break
-    if not worked:
-        print("Error: Could not find the correct delimiter. Tested: {0}".format(delimiters))
-        exit(1)
+    else:
+        raise ValueError(f"Error: Could not find the correct delimiter. Tested: {delimiters}")
+
     replace = []
     if delimiter == '\t':
         replace = [',']     # remove , in 43,242
-    csv_data = convert_readfile(csvtext[number_of_header_lines:], [str]*len(entries_for_mysql), delimiter=delimiter, replaces=replace)   # A bit overkill, but reuses tested code
+    csv_data = convert_readfile(
+        csvtext[number_of_header_lines:], [str]*len(entries_for_mysql), delimiter=delimiter, replaces=replace
+    )   # A bit overkill, but reuses tested code
     
     # Convert times into seconds, convert dates into mysql date format, and prepare INSERT statement:
-    insertstatement = "INSERT INTO fahrrad_rides ("
+    insertlist = []
     insertindex = []
     convert_s_index, convert_d_index = [], []
     time_split = ':'
-    date_convertions = ['%Y-%m-%d', '%d %b %Y', '%d. %b %Y', '%d %b. %Y', '%d. %b. %Y', '%d %B %Y', '%d. %B %Y', '%d %b %y', '%d. %b %y', '%d %b. %y', '%d. %b. %y', '%d %B %y', '%d. %B %y']
+    date_convertions = ['%Y-%m-%d', '%d %b %Y', '%d. %b %Y', '%d %b. %Y', '%d. %b. %Y', '%d %B %Y', '%d. %B %Y',
+                        '%d %b %y', '%d. %b %y', '%d %b. %y', '%d. %b. %y', '%d %B %y', '%d. %B %y']
     for ii in range(len(entries_for_mysql)):
         if entries_for_mysql[ii].lower() != 'dummy':
             if entries_for_mysql[ii].lower().find('second') != -1:
                 convert_s_index.append(ii)
             if entries_for_mysql[ii].lower().find('date') != -1:
                 convert_d_index.append(ii)
-            insertstatement += entries_for_mysql[ii] + ', '
+            insertlist.append(entries_for_mysql[ii])
             insertindex.append(ii)
     for ii in range(len(csv_data)):
         for jj in convert_s_index:
@@ -198,7 +193,7 @@ if __name__ == "__main__":
             elif len(numbers) == 3:       # hh:mm:ss
                 result = mult * int(numbers[0])*3600 + int(numbers[1])*60 + int(numbers[2])
             else:
-                print("Can't convert {0} into seconds, expected 0, 1, or 2 {1}".format(csv_data[ii][jj], time_split))
+                print(f"Can't convert {csv_data[ii][jj]} into seconds, expected 0, 1, or 2 {time_split}")
             csv_data[ii][jj] = result
         for jj in convert_d_index:
             result = csv_data[ii][jj]
@@ -210,18 +205,18 @@ if __name__ == "__main__":
                     #print(error)
                     pass
             else:
-                print("Can't convert {0} into date, when using the following formats: {1}".format(csv_data[ii][jj], date_convertions))
+                print(f"Can't convert {csv_data[ii][jj]} into date, when using the following formats: {date_convertions}")
             csv_data[ii][jj] = result
     
-    insertstatement = insertstatement[:-2] + ")" 
+    insertstatement = "INSERT INTO fahrrad_rides (" + ', '.join(insertlist)  + ")"
     
     # connect to database
     try:
         mysqldata = mysqlset.mysqlsettings
-        mydb = mysql.connector.connect( host=mysqldata['host'], user=mysqldata['user'], password=mysqldata['password'],  database=mysqldata['db'] )
+        mydb = mysql.connector.connect(host=mysqldata['host'], user=mysqldata['user'], password=mysqldata['password'], database=mysqldata['db'])
     except (mysql.connector.Error, mysql.connector.Warning) as e:
-        print(e)
-        exit(1)
+        raise
+
     mycursor = mydb.cursor()
     #mycursor.execute("USE fahrrad")        # already in the connection
     
@@ -271,8 +266,8 @@ if __name__ == "__main__":
         #    VALUES ('2021-12-20', 19.14, 43*60+39, 90796, 3968*3600+26);
     mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
     myresult = mycursor.fetchall()
-    print("Entries in database table before: {0}, entries added: {1}, entries failed: {2}, csv-entries already in database: {4}, entries in table now: {3}".format( numbers[0], numbers[1], numbers[2], len(myresult), numbers[3] ))
+    print(f"Entries in database table before: {numbers[0]}, entries added: {numbers[1]}, entries failed: {numbers[2]}, "
+          f"csv-entries already in database: {numbers[3]}, entries in table now: {len(myresult)}")
     mycursor.nextset()
     mycursor.execute("COMMIT")
     print("Commited - Successfully finished")
-    
