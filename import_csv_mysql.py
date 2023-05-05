@@ -16,20 +16,17 @@ import mysql.connector
 import datetime
 import time
 import numpy as np
-from my_proc import mysqlset
+from my_proc import Logging, Mysqlset
 from typing import List, Union, Type
 
 # csv file parameters
 number_of_header_lines = 1          # Number of lines in the header
 # What column in csv file goes in what column in the database, e.g. second column in csv will be column "DayKM" in mysql
 entries_for_mysql = ["Date", "DayKM", "DaySeconds", "TotalKM", "TotalSeconds"]      # Use "dummy" for columns to ignore in csv
-# mysql parameters
-mysqlhost = "localhost"             # will be overwritten by value in mysqlsettingsfile, if exists
-mysqluser = "yourusername"          # will be overwritten by value in mysqlsettingsfile, if exists
-mysqlpassword = "yourpassword"      # will be overwritten by value in mysqlsettingsfile, if exists
-db = "fahrrad"                      # will be overwritten by value in mysqlsettingsfile, if exists
 # Parameters host, user, password can come from mysqlsettingsfile
 mysqlsettingsfile = "fahrrad_mysql.params"      # optional settings file (sensitive information is not hardcoded); Format: "parameter = value", Comments start with "#", number of spaces doesn't matter
+
+logger = Logging.setup_logger(__name__)
 
 
 def read_text_file(filename, no_empty_lines=False, warn_missing_file=True):
@@ -39,17 +36,20 @@ def read_text_file(filename, no_empty_lines=False, warn_missing_file=True):
     """
     text = []
     if os.path.isfile(filename):
-        with open(filename,'r') as file:
+        with open(filename, 'r') as file:
             for line in file.readlines():
                 line = line.replace(os.linesep, '')
-                linetemp = line.replace('\t', '')
-                linetemp = linetemp.replace(',', '')
-                linetemp = linetemp.replace(' ', '')
-                if ( line == '' or linetemp == '') and no_empty_lines:
-                    continue
+                if no_empty_lines:
+                    if line == "":
+                        continue
+                    linetemp = line.replace('\t', '')
+                    linetemp = linetemp.replace(',', '')
+                    linetemp = linetemp.replace(' ', '')
+                    if linetemp == "":
+                        continue
                 text.append(line)
     elif warn_missing_file:
-        print('Warn: File {0} does not exist, assuming empty file'.format(filename))    
+        logger.warning(f"File {filename} does not exist, assuming empty file")
     return text
 
 def convert_readfile(
@@ -86,17 +86,17 @@ def convert_readfile(
 
     error_replaces = [entry for entry in replaces if type(entry[0]) != str or len(entry) > 2]
     if error_replaces:
-        print(f"Error: Programming error: replaces which where hand over to convert_readfile are wrong. "
+        logger.error(f"Programming error: replaces which where hand over to convert_readfile are wrong. "
               f"It has to be a list consisting of strings and/or 2-entry lists of strings. "
               f"Please check replaces: {error_replaces}")
     error_ignore = [entry for entry in ignorelines if type(entry[0]) != str or len(entry) > 2]
     if error_ignore:
-        print(f"Error: Programming error: ignorelines which where hand over to convert_readfile are wrong. "
+        logger.error(f"Programming error: ignorelines which where hand over to convert_readfile are wrong. "
               f"It has to be a list consisting of strings and/or 2-entry lists of string and integer. "
               f"Please check ignorelines: {error_ignore}")
 
     # Convert the text
-    error = {False: 'Error:', True: 'Warn:'}[ignore_badlines]
+    log_type = logger.warning if ignore_badlines else logger.error
     result_list = []
     for entry in input_list:
         notuse = False
@@ -111,7 +111,7 @@ def convert_readfile(
         entry = entry.split(delimiter)
         if len(entry) < len(textformats):           # add extra fields, if not enough
             if expand_input:
-                entry += [''] * ( len(textformats) - len(entry) )
+                entry += [''] * (len(textformats) - len(entry))
             else:
                 continue
         for index in range(len(textformats)):
@@ -126,28 +126,28 @@ def convert_readfile(
                         if replacewithnan:
                             entry[index] = np.nan
                         else:
-                            print(error+' Cannot convert {0} into a {1}. The problem happens in line {2} at index {3}.'.format(entry[index], textformat, entry, index))
+                            log_type(f"Cannot convert {entry[index]} into a {textformat}. The problem happens in line "
+                                     f"{entry} at index {index}.")
                 elif type(textformat) == str:
                     try:
                         entry[index] = datetime.datetime.strptime(entry[index], textformat)
                     except:
-                        print(error+' Cannot convert {0} into a datetime object using the format {1}. The problem happens in list line {2} at index {3}.'.format(entry[index], textformat, entry, index))
+                        log_type(f"Cannot convert {entry[index]} into a datetime object using the format {textformat}. "
+                                 f"The problem happens in list line {entry} at index {index}.")
                 else:
-                    print('Error: Programming error: textformats which where hand over to convert_readfile are wrong. It has to be a type or a string')
+                    logger.error("Programming error: textformats which where hand over to convert_readfile are wrong. "
+                                 "It has to be a type or a string")
         if shorten_input and len(entry) > len(textformats):
             del entry[len(textformats):]
         result_list.append(entry)
     return result_list
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Import values from a csv file")
     parser.add_argument(metavar="csv-file", dest="csvfile", help="The csv file with the entrie to import.")
     args = parser.parse_args()
 
-    mysqlsettings_temp = dict(host=mysqlhost, user=mysqluser, password=mysqlpassword, db=db)
-    mysqlset = mysqlset(mysqlsettings_temp)
-    mysqlset.read_file(mysqlsettingsfile)
-        
     # Read csv file
     csvtext = read_text_file(args.csvfile, no_empty_lines=True)
     delimiters = ['\t', ',']
@@ -205,42 +205,34 @@ if __name__ == "__main__":
                     #print(error)
                     pass
             else:
-                print(f"Can't convert {csv_data[ii][jj]} into date, when using the following formats: {date_convertions}")
+                logger.error(f"Can't convert {csv_data[ii][jj]} into date, when using the following formats: "
+                             f"{date_convertions}")
             csv_data[ii][jj] = result
     
-    insertstatement = "INSERT INTO fahrrad_rides (" + ', '.join(insertlist)  + ")"
-    
-    # connect to database
-    try:
-        mysqldata = mysqlset.mysqlsettings
-        mydb = mysql.connector.connect(host=mysqldata['host'], user=mysqldata['user'], password=mysqldata['password'], database=mysqldata['db'])
-    except (mysql.connector.Error, mysql.connector.Warning) as e:
-        raise
+    insertstatement = f"INSERT INTO fahrrad_rides ({', '.join(insertlist)})"
 
-    mycursor = mydb.cursor()
-    #mycursor.execute("USE fahrrad")        # already in the connection
-    
-    mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
-    myresult = mycursor.fetchall()
+    mysqlset = Mysqlset()
+    mysqlset.read_settings_file(mysqlsettingsfile)
+    mysqlset.connect()
+    myresult = mysqlset.get_results("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
     numbers = [len(myresult), 0, 0, 0]
-    print("Found {0} entries in table".format(numbers[0]))
+    logger.info(f"Found {numbers[0]} entries in table")
     #print(myresult[-1]) # (datetime.date(2022, 3, 6), 55.1, 8147, 92833.0, 14579280)
     #print(csv_data[-1]) # 2022-03-06 <class 'str'>, 55.10 <class 'str'>, 8147 <class 'int'>, 92833 <class 'str'>, 14579280 <class 'int'>
     dates_in_db = np.array(['YYYY-MM-DD']*numbers[0])
     for ii in range(numbers[0]):
-        dates_in_db[ii]=myresult[ii][0].strftime('%Y-%m-%d')
-    mycursor.nextset()
+        dates_in_db[ii] = myresult[ii][0].strftime('%Y-%m-%d')
     for entry in csv_data:
         # before inserting, check if already there; as also a failed entry will increase an AUTO_INCREMENT PRIMARY KEY
         where_date_in_db = np.where(entry[insertindex[0]] == dates_in_db)[0]
         already_in_db = False
         for jj in where_date_in_db:     # check for all entries in the database that have the same date
             matching_fields = []
-            for kk,ii in enumerate(insertindex[1:]):    # check for all fields, assuming that mycursor.execute selects the same values in the right order
+            for kk, ii in enumerate(insertindex[1:]):    # check for all fields, assuming that mycursor.execute selects the same values in the right order
                 if type(entry[ii]).__name__ == 'str':
-                    matching_fields.append( myresult[jj][kk+1] == float(entry[ii]) )
+                    matching_fields.append(myresult[jj][kk+1] == float(entry[ii]))
                 else:
-                    matching_fields.append( myresult[jj][kk+1] == entry[ii] )
+                    matching_fields.append(myresult[jj][kk+1] == entry[ii])
             already_in_db = np.all(matching_fields)
             if already_in_db:
                 break
@@ -257,17 +249,18 @@ if __name__ == "__main__":
         this_insert = this_insert[:-2] + ");"
         # Add the values into the database
         try:
-            mycursor.execute(this_insert)
+            mysqlset.execute(this_insert)
             numbers[1] += 1
         except (mysql.connector.Error, mysql.connector.Warning) as e:
-            print("Problem with statement: {0}\nError message: {1}".format(this_insert, e))
+            logger.warning(f"Problem with statement: {this_insert}\nError message: {e}")
             numbers[2] += 1
         #INSERT INTO fahrrad_rides (Date, DayKM, DaySeconds, TotalKM, TotalSeconds)
         #    VALUES ('2021-12-20', 19.14, 43*60+39, 90796, 3968*3600+26);
-    mycursor.execute("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
-    myresult = mycursor.fetchall()
-    print(f"Entries in database table before: {numbers[0]}, entries added: {numbers[1]}, entries failed: {numbers[2]}, "
-          f"csv-entries already in database: {numbers[3]}, entries in table now: {len(myresult)}")
-    mycursor.nextset()
-    mycursor.execute("COMMIT")
-    print("Commited - Successfully finished")
+    myresult = mysqlset.get_results("SELECT Date, DayKM, DaySeconds, TotalKM, TotalSeconds FROM fahrrad_rides")
+    logger.info(f"Entries in database table before: {numbers[0]}, entries added: {numbers[1]}, entries failed: "
+                f"{numbers[2]}, csv-entries already in database: {numbers[3]}, entries in table now: {len(myresult)}")
+
+    mysqlset.commit()
+    logger.info("Commited - Successfully finished")
+
+    mysqlset.close()
