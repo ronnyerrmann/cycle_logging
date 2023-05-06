@@ -1,9 +1,9 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import call, MagicMock, patch
 
 import logging
 
-from my_proc import Logging, Mysqlset, logger
+from my_proc import Logging, Mysqlset, MySQLError, logger
 
 
 class Test_Logging(unittest.TestCase):
@@ -33,6 +33,8 @@ class Test_Logging(unittest.TestCase):
 class Mysqlset_Test(unittest.TestCase):
     def setUp(self):
         self.mysql = Mysqlset("foo", "bar", "baz", "egg")
+        self.mysql._mydb = MagicMock()
+        self.mysql._mycursor = MagicMock()
 
 
 class Test_Mysqlset_init(Mysqlset_Test):
@@ -43,6 +45,7 @@ class Test_Mysqlset_init(Mysqlset_Test):
 @patch("my_proc.mysql.connector.connect")
 class Test_Mysqlset_connect(Mysqlset_Test):
     def test_pass(self, _connect):
+        self.mysql._mydb = None
         _MySQLConnection = MagicMock()
         _connect.return_value = _MySQLConnection
 
@@ -60,4 +63,68 @@ class Test_Mysqlset_connect(Mysqlset_Test):
 
         self.assertEqual(["WARNING:my_proc:Already connected, close connection first"], logs.output)
         self.assertEqual("foo", self.mysql._mydb)
+
+
+class Test_Mysqlset_execute(Mysqlset_Test):
+    def test_not_connected(self):
+        self.mysql._mydb = None
+        self.mysql._mycursor = None
+
+        with self.assertRaises(MySQLError) as e:
+            self.mysql.execute("foo")
+
+        self.assertEqual("Not connected to data base", str(e.exception))
+
+    def test_clear(self):
+        self.mysql._cleared = False
+        mockManager = MagicMock()
+        mockManager.attach_mock(self.mysql._mycursor.nextset, "nextset")
+        mockManager.attach_mock(self.mysql._mycursor.execute, "execute")
+
+        self.mysql.execute("foo")
+
+        self.assertFalse(self.mysql._cleared)
+        self.assertEqual([call.nextset(), call.execute("foo")], mockManager.mock_calls)
+
+    def test_no_clear(self):
+        self.mysql.execute("foo")
+
+        self.assertFalse(self.mysql._cleared)
+        self.mysql._mycursor.nextset.assert_not_called()
+        self.mysql._mycursor.execute.assert_called_once_with("foo")
+
+
+class Test_Mysqlset_get_results(Mysqlset_Test):
+    def test_get_results(self):
+        self.mysql._mycursor = MagicMock(fetchall=MagicMock(return_value="bar"))
+        self.mysql._cleared = False
+        mockManager = MagicMock()
+        mockManager.attach_mock(self.mysql._mycursor.execute, "execute")
+        mockManager.attach_mock(self.mysql._mycursor.fetchall, "fetchall")
+
+        result = self.mysql.get_results("foo")
+
+        self.assertEqual("bar", result)
+        self.assertEqual([call.execute("foo"), call.fetchall()], mockManager.mock_calls)
+
+
+
+class Test_Mysqlset_commit(Mysqlset_Test):
+    def test(self):
+        self.mysql.commit()
+
+        self.mysql._mydb.commit.assert_called_once()
+
+
+class Test_Mysqlset_close(Mysqlset_Test):
+
+    def test_pass(self):
+        mockManager = MagicMock()
+        mockManager.attach_mock(self.mysql._mydb.close, "mydb_close")
+        mockManager.attach_mock(self.mysql._mycursor.close, "mycursor_close")
+
+        self.mysql.close()
+
+        self.assertIsNone(self.mysql._mydb)
         self.assertIsNone(self.mysql._mycursor)
+        self.assertEqual([call.mycursor_close(), call.mydb_close()], mockManager.mock_calls)

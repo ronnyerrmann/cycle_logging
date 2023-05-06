@@ -94,9 +94,13 @@ class Mysqlset():
 
         self._mycursor = self._mydb.cursor()
 
-    def execute(self, cmd: str):
-        if not self._mycursor:
+    def _check_connected(self):
+        if self._mydb is None or self._mycursor is None:
             raise MySQLError("Not connected to data base")
+
+
+    def execute(self, cmd: str):
+        self._check_connected()
 
         self._prepare_next_set()
 
@@ -114,10 +118,13 @@ class Mysqlset():
         return self._mycursor.fetchall()
 
     def commit(self):
+        self._check_connected()
         #self.execute("COMMIT")
         self._mydb.commit()
 
     def close(self):
+        self._check_connected()
+
         self._mycursor.close()
         self._mycursor = None
 
