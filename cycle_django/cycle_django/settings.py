@@ -87,14 +87,14 @@ DATABASES = {
 import os,sys
 mysqlsettingspath = str(BASE_DIR).rsplit(os.sep,1)[0]
 sys.path.append(mysqlsettingspath)
-from my_proc import mysqlset
-mysqlset = mysqlset()
-mysqlset.read_file(mysqlsettingspath+os.sep+'fahrrad_mysql.params')
-mysqldata = mysqlset.mysqlsettings
+from my_proc import Mysqlset
+mysqlset = Mysqlset()
+mysqlset.read_settings_file(mysqlsettingspath+os.sep+'fahrrad_mysql.params')
+mysqldata = mysqlset._mysqlsettings
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': mysqldata['db'],
+        'NAME': mysqldata['database'],
         'USER': mysqldata['user'],
         'PASSWORD': mysqldata['password'],
         'HOST': mysqldata['host'],
