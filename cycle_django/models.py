@@ -1,5 +1,4 @@
-Read file: /home/ronny/Documents/Scripts/cycle_logging/fahrrad_mysql.params, using information: {'host': 'localhost', 'user': 'fahrrad', 'password': 'sx6_ehK6dvTxET9dk4HuP3Qup', 'db': 'fahrrad'}
-# This is an auto-generated Django model module.
+    # This is an auto-generated Django model module.
 # You'll have to do the following manually to clean this up:
 #   * Rearrange models' order
 #   * Make sure each model has one field with primary_key=True
@@ -78,19 +77,6 @@ class AuthUserUserPermissions(models.Model):
         unique_together = (('user', 'permission'),)
 
 
-class CycleFahrradRides(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    date = models.DateField(db_column='Date')  # Field name made lowercase.
-    daykm = models.FloatField(db_column='DayKM')  # Field name made lowercase.
-    dayseconds = models.PositiveIntegerField(db_column='DaySeconds')  # Field name made lowercase.
-    totalkm = models.FloatField(db_column='TotalKM')  # Field name made lowercase.
-    totalseconds = models.PositiveIntegerField(db_column='TotalSeconds')  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = 'cycle_fahrrad_rides'
-
-
 class DjangoAdminLog(models.Model):
     action_time = models.DateTimeField()
     object_id = models.TextField(blank=True, null=True)
@@ -134,58 +120,3 @@ class DjangoSession(models.Model):
     class Meta:
         managed = False
         db_table = 'django_session'
-
-
-class FahrradMonthlySummary(models.Model):
-    month_starting_on = models.DateField(db_column='Month_starting_on', primary_key=True)  # Field name made lowercase.
-    monthkm = models.FloatField(db_column='MonthKM')  # Field name made lowercase.
-    monthseconds = models.IntegerField(db_column='MonthSeconds')  # Field name made lowercase.
-    monthkmh = models.FloatField(db_column='MonthKMH', blank=True, null=True)  # Field name made lowercase.
-    monthdays = models.IntegerField(db_column='MonthDays', blank=True, null=True)  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = 'fahrrad_monthly_summary'
-
-
-class FahrradRides(models.Model):
-    entryid = models.AutoField(db_column='EntryID', primary_key=True)  # Field name made lowercase.
-    date = models.DateField(db_column='Date')  # Field name made lowercase.
-    daykm = models.FloatField(db_column='DayKM')  # Field name made lowercase.
-    dayseconds = models.IntegerField(db_column='DaySeconds')  # Field name made lowercase.
-    daykmh = models.FloatField(db_column='DayKMH', blank=True, null=True)  # Field name made lowercase.
-    totalkm = models.FloatField(db_column='TotalKM', unique=True)  # Field name made lowercase.
-    totalseconds = models.IntegerField(db_column='TotalSeconds')  # Field name made lowercase.
-    totalkmh = models.FloatField(db_column='TotalKMH', blank=True, null=True)  # Field name made lowercase.
-    culmkm = models.FloatField(db_column='CulmKM', blank=True, null=True)  # Field name made lowercase.
-    culmseconds = models.IntegerField(db_column='CulmSeconds', blank=True, null=True)  # Field name made lowercase.
-    wasupdated = models.IntegerField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'fahrrad_rides'
-        unique_together = (('date', 'daykm', 'dayseconds'),)
-
-
-class FahrradWeeklySummary(models.Model):
-    week_starting_on = models.DateField(db_column='Week_starting_on', primary_key=True)  # Field name made lowercase.
-    weekkm = models.FloatField(db_column='WeekKM')  # Field name made lowercase.
-    weekseconds = models.IntegerField(db_column='WeekSeconds')  # Field name made lowercase.
-    weekkmh = models.FloatField(db_column='WeekKMH', blank=True, null=True)  # Field name made lowercase.
-    weekdays = models.IntegerField(db_column='WeekDays', blank=True, null=True)  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = 'fahrrad_weekly_summary'
-
-
-class FahrradYearlySummary(models.Model):
-    year_starting_on = models.DateField(db_column='Year_starting_on', primary_key=True)  # Field name made lowercase.
-    yearkm = models.FloatField(db_column='YearKM')  # Field name made lowercase.
-    yearseconds = models.IntegerField(db_column='YearSeconds')  # Field name made lowercase.
-    yearkmh = models.FloatField(db_column='YearKMH', blank=True, null=True)  # Field name made lowercase.
-    yeardays = models.IntegerField(db_column='YearDays')  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = 'fahrrad_yearly_summary'

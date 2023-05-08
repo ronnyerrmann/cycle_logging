@@ -12,16 +12,16 @@
         <tr> <td>
         {% if dataset == 'day' %}
           <a href="{{ entry.get_absolute_url }}">{{ entry.entryid}}</a></td> <td>{{entry.date}}</td>
-          <td>{{entry.daykm}}</td> <td>{{entry.display_sec_day}}</td> <td>{{entry.daykmh}}
+          <td>{{entry.daykm}}</td> <td>{{entry.dayseconds}}</td> <td>{{entry.daykmh}}
         {% elif dataset == "week" %}
           </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.week_starting_on}}</a></td>
-          <td>{{entry.weekkm}}</td> <td>{{entry.display_sec}}</td> <td>{{entry.weekkmh}}
+          <td>{{entry.weekkm}}</td> <td>{{entry.weekseconds}}</td> <td>{{entry.weekkmh}}
         {% elif dataset == "month" %}
           </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.month_starting_on}}</a></td>
-          <td>{{entry.monthkm}}</td> <td>{{entry.display_sec}}</td> <td>{{entry.monthkmh}}
+          <td>{{entry.monthkm}}</td> <td>{{entry.monthseconds}}</td> <td>{{entry.monthkmh}}
         {% elif dataset == "year" %}
           </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.year_starting_on}}</a></td>
-          <td>{{entry.yearkm}}</td> <td>{{entry.display_sec}}</td> <td>{{entry.yearkmh}}
+          <td>{{entry.yearkm}}</td> <td>{{entry.yearseconds}}</td> <td>{{entry.yearkmh}}
         {% else %}
           Do not know dataset: {{ dataset }}
         {% endif %}
