@@ -191,6 +191,7 @@
 </head>
 
 <body>
+  <a href="http://ronnyerrmann.ddns.net:8000">Django version of the same data</a>
   <h3>Search</h3>
   
   <form id="mysqlform" method="post">

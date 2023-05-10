@@ -9,23 +9,29 @@ https://docs.djangoproject.com/en/3.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
-
+import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+mysql_settings_path = str(BASE_DIR).rsplit(os.sep, 1)[0]
+sys.path.append(mysql_settings_path)
 
+from my_proc import Mysqlset
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
+#SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
+with open(mysql_settings_path + "/django_secret_key.txt") as f:
+    SECRET_KEY = f.read().strip()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1"]
 
 
 # Application definition
@@ -84,13 +90,9 @@ DATABASES = {
 """
 
 # Read settings file
-import os,sys
-mysqlsettingspath = str(BASE_DIR).rsplit(os.sep,1)[0]
-sys.path.append(mysqlsettingspath)
-from my_proc import Mysqlset
 mysqlset = Mysqlset()
-mysqlset.read_settings_file(mysqlsettingspath+os.sep+'fahrrad_mysql.params')
-mysqldata = mysqlset._mysqlsettings
+mysqlset.read_settings_file(mysql_settings_path + os.sep + 'fahrrad_mysql.params')
+mysqldata = mysqlset.get_settings()
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',

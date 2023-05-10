@@ -79,6 +79,9 @@ class Mysqlset():
             text = 'No file: {0}, keeping the hardcoded information: {1}'
         logger.info(text.format(mysqlsettingsfile, self._mysqlsettings))
 
+    def get_settings(self):
+        return self._mysqlsettings
+
     def connect(self):
         """ Connect to database
             One would have only one connection to database per host, but can have several cursors
