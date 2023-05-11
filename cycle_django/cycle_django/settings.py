@@ -35,10 +35,10 @@ DEBUG = False
 
 ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1"]
 
-"""if not DEBUG:
+if 'runserver' not in sys.argv:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True"""
+    CSRF_COOKIE_SECURE = True
 
 
 # Application definition
