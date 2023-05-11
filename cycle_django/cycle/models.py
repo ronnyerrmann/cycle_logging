@@ -24,8 +24,10 @@ class TimeInSecondsField(models.IntegerField):
             value = datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
         if isinstance(value, datetime.timedelta):
             return int(value.total_seconds())
+        if value is None:
+            return value
 
-        raise ValueError("Expected a timedelta object")
+        raise ValueError(f"Expected a timedelta object, got {type(value)}")
 
     def get_prep_value(self, value: datetime.timedelta):
         return self.to_python(value)
