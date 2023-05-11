@@ -20,6 +20,8 @@ sys.path.append(mysql_settings_path)
 
 from my_proc import Mysqlset
 
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
@@ -32,6 +34,11 @@ with open(mysql_settings_path + "/django_secret_key.txt") as f:
 DEBUG = False
 
 ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1"]
+
+"""if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True"""
 
 
 # Application definition
@@ -146,3 +153,5 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
