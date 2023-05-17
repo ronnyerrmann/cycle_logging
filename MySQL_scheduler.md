@@ -2,6 +2,7 @@ Login as root
 
 ```
 sudo mysql -u root
+USE fahrrad;
 ```
 
 Enable the Scheduler
@@ -9,7 +10,7 @@ Enable the Scheduler
 SET GLOBAL event_scheduler = ON;
 ```
 
-Create a trigger to calculate the mising values before inserting:
+Create a trigger to calculate the missing values before inserting or modifying:
 ```
 DELIMITER $$
 
@@ -29,10 +30,27 @@ CREATE TRIGGER before_fahrrad_rides_insert
         IF NEW.CulmSeconds IS NULL THEN
             SET NEW.CulmSeconds = (SELECT SUM(DaySeconds) FROM fahrrad_rides WHERE Date <= NEW.Date) + NEW.DaySeconds;
         END IF;
+        SET NEW.wasupdated = 1;
+    END$$
+    
+CREATE TRIGGER before_fahrrad_rides_modification
+    BEFORE UPDATE 
+    ON fahrrad_rides FOR EACH ROW
+    BEGIN
+        SET NEW.DayKMH = NEW.DayKM/NEW.DaySeconds*3600;
+        SET NEW.TotalKMH =  NEW.TotalKM/NEW.TotalSeconds*3600;
+        -- the next line won't update all future 
+        SET NEW.CulmKM = (SELECT SUM(DayKM) FROM fahrrad_rides WHERE Date <= NEW.Date) + NEW.DayKM;
+        SET NEW.CulmSeconds = (SELECT SUM(DaySeconds) FROM fahrrad_rides WHERE Date <= NEW.Date) + NEW.DaySeconds;
+        SET NEW.wasupdated = 1;
     END$$
 
 DELIMITER ;
 ```
+Some things to note:
+- if the date was given wrongly, after modifying it the summaries below will still contain the wrong data (a fix could be to also have an `to_update` column, which is set by the above triggers)
+- if data is deleted, the same problem will occur
+- the solution would be to set a modification bit in the summary tables for the old and new date
 
 Create Summarised data:
 ```
@@ -197,12 +215,12 @@ CREATE FUNCTION `fn_get_CulmSeconds`(_Date DATE) RETURNS INT
 CREATE EVENT No_trigger_fahrrad_rides_insert
     ON SCHEDULE EVERY 1 DAY
     DO BEGIN
-        UPDATE fahrrad_rides SET DayKMH = DayKM/DaySeconds*3600 WHERE DayKMH IS NULL;
-        UPDATE fahrrad_rides SET TotalKMH = TotalKM/TotalSeconds*3600 WHERE TotalKMH IS NULL;
-        UPDATE fahrrad_rides SET CulmKM = fn_get_CulmKM(Date) WHERE CulmKM IS NULL;
-        UPDATE fahrrad_rides SET CulmSeconds = fn_get_CulmSeconds(Date) WHERE CulmSeconds IS NULL;
+        -- Once a day make sure that summarized data is correct, this also updates all Culm* data
+        UPDATE fahrrad_rides SET wasupdated = 1;
+        -- Not necessary anymore as done when fahrrad_rides are updated
+        -- UPDATE fahrrad_rides SET CulmKM = fn_get_CulmKM(Date) WHERE CulmKM IS NULL;
+        -- UPDATE fahrrad_rides SET CulmSeconds = fn_get_CulmSeconds(Date) WHERE CulmSeconds IS NULL;
     END$$
 
 DELIMITER ;
 ```
-
