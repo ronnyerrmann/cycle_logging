@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 import os
+import requests
+import socket
 import sys
+import urllib3
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -18,22 +21,47 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 mysql_settings_path = str(BASE_DIR).rsplit(os.sep, 1)[0]
 sys.path.append(mysql_settings_path)
 
-from my_proc import Mysqlset
+from my_proc import Logging, Mysqlset
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+logger = Logging.setup_logger(__name__)
+
+
+def current_public_ip() -> str:
+    """ Returns the public IP
+    """
+    endpoint = 'https://ipinfo.io/json'
+    try:
+        response = requests.get(endpoint, verify=True)
+    except (ConnectionError, requests.exceptions.ConnectionError, urllib3.exceptions.MaxRetryError,
+            urllib3.exceptions.NewConnectionError, socket.gaierror) as e:
+        logger.warning(f"Can't connect to {endpoint}, Problem: {e}")
+        return None
+
+    if response.status_code != 200:
+        logger.warning(f"Status: {response.status_code} Problem with the request.")
+        return None
+
+    data = response.json()
+    logger.info(f"data: {data}, ip: {data.get('ip')}")
+
+    return data.get("ip")
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-#SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
+# SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
 with open(mysql_settings_path + "/django_secret_key.txt") as f:
     SECRET_KEY = f.read().strip()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1"]
+# Public IP might update while the server is up
+ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1", current_public_ip()]
 
 if 'runserver' not in sys.argv:
     SECURE_SSL_REDIRECT = True
