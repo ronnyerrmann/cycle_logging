@@ -90,12 +90,17 @@ npm install chart.js jquery.min.js chartjs-plugin-zoom
 ```
 
 #### Running example:
-The website runs on a test server. Feel free to give it a try: [Cycle Results](http://ronnyerrmann.ddns.net:80).
+The website runs on a test server. Feel free to give it a try: [Cycle Results (PHP/Javascript)](http://ronnyerrmann.ddns.net:80).
 
 ### Show results in a Webbrowser, using Django:
 To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/development_environment]
 
-In progress, once ready it can be accessed under: [Cycle Results](http://ronnyerrmann.ddns.net:8000).
+The following packages are required
+```
+pip install requests urllib3
+```
+
+The website runs on a test server: [Cycle Results (Django)](http://ronnyerrmann.ddns.net:8000).
 
 ### Learnings
 * Be more consistent with your names: instead of using "MonthKM" or "YearDays" for the front end it is easier to use the same column names for each table.

@@ -90,4 +90,5 @@ def data_detail_view(request, date_wmy=None, entryid=None):
             raise ValueError('date_wmy has an unknown start: '+date_wmy)
     else:
         raise ValueError('Both date_wmy and entryid are none.')
-    return render(request, 'cycle_data/cycle_detail.html', context={'cycle': cycleThisData, 'dataType':dataType})
+
+    return render(request, 'cycle_data/cycle_detail.html', context={'cycle': cycleThisData, 'dataType': dataType})
