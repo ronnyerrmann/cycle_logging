@@ -48,7 +48,7 @@ class FahrradRides(models.Model):
     date = models.DateField(db_column='Date', help_text='Give the Date') 
     daykm = models.FloatField(db_column='DayKM', help_text='Give the Distance in KM')
     #dayseconds = models.IntegerField(db_column='DaySeconds', help_text='Give the Time in Seconds')
-    dayseconds = TimeInSecondsField(db_column='DaySeconds', verbose_name="Duration", help_text='Give in HH:MM:SS')
+    dayseconds = TimeInSecondsField(db_column='DaySeconds', verbose_name="Duration", help_text='Give in [HH:]MM:SS')
     daykmh = models.FloatField(db_column='DayKMH', blank=True, null=True, help_text='Will be filled automatically')
     totalkm = models.FloatField(db_column='TotalKM', unique=True, help_text='Give the Distance in KM')
     totalseconds = TimeInSecondsField(
@@ -73,7 +73,12 @@ class FahrradRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
-        
+    def save(self):
+        super().save()
+        from . import backup    # Otherwise I'd have a circular import
+        backup.backup_db()
+
+
 class FahrradMonthlySummary(models.Model):
     month_starting_on = models.DateField(db_column='Month_starting_on', primary_key=True)
     monthkm = models.FloatField(db_column='MonthKM')
