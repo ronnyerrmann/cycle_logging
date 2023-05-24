@@ -14,14 +14,8 @@ import requests
 import socket
 import sys
 import urllib3
-from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-mysql_settings_path = str(BASE_DIR).rsplit(os.sep, 1)[0]
-sys.path.append(mysql_settings_path)
-
-from my_proc import Logging, Mysqlset
+from my_base import BASE_DIR, Logging, Mysqlset, MYSQL_SETTINGS_DIR
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -54,11 +48,11 @@ def current_public_ip() -> str:
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
-with open(mysql_settings_path + "/django_secret_key.txt") as f:
+with open(MYSQL_SETTINGS_DIR + "/django_secret_key.txt") as f:
     SECRET_KEY = f.read().strip()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # Public IP might update while the server is up
 ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1", current_public_ip()]
@@ -79,8 +73,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Add our new application
-    'cycle.apps.CycleConfig'
+    'cycle.apps.CycleConfig',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -126,7 +121,7 @@ DATABASES = {
 
 # Read settings file
 mysqlset = Mysqlset()
-mysqlset.read_settings_file(mysql_settings_path + os.sep + 'fahrrad_mysql.params')
+mysqlset.read_settings_file(MYSQL_SETTINGS_DIR + os.sep + 'fahrrad_mysql.params')
 mysqldata = mysqlset.get_settings()
 DATABASES = {
     'default': {
