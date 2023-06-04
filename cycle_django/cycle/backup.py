@@ -1,12 +1,16 @@
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from cycle.models import FahrradRides, convert_sec_to_str       # this is correct
+import gzip
+import datetime
+import cycle.models
+from my_base import Logging, create_folder_if_required
 
+BACKUP_FOLDER = "backup_database"
 
 logger = Logging.setup_logger(__name__)
 
 
 """
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 @receiver(post_save, sender=FahrradRides)
 def handle_object_save(sender, instance, created, **kwargs):
     # Test method on how to use receiver to react to signals
@@ -24,7 +28,10 @@ def handle_object_save(sender, instance, created, **kwargs):
 
 
 def backup_db():
-    with open("backup_database.csv", "w") as f:
-        for obj in FahrradRides.objects.all():
-            f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.daykm};{obj.dayseconds};{obj.totalkm};{obj.totalseconds}\n")
+    create_folder_if_required(BACKUP_FOLDER)
+
+    with gzip.open(f"{BACKUP_FOLDER}/{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv.gz", "w") as f:
+        for obj in cycle.models.FahrradRides.objects.all():
+            f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.daykm};{obj.dayseconds};{obj.totalkm};{obj.totalseconds}"
+                    f"\n".encode())
 
