@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.forms import DurationField
 # using: python manage.py inspectdb > models.py
 
+from . import backup
 
 class TimeInSecondsField(models.IntegerField):
     description = "Stores time duration in seconds, but shows as timedelta"
@@ -77,7 +78,6 @@ class FahrradRides(models.Model):
 
     def save(self):
         super().save()
-        from . import backup    # Otherwise I'd have a circular import
         backup.backup_db()
 
 
