@@ -13,9 +13,10 @@ class TimeInSecondsField(models.IntegerField):
     def from_db_value(self, value: int, expression, connection):
         if value is not None:
             # return my_timedelta(seconds=value)       # this would create 185d:06:10:05 instead of
-            return self._convert_sec_to_str(value)
+            return self.convert_sec_to_str(value)
 
-    def to_python(self, value: Union[int, datetime.timedelta, str]):
+    @staticmethod
+    def to_python(value: Union[int, datetime.timedelta, str]) -> int:
         if isinstance(value, int):
             return value
         if isinstance(value, str):
@@ -38,7 +39,8 @@ class TimeInSecondsField(models.IntegerField):
         defaults.pop("widget", None)      # Remove the AdminIntegerFieldWidget as it can't display the time on the admin page
         return super().formfield(**defaults)
 
-    def _convert_sec_to_str(self, seconds: int):
+    @staticmethod
+    def convert_sec_to_str(seconds: int) -> str:
         return "{:02d}:{:02d}:{:02d}".format(int(seconds / 3600), int(seconds / 60) % 60, seconds % 60)
 
 
