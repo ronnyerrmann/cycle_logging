@@ -12,9 +12,9 @@ class AdminForm(forms.ModelForm):
         # Check that the speed makes sense
         date = cleaned_data.get('date')
         daykm = cleaned_data.get('daykm')
-        dayseconds = cleaned_data.get('dayseconds').days * 24 * 3600 + cleaned_data.get('dayseconds').seconds
+        dayseconds = int(cleaned_data.get('dayseconds').total_seconds())
         totalkm = cleaned_data.get('totalkm')
-        totalseconds = cleaned_data.get('totalseconds').days * 24 * 3600 + cleaned_data.get('totalseconds').seconds
+        totalseconds = int(cleaned_data.get('totalseconds').total_seconds())
         speed = daykm / dayseconds * 3600   # in km/h
 
         if speed < 2 or speed > 30:
