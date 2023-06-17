@@ -29,7 +29,7 @@ class TimeInSecondsField(models.IntegerField):
         if value is None:
             return value
 
-        raise ValueError(f"Expected a timedelta object, got {type(value)}")
+        raise ValueError(f"Expected a timedelta object, got {value.__class__.__name__}")
 
     def get_prep_value(self, value: datetime.timedelta):
         return self.to_python(value)
@@ -42,6 +42,8 @@ class TimeInSecondsField(models.IntegerField):
 
     @staticmethod
     def convert_sec_to_str(seconds: int) -> str:
+        if not isinstance(seconds, int):
+            raise ValueError(f"Got {seconds.__class__.__name__} instead of int")
         return "{:02d}:{:02d}:{:02d}".format(int(seconds / 3600), int(seconds / 60) % 60, seconds % 60)
 
 
@@ -76,8 +78,8 @@ class FahrradRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
-    def save(self):
-        super().save()
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
         backup.backup_db()
 
 
