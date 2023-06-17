@@ -131,6 +131,9 @@ DATABASES = {
         'PASSWORD': mysqldata['password'],
         'HOST': mysqldata['host'],
         'PORT': '3306',
+        'TEST': {
+            'NAME': 'cycle_test',
+        },
     }
 }
 

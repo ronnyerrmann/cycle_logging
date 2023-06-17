@@ -100,6 +100,18 @@ The following packages are required
 pip install requests urllib3
 ```
 
+Allow access to the database used by Django tests (as given in settings.py for `DATABASES[default][TEST][NAME]`:
+```commandline
+sudo mysql -u root
+```
+```
+GRANT ALL PRIVILEGES ON cycle_test.* TO 'fahrrad'@'localhost';
+```
+The tests can be executed by running in folder `cycle_logging/cycle_django`:
+```commandline
+python manage.py test
+```
+
 The website runs on a test server: [Cycle Results (Django)](http://ronnyerrmann.ddns.net:8000).
 
 ### Learnings
