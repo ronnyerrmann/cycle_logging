@@ -5,6 +5,9 @@
   <h3>Cycle ride list</h3>
   {% if cycle_data_list %}
   <ul>
+    {% autoescape off %}
+        {{ plot_div }}
+    {% endautoescape %}
     <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
     <table  class='table_inner_borders'>
       <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>

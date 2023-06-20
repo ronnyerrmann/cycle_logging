@@ -6,7 +6,11 @@ from django.urls import reverse
 from django.forms import DurationField
 # using: python manage.py inspectdb > models.py
 
+from my_base import Logging
 from . import backup
+
+logger = Logging.setup_logger(__name__)
+
 
 class TimeInSecondsField(models.IntegerField):
     description = "Stores time duration in seconds, but shows as timedelta"
@@ -93,6 +97,7 @@ class FahrradMonthlySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'fahrrad_monthly_summary'
+        ordering = ['month_starting_on']
 
     def get_absolute_url(self):
         return reverse('cycle-detail', args=["m"+str(self.month_starting_on)])
@@ -108,6 +113,7 @@ class FahrradWeeklySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'fahrrad_weekly_summary'
+        ordering = ['week_starting_on']
 
     def get_absolute_url(self):
         return reverse('cycle-detail', args=["w"+str(self.week_starting_on)])
@@ -125,6 +131,7 @@ class FahrradYearlySummary(models.Model):
     class Meta:
         managed = False
         db_table = 'fahrrad_yearly_summary'
+        ordering = ['year_starting_on']
 
     def get_absolute_url(self):
         return reverse('cycle-detail', args=["y"+str(self.year_starting_on)])

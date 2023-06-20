@@ -97,7 +97,7 @@ To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Lear
 
 The following packages are required
 ```
-pip install requests urllib3
+pip install requests urllib3 django pandas plotly
 ```
 
 Allow access to the database used by Django tests (as given in settings.py for `DATABASES[default][TEST][NAME]`:
