@@ -11,6 +11,7 @@
     <form method="get">
       {{ plotdataform }}
       <button type="submit">Replot</button>
+      <p>(Unfortunately, plotly doesn't handle timedelta objects yet)</p>
     </form>
     <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
     <table  class='table_inner_borders'>

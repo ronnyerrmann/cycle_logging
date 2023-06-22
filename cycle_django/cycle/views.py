@@ -8,13 +8,13 @@ from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
 from django.shortcuts import get_object_or_404
 
-from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary
+from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary, TimeInSecondsField
 from .forms import PlotDataForm, PlotDataFormSummary
 from my_base import Logging
 
 logger = Logging.setup_logger(__name__)
 
-FIELDS_TO_LABELS = {"date": "Date", "km": "Distance [km]", "seconds": "Time", "kmh": "Speed [km/h]", "days": "Days"}
+FIELDS_TO_LABELS = {"date": "Date", "km": "Distance [km]", "seconds": "Duration", "kmh": "Speed [km/h]", "days": "Days"}
 
 def index(request):
     """View function for home page of site."""
@@ -92,6 +92,10 @@ class BaseDataListView(generic.ListView):
             columns = serialized_objects[0].keys()
 
             data_frame = pandas.DataFrame(data, columns=columns)
+            # Convert the duration fields from string into timedelta fields
+            columns_time = [col for col in columns if col.find("seconds") != -1]
+            for col in columns_time:
+                data_frame[col] = [TimeInSecondsField.to_datetime(t) + pandas.to_datetime('1970/01/01') for t in data_frame[col]]
 
             fig = px.scatter(data_frame, **plot_args)
             # fig.update_yaxes(autorange="reversed")
