@@ -9,10 +9,12 @@ from django.views import generic
 from django.shortcuts import get_object_or_404
 
 from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary
+from .forms import PlotDataForm, PlotDataFormSummary
 from my_base import Logging
 
 logger = Logging.setup_logger(__name__)
 
+FIELDS_TO_LABELS = {"date": "Date", "km": "Distance [km]", "seconds": "Time", "kmh": "Speed [km/h]", "days": "Days"}
 
 def index(request):
     """View function for home page of site."""
@@ -46,36 +48,50 @@ class BaseDataListView(generic.ListView):
     def get_context_data(self, **kwargs):
         # Call the base implementation first to get the context
         context = super().get_context_data(**kwargs)
+        if not self.request.GET:
+            # should be a django.http.request.QueryDict instead
+            # if self.request.GET is empty (first time, it doesn't use the set initial values in ChoiceField
+            self.request.GET = {'x_data': 'date', 'y_data': 'km', 'z_data': 'kmh'}
         # Create any data and add it to the context
         context['dataset'] = self.context_dataset
-        context['plot_div'] = self.create_plot()
+        context['plot_div'] = self.create_plot(self.request.GET)
 
         return context
 
-    def get_plot_args(self):
-        plot_args = {
-            "x": "date", "y": f"{self.context_dataset}km", "color": f"{self.context_dataset}kmh",
-            "labels": {"date": "Date", f"{self.context_dataset}km": "Distance [km]",
-                       f"{self.context_dataset}kmh": "Speed [km/h]"}
-        }
-        return plot_args
-
-    def create_plot(self):
+    def create_plot(self, axis_dict):
         queryset = self.get_queryset()
 
+        def add_context_dataset(entry):
+            if entry.startswith("km") or entry.startswith("seconds") or entry.startswith("days"):
+                return f"{self.context_dataset}{entry}"
+            return entry
+
         if queryset.exists():
+            x = axis_dict.get("x_data", "date")
+            y = axis_dict.get("y_data", "km")
+            z = axis_dict.get("z_data", "kmh")
+            xl = FIELDS_TO_LABELS[x]
+            yl = FIELDS_TO_LABELS[y]
+            x = add_context_dataset(x)
+            y = add_context_dataset(y)
+            plot_args = {"x": x, "y": y}
+            plot_args["labels"] = {x: xl, y: yl}
+            if z != "none":
+                zl = FIELDS_TO_LABELS[z]
+                z = add_context_dataset(z)
+                plot_args["color"] = z
+                plot_args["labels"][z] = zl
+
             serialized_models = serializers.serialize(format='python', queryset=queryset)
-            for s in serialized_models:
+            if "date" in [x, y, z] and self.context_dataset != "day":
                 # The primary key is not included in the serialized data
-                if self.context_dataset != "day":
+                for s in serialized_models:
                     s["fields"]["date"] = s['pk']
             serialized_objects = [s['fields'] for s in serialized_models]
             data = [x.values() for x in serialized_objects]
             columns = serialized_objects[0].keys()
 
             data_frame = pandas.DataFrame(data, columns=columns)
-
-            plot_args = self.get_plot_args()
 
             fig = px.scatter(data_frame, **plot_args)
             # fig.update_yaxes(autorange="reversed")
@@ -91,47 +107,39 @@ class DataListView(BaseDataListView):
         # executed when the page is opened
         return FahrradRides.objects.all()
 
-    def get_plot_args(self):
-        plot_args = super().get_plot_args()
-        #plot_args["x"] = "date"
-        #plot_args["labels"]["date"] = "Date"
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["plotdataform"] = PlotDataForm(self.request.GET)
 
-        return plot_args
+        return context
 
-class DataWListView(BaseDataListView):
+class DataSummaryView(BaseDataListView):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["plotdataform"] = PlotDataFormSummary(self.request.GET)
+
+        return context
+
+class DataWListView(DataSummaryView):
     context_dataset = "week"
     paginate_by = 100
 
     def get_queryset(self):
         return FahrradWeeklySummary.objects.all()
 
-    def get_plot_args(self):
-        plot_args = super().get_plot_args()
 
-        return plot_args
-
-class DataMListView(BaseDataListView):
+class DataMListView(DataSummaryView):
     context_dataset = "month"
 
     def get_queryset(self):
         return FahrradMonthlySummary.objects.all()
 
-    def get_plot_args(self):
-        plot_args = super().get_plot_args()
 
-        return plot_args
-
-
-class DataYListView(BaseDataListView):
+class DataYListView(DataSummaryView):
     context_dataset = "year"
 
     def get_queryset(self):
         return FahrradYearlySummary.objects.all()
-
-    def get_plot_args(self):
-        plot_args = super().get_plot_args()
-
-        return plot_args
 
 
 def data_detail_view(request, date_wmy=None, entryid=None):
