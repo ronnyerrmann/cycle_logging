@@ -52,7 +52,7 @@ with open(MYSQL_SETTINGS_DIR + "/django_secret_key.txt") as f:
     SECRET_KEY = f.read().strip()
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = True
+DEBUG = True
 DEBUG = False
 
 # Public IP might update while the server is up

@@ -13,6 +13,10 @@
       <button type="submit">Replot</button>
       <p>(Unfortunately, plotly doesn't handle timedelta objects yet)</p>
     </form>
+    {% autoescape off %}
+        {{ plot_total_div }}
+        {{ plot_diff_div }}
+    {% endautoescape %}
     <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
     <table  class='table_inner_borders'>
       <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>
