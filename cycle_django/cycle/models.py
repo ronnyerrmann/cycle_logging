@@ -20,24 +20,20 @@ class TimeInSecondsField(models.IntegerField):
             # return my_timedelta(seconds=value)       # this would create 185d:06:10:05 instead of
             return self.convert_sec_to_str(value)
 
-    def to_python(self, value: Union[int, datetime.timedelta, str]) -> int:
+    @staticmethod
+    def to_python(value: Union[int, datetime.timedelta, str]) -> int:
         if isinstance(value, int):
             return value
         if isinstance(value, str):
             # Convert "4446:10:05" into a timedelta object
-            value = self.to_datetime(value)
+            data = [int(ii) for ii in (":0:0:" + value).rsplit(":", 3)[-3:]]
+            value = datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
         if isinstance(value, datetime.timedelta):
             return int(value.total_seconds())
         if value is None:
             return value
 
         raise ValueError(f"Expected a timedelta object, got {value.__class__.__name__}")
-
-    @staticmethod
-    def to_datetime(value):
-        data = [int(ii) for ii in (":0:0:" + value).rsplit(":", 3)[-3:]]
-        value = datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
-        return value
 
     def get_prep_value(self, value: datetime.timedelta):
         return self.to_python(value)
