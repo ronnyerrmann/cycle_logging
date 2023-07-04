@@ -66,9 +66,10 @@ def remove_old_files(folder_path):
             keep_files.add(file)
 
     files_to_remove = set(files) - keep_files
-    logger.info(f"Clean the old files: {files_to_remove}")
-    for file_to_remove in files_to_remove:
-        os.remove(file_to_remove)
+    if files_to_remove:
+        logger.info(f"Clean the old files: {files_to_remove}")
+        for file_to_remove in files_to_remove:
+            os.remove(file_to_remove)
 
 def backup_db():
     create_folder_if_required(BACKUP_FOLDER)
