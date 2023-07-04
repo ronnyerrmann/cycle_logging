@@ -74,9 +74,51 @@ class FahrradRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, no_more_modifications=False, **kwargs):
+
+        if no_more_modifications:
+            # Just run parent save for entries that don't need more modification
+            super().save(*args, **kwargs)
+            return
+
+        # Add speeds before saving
+        self.speed = round(self.distance / self.duration.total_seconds() * 3600, 4)
+        self.totalspeed = round(self.totaldistance / self.totalduration.total_seconds() * 3600, 4)
+
         super().save(*args, **kwargs)
+
         backup.backup_db()
+
+        self.update_cumulative_values()
+
+    def update_cumulative_values(self):
+        # Calculate cumulative values
+        date_for_cum = self.date
+        if self.pk:
+            # Object already exists in the database, check for field changes
+            original_obj = FahrradRides.objects.get(pk=self.pk)
+            date_for_cum = min(date_for_cum, original_obj.date)
+
+        # Last object with a culm distance
+        for obj in FahrradRides.objects.filter(date__lt=date_for_cum).order_by('-date'):
+            if obj.cumdistance and obj.cumduration:
+                prev_cumdistance = obj.cumdistance
+                logger.info(f"prev distance {prev_cumdistance}")
+                prev_cumduration = obj.cumduration
+                break
+            else:
+                date_for_cum = obj.date
+        else:
+            prev_cumdistance = 0
+            prev_cumduration = datetime.timedelta(0)
+
+        for obj in FahrradRides.objects.filter(date__gte=date_for_cum).order_by('date'):
+            prev_cumdistance += obj.distance
+            prev_cumduration += obj.duration
+            obj.cumdistance = prev_cumdistance
+            obj.cumduration = prev_cumduration
+            obj.save(no_more_modifications=True)
+            logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
 
     @classmethod
     def load_data(cls):
