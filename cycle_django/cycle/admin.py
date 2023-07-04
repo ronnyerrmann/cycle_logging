@@ -1,3 +1,5 @@
+import copy
+
 from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
@@ -31,11 +33,19 @@ class AdminForm(forms.ModelForm):
                 )
 
             prev_totalseconds = TimeInSecondsField.to_python(previous.totalseconds)
-            if abs(prev_totalseconds + dayseconds - totalseconds) >= 60:
-                # Avoid typing mistakes in day or total time by checking that is less than a minute
+            totalseconds_ori = copy.copy(totalseconds)
+            for ii in range(2):
+                if abs(prev_totalseconds + dayseconds - totalseconds) <= 60:
+                    # Avoid typing mistakes in day or total time by checking that is less than a minute
+                    if ii == 1:
+                        cleaned_data["totalseconds"] *= 60
+                    break
+                # check that the user just didn't forget to add :00 to the end
+                totalseconds *= 60
+            else:
                 raise ValidationError(
-                    f"The current total ({TimeInSecondsField.convert_sec_to_str(totalseconds)}) differs from the sum "
-                    f"of the last total ({TimeInSecondsField.convert_sec_to_str(prev_totalseconds)}) plus current "
+                    f"The current total ({TimeInSecondsField.convert_sec_to_str(totalseconds_ori)}) differs from the "
+                    f"sum of the last total ({TimeInSecondsField.convert_sec_to_str(prev_totalseconds)}) plus current "
                     f"({TimeInSecondsField.convert_sec_to_str(dayseconds)}) "
                     f"[={TimeInSecondsField.convert_sec_to_str(prev_totalseconds + dayseconds)}]"
                 )
