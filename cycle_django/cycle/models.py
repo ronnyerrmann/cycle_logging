@@ -2,6 +2,7 @@ import datetime
 from typing import Union
 
 from django.db import models
+from django.db.models import Q, Sum, Count
 from django.urls import reverse
 from django.forms import DurationField
 # using: python manage.py inspectdb > models.py
@@ -89,6 +90,7 @@ class FahrradRides(models.Model):
 
         backup.backup_db()
 
+        self.mark_summary_tables()
         self.update_cumulative_values()
 
     def update_cumulative_values(self):
@@ -120,17 +122,66 @@ class FahrradRides(models.Model):
             obj.save(no_more_modifications=True)
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
 
+    def mark_summary_tables(self):
+        # Mark in the summary tables that dates were updated
+        dates_to_mark = [self.date]
+        if self.pk:
+            # Object already exists in the database, check for field changes
+            original_obj = FahrradRides.objects.get(pk=self.pk)
+            dates_to_mark.append(original_obj.date)
+
+        begin_of_week = set([date - datetime.timedelta(days=date.weekday()) for date in dates_to_mark])
+        begin_of_month = set([datetime.date(date.year, date.month, 1) for date in dates_to_mark])
+        begin_of_year = set([datetime.date(date.year, 1, 1) for date in begin_of_month])
+        for date in begin_of_week:
+            try:
+                obj = FahrradWeeklySummary.objects.get(date=date)
+            except FahrradWeeklySummary.DoesNotExist:
+                obj = FahrradWeeklySummary(date=date)
+            obj.updated = True
+            obj.save()
+        for date in begin_of_month:
+            try:
+                obj = FahrradMonthlySummary.objects.get(date=date)
+            except FahrradMonthlySummary.DoesNotExist:
+                obj = FahrradMonthlySummary(date=date)
+            obj.updated = True
+            obj.save()
+        for date in begin_of_year:
+            try:
+                obj = FahrradYearlySummary.objects.get(date=date)
+            except FahrradYearlySummary.DoesNotExist:
+                obj = FahrradYearlySummary(date=date)
+            obj.updated = True
+            obj.save()
+
+
     @classmethod
     def load_data(cls):
         logger.info("Loaded data")
 
 
+def update_fields_common(my_filter, obj):
+    summary = FahrradRides.objects.filter(my_filter).aggregate(
+        distance=Sum("distance"),
+        duration=Sum("duration"),
+        numberofdays=Count("entryid")
+    )
+    obj.distance = summary["distance"]
+    obj.duration = summary["duration"]
+    obj.speed = round(summary["distance"] / summary["duration"].total_seconds() * 3600, 4)
+    obj.numberofdays = summary["numberofdays"]
+    obj.updated = False
+    obj.save()
+
+
 class FahrradWeeklySummary(models.Model):
     date = models.DateField(primary_key=True)
-    distance = models.FloatField()
-    duration = models.DurationField(verbose_name="Duration in week")
+    distance = models.FloatField(null=True)
+    duration = models.DurationField(verbose_name="Duration in week", null=True)
     speed = models.FloatField(blank=True, null=True)
     numberofdays = models.IntegerField(blank=True, null=True)
+    updated = models.BooleanField(null=True)
 
     class Meta:
         ordering = ['date']
@@ -138,13 +189,20 @@ class FahrradWeeklySummary(models.Model):
     def get_absolute_url(self):
         return reverse('cycle-detail', args=["w"+str(self.date)])
 
+    @staticmethod
+    def update_fields():
+        for obj in FahrradWeeklySummary.objects.filter(updated=True):
+            my_filter = Q(date__gte=obj.date) & Q(date__lt=obj.date + datetime.timedelta(days=7))
+            update_fields_common(my_filter, obj)
+
 
 class FahrradMonthlySummary(models.Model):
     date = models.DateField(primary_key=True)
-    distance = models.FloatField()
-    duration = models.DurationField(verbose_name="Duration in month")
+    distance = models.FloatField(null=True)
+    duration = models.DurationField(verbose_name="Duration in month", null=True)
     speed = models.FloatField(blank=True, null=True)
     numberofdays = models.IntegerField(blank=True, null=True)
+    updated = models.BooleanField(null=True)
 
     class Meta:
         ordering = ['date']
@@ -152,16 +210,32 @@ class FahrradMonthlySummary(models.Model):
     def get_absolute_url(self):
         return reverse('cycle-detail', args=["m"+str(self.date)])
 
+    @staticmethod
+    def update_fields():
+        for obj in FahrradMonthlySummary.objects.filter(updated=True):
+            end_date = obj.date + datetime.timedelta(days=31)
+            end_date -= datetime.timedelta(days=end_date.day - 1)
+            my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
+            update_fields_common(my_filter, obj)
+
 
 class FahrradYearlySummary(models.Model):
     date = models.DateField(primary_key=True, help_text='First date of the year')
-    distance = models.FloatField()
-    duration = models.DurationField(verbose_name="Duration in year")
+    distance = models.FloatField(null=True)
+    duration = models.DurationField(verbose_name="Duration in year", null=True)
     speed = models.FloatField(blank=True, null=True)
-    numberofdays = models.IntegerField(help_text='Give the number of days with exercise in that year')
+    numberofdays = models.IntegerField(help_text='Give the number of days with exercise in that year', null=True)
+    updated = models.BooleanField(null=True)
 
     class Meta:
         ordering = ['date']
 
     def get_absolute_url(self):
         return reverse('cycle-detail', args=["y"+str(self.date)])
+
+    @staticmethod
+    def update_fields():
+        for obj in FahrradYearlySummary.objects.filter(updated=True):
+            end_date = datetime.date(obj.date.year+1, 1, 1)
+            my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
+            update_fields_common(my_filter, obj)

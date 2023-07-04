@@ -226,6 +226,7 @@ class DataWListView(DataSummaryView):
     context_dataset = "week"
 
     def get_queryset(self):
+        FahrradWeeklySummary.update_fields()
         return FahrradWeeklySummary.objects.all()
 
 
@@ -233,6 +234,7 @@ class DataMListView(DataSummaryView):
     context_dataset = "month"
 
     def get_queryset(self):
+        FahrradMonthlySummary.update_fields()
         return FahrradMonthlySummary.objects.all()
 
 
@@ -240,6 +242,7 @@ class DataYListView(DataSummaryView):
     context_dataset = "year"
 
     def get_queryset(self):
+        FahrradYearlySummary.update_fields()
         return FahrradYearlySummary.objects.all()
 
 
