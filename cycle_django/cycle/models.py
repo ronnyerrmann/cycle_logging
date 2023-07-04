@@ -78,6 +78,10 @@ class FahrradRides(models.Model):
         super().save(*args, **kwargs)
         backup.backup_db()
 
+    @classmethod
+    def load_data(cls):
+        logger.info("Loaded data")
+
 
 class FahrradWeeklySummary(models.Model):
     date = models.DateField(primary_key=True)
