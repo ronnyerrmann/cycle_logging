@@ -1,5 +1,4 @@
 {% extends "base_generic.html" %}
-{# {% load convert_tags %} -> this doesn't work #}
 
 {% block content %}
   <h3>Cycle ride list</h3>
@@ -24,16 +23,10 @@
         <tr> <td>
         {% if dataset == 'day' %}
           <a href="{{ entry.get_absolute_url }}">{{ entry.entryid}}</a></td> <td>{{entry.date}}</td>
-          <td>{{entry.daykm}}</td> <td>{{entry.dayseconds}}</td> <td>{{entry.daykmh}}
-        {% elif dataset == "week" %}
-          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.week_starting_on}}</a></td>
-          <td>{{entry.weekkm}}</td> <td>{{entry.weekseconds}}</td> <td>{{entry.weekkmh}}
-        {% elif dataset == "month" %}
-          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.month_starting_on}}</a></td>
-          <td>{{entry.monthkm}}</td> <td>{{entry.monthseconds}}</td> <td>{{entry.monthkmh}}
-        {% elif dataset == "year" %}
-          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.year_starting_on}}</a></td>
-          <td>{{entry.yearkm}}</td> <td>{{entry.yearseconds}}</td> <td>{{entry.yearkmh}}
+          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}
+        {% elif dataset == "week" or dataset == "month" or dataset == "year"%}
+          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.date}}</a></td>
+          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}
         {% else %}
           Do not know dataset: {{ dataset }}
         {% endif %}

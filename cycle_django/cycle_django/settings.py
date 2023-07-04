@@ -14,6 +14,7 @@ import requests
 import socket
 import sys
 import urllib3
+from typing import Union
 
 from my_base import BASE_DIR, Logging, Mysqlset, MYSQL_SETTINGS_DIR
 
@@ -22,7 +23,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 logger = Logging.setup_logger(__name__)
 
 
-def current_public_ip() -> str:
+def current_public_ip() -> Union[str, None]:
     """ Returns the public IP
     """
     endpoint = 'https://ipinfo.io/json'
@@ -46,17 +47,18 @@ def current_public_ip() -> str:
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
-with open(MYSQL_SETTINGS_DIR + "/django_secret_key.txt") as f:
-    SECRET_KEY = f.read().strip()
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-DEBUG = False
+#DEBUG = False
 
 # Public IP might update while the server is up
 ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1", current_public_ip()]
+
+if DEBUG:
+    SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
+else:
+    with open(MYSQL_SETTINGS_DIR + "/django_secret_key.txt") as f:
+        SECRET_KEY = f.read().strip()
 
 if 'runserver' not in sys.argv:
     SECURE_SSL_REDIRECT = True
@@ -113,16 +115,16 @@ WSGI_APPLICATION = 'cycle_django.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
-"""
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-"""
 
-# Read settings file
+
+"""# Read settings file
 mysqlset = Mysqlset()
 mysqlset.read_settings_file(MYSQL_SETTINGS_DIR + os.sep + 'fahrrad_mysql.params')
 mysqldata = mysqlset.get_settings()
@@ -138,7 +140,7 @@ DATABASES = {
             'NAME': 'cycle_test',
         },
     }
-}
+}"""
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators

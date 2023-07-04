@@ -17,22 +17,22 @@ from my_base import Logging
 
 logger = Logging.setup_logger(__name__)
 
-FIELDS_TO_LABELS = {"date": "Date", "km": "Distance [km]", "seconds": "Duration", "kmh": "Speed [km/h]", "days": "Days"}
+FIELDS_TO_LABELS = {"date": "Date", "distance": "Distance [km]", "duration": "Duration", "speed": "Speed [km/h]", "days": "Days"}
 
 def index(request):
     """View function for home page of site."""
 
     # Find the minimum date:
-    start_date = FahrradRides.objects.all().aggregate(Min('date'))["date__min"].strftime('%Y-%m-%d')
-    end_date = FahrradRides.objects.all().aggregate(Max('date'))["date__max"].strftime('%Y-%m-%d')
+    start_date = FahrradRides.objects.all().aggregate(Min('date'))["date__min"]
+    end_date = FahrradRides.objects.all().aggregate(Max('date'))["date__max"]
     number_of_days = FahrradRides.objects.all().count()
     number_of_weeks = FahrradWeeklySummary.objects.all().count()
     number_of_months = FahrradMonthlySummary.objects.all().count()
     number_of_years = FahrradYearlySummary.objects.all().count()
 
     context = {
-        'start_date': start_date,
-        'end_date': end_date,
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date is not None else None,
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date is not None else None,
         'number_of_days': number_of_days,
         'number_of_weeks': number_of_weeks,
         'number_of_months': number_of_months,
@@ -58,7 +58,7 @@ class BaseDataListView(generic.ListView):
         if not self.request.GET:
             # should be a django.http.request.QueryDict instead
             # if self.request.GET is empty (first time, it doesn't use the set initial values in ChoiceField
-            self.request.GET = {'x_data': 'date', 'y_data': 'km', 'z_data': 'kmh'}
+            self.request.GET = {'x_data': 'date', 'y_data': 'distance', 'z_data': 'speed'}
         # Create any data and add it to the context
         context['dataset'] = self.context_dataset
         context['plot_div'] = self.create_plot()
@@ -87,30 +87,20 @@ class BaseDataListView(generic.ListView):
 
             data_frame = pandas.DataFrame(data, columns=columns)
             # Convert the duration fields from string into timedelta fields
-            columns_time = [col for col in columns if col.find("seconds") != -1]
+            columns_time = [col for col in columns if col.find("duration") != -1]
             for col in columns_time:
-                # convert string to timedelta object, same as models.TimeInSecondsField.to_datetime_timedelta
                 data_frame[col] = pandas.to_timedelta(data_frame[col]) + pandas.to_datetime('1970/01/01')
             return data_frame
 
     def create_plot(self):
-
-        def add_context_dataset(entry):
-            if entry.startswith("km") or entry.startswith("seconds") or entry.startswith("days"):
-                return f"{self.context_dataset}{entry}"
-            return entry
-
         x = self.request.GET.get("x_data", "date")
-        y = self.request.GET.get("y_data", "km")
-        z = self.request.GET.get("z_data", "kmh")
+        y = self.request.GET.get("y_data", "distance")
+        z = self.request.GET.get("z_data", "speed")
         xl = FIELDS_TO_LABELS[x]
         yl = FIELDS_TO_LABELS[y]
-        x = add_context_dataset(x)
-        y = add_context_dataset(y)
         plot_args = {"x": x, "y": y, "labels": {x: xl, y: yl}}
         if z != "none":
             zl = FIELDS_TO_LABELS[z]
-            z = add_context_dataset(z)
             plot_args["color"] = z
             plot_args["labels"][z] = zl
 
@@ -144,9 +134,9 @@ class DataListView(BaseDataListView):
 
         if self.data_frame is not None:
             ax = "date"
-            ay1 = "totalkmh"
-            ay2 = "totalkm"
-            ay3 = "totalseconds"
+            ay1 = "totalspeed"
+            ay2 = "totaldistance"
+            ay3 = "totalduration"
             fig_total = go.Figure()
             fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay1], name="Speed"))
             fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay2], name="Distance", yaxis="y2"))
@@ -182,9 +172,9 @@ class DataListView(BaseDataListView):
             bx = "date"
             by1 = "diffkm"
             by2 = "diffsec"
-            self.data_frame[by1] = self.data_frame["totalkm"] - self.data_frame["culmkm"]
+            self.data_frame[by1] = self.data_frame["totaldistance"] - self.data_frame["cumdistance"]
             self.data_frame[by2] = pandas.to_numeric(
-                self.data_frame["totalseconds"] - self.data_frame["culmseconds"]
+                self.data_frame["totalduration"] - self.data_frame["cumduration"]
             ) * 1E-9        # From mu sec to seconds
 
             fig_diff = go.Figure()
@@ -219,6 +209,7 @@ class DataListView(BaseDataListView):
 
 
 class DataSummaryView(BaseDataListView):
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["plotdataform"] = PlotDataFormSummary(self.request.GET)
@@ -231,8 +222,8 @@ class DataSummaryView(BaseDataListView):
             s["fields"]["date"] = s['pk']
 
 class DataWListView(DataSummaryView):
-    context_dataset = "week"
     paginate_by = 100
+    context_dataset = "week"
 
     def get_queryset(self):
         return FahrradWeeklySummary.objects.all()
@@ -257,7 +248,7 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         cycleThisData = get_object_or_404(FahrradRides, pk=entryid)
         dataType = "d"
     elif date_wmy is not None:
-        dataType = date_wmy[0]
+        dataType = "wmy"
         if date_wmy[0] == "w":
             cycleThisData = get_object_or_404(FahrradWeeklySummary, pk=date_wmy[1:])
         elif date_wmy[0] == "m":

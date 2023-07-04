@@ -2,6 +2,8 @@ import datetime
 import glob
 import gzip
 import os
+from django.core.management import call_command
+
 import cycle.models
 from my_base import Logging, create_folder_if_required
 
@@ -74,7 +76,9 @@ def backup_db():
 
     with gzip.open(os.path.join(BACKUP_FOLDER, datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S.csv.gz')), "w") as f:
         for obj in cycle.models.FahrradRides.objects.all():
-            f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.daykm};{obj.dayseconds};{obj.totalkm};{obj.totalseconds}"
-                    f"\n".encode())
+            f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{obj.duration};{obj.totaldistance};"
+                    f"{obj.totalduration}\n".encode())
+
+    #call_command("dumpdata", "cycle.FahrradRides", output=os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz"))
 
 

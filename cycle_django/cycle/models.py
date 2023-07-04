@@ -53,29 +53,21 @@ class TimeInSecondsField(models.IntegerField):
 
 class FahrradRides(models.Model):
     # most of the fieldnames are lower case of the db fieldnames
-    entryid = models.AutoField(db_column='EntryID', primary_key=True, help_text='Will be filled automatically') 
-    date = models.DateField(db_column='Date', help_text='Give the Date') 
-    daykm = models.FloatField(db_column='DayKM', help_text='Give the Distance in KM')
-    #dayseconds = models.IntegerField(db_column='DaySeconds', help_text='Give the Time in Seconds')
-    dayseconds = TimeInSecondsField(db_column='DaySeconds', verbose_name="Duration", help_text='Give in [HH:]MM:SS')
-    daykmh = models.FloatField(db_column='DayKMH', blank=True, null=True, help_text='Will be filled automatically')
-    totalkm = models.FloatField(db_column='TotalKM', unique=True, help_text='Give the Distance in KM')
-    totalseconds = TimeInSecondsField(
-        db_column='TotalSeconds', verbose_name="Total Duration", help_text='Give in [H]HH:MM:SS'
+    entryid = models.AutoField(primary_key=True, help_text='Will be filled automatically')
+    date = models.DateField(help_text='Give the Date')
+    distance = models.FloatField(help_text='Give the Distance in KM')
+    duration = models.DurationField(verbose_name="Duration", help_text='Give in [HH:]MM:SS')
+    speed = models.FloatField(blank=True, null=True, help_text='Will be filled automatically')
+    totaldistance = models.FloatField(unique=True, help_text='Give the Distance in KM')
+    totalduration = models.DurationField(verbose_name="Total Duration", help_text='Give in [H]HH:MM:SS')
+    totalspeed = models.FloatField(blank=True, null=True, help_text='Will be filled automatically')
+    cumdistance = models.FloatField(blank=True, null=True, help_text='Will be filled automatically')
+    cumduration = models.DurationField(
+        verbose_name="Culminated Duration", blank=True, null=True, help_text='Will be filled automatically'
     )
-    totalkmh = models.FloatField(db_column='TotalKMH', blank=True, null=True, help_text='Will be filled automatically')
-    culmkm = models.FloatField(db_column='CulmKM', blank=True, null=True, help_text='Will be filled automatically')
-    culmseconds = TimeInSecondsField(
-        db_column='CulmSeconds', verbose_name="Culminated Duration", blank=True, null=True,
-        help_text='Will be filled automatically'
-    )
-    wasupdated = models.IntegerField(blank=True, null=True, help_text='Will be filled automatically when new')
 
     class Meta:
-        managed = False     # no database table creation, modification, or deletion operations will be performed for
-        # this model (as done in separate before worked on django)
-        db_table = 'fahrrad_rides'
-        unique_together = (('date', 'daykm', 'dayseconds'),)
+        unique_together = (('date', 'distance', 'duration'),)
         ordering = ['date']
 
     def get_absolute_url(self):
@@ -87,51 +79,43 @@ class FahrradRides(models.Model):
         backup.backup_db()
 
 
-class FahrradMonthlySummary(models.Model):
-    month_starting_on = models.DateField(db_column='Month_starting_on', primary_key=True)
-    monthkm = models.FloatField(db_column='MonthKM')
-    monthseconds = TimeInSecondsField(db_column='MonthSeconds', verbose_name="Duration in month")
-    monthkmh = models.FloatField(db_column='MonthKMH', blank=True, null=True)
-    monthdays = models.IntegerField(db_column='MonthDays', blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'fahrrad_monthly_summary'
-        ordering = ['month_starting_on']
-
-    def get_absolute_url(self):
-        return reverse('cycle-detail', args=["m"+str(self.month_starting_on)])
-
-
 class FahrradWeeklySummary(models.Model):
-    week_starting_on = models.DateField(db_column='Week_starting_on', primary_key=True)
-    weekkm = models.FloatField(db_column='WeekKM')
-    weekseconds = TimeInSecondsField(db_column='WeekSeconds', verbose_name="Duration in week")
-    weekkmh = models.FloatField(db_column='WeekKMH', blank=True, null=True)
-    weekdays = models.IntegerField(db_column='WeekDays', blank=True, null=True)
+    date = models.DateField(primary_key=True)
+    distance = models.FloatField()
+    duration = models.DurationField(verbose_name="Duration in week")
+    speed = models.FloatField(blank=True, null=True)
+    numberofdays = models.IntegerField(blank=True, null=True)
 
     class Meta:
-        managed = False
-        db_table = 'fahrrad_weekly_summary'
-        ordering = ['week_starting_on']
+        ordering = ['date']
 
     def get_absolute_url(self):
-        return reverse('cycle-detail', args=["w"+str(self.week_starting_on)])
+        return reverse('cycle-detail', args=["w"+str(self.date)])
+
+
+class FahrradMonthlySummary(models.Model):
+    date = models.DateField(primary_key=True)
+    distance = models.FloatField()
+    duration = models.DurationField(verbose_name="Duration in month")
+    speed = models.FloatField(blank=True, null=True)
+    numberofdays = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['date']
+
+    def get_absolute_url(self):
+        return reverse('cycle-detail', args=["m"+str(self.date)])
 
 
 class FahrradYearlySummary(models.Model):
-    year_starting_on = models.DateField(
-        db_column='Year_starting_on', primary_key=True, help_text='First date of the year'
-    )
-    yearkm = models.FloatField(db_column='YearKM', help_text='Give the Distance in KM')
-    yearseconds = TimeInSecondsField(db_column='YearSeconds', verbose_name="Duration in year")
-    yearkmh = models.FloatField(db_column='YearKMH', blank=True, null=True)
-    yeardays = models.IntegerField(db_column='YearDays', help_text='Give the number of days with exercise in that year')
+    date = models.DateField(primary_key=True, help_text='First date of the year')
+    distance = models.FloatField()
+    duration = models.DurationField(verbose_name="Duration in year")
+    speed = models.FloatField(blank=True, null=True)
+    numberofdays = models.IntegerField(help_text='Give the number of days with exercise in that year')
 
     class Meta:
-        managed = False
-        db_table = 'fahrrad_yearly_summary'
-        ordering = ['year_starting_on']
+        ordering = ['date']
 
     def get_absolute_url(self):
-        return reverse('cycle-detail', args=["y"+str(self.year_starting_on)])
+        return reverse('cycle-detail', args=["y"+str(self.date)])
