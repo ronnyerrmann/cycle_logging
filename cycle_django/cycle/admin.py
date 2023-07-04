@@ -32,7 +32,7 @@ class AdminForm(forms.ModelForm):
                     f"({previous.totaldistance}) plus current ({distance}) [={previous.totaldistance+distance} km]"
                 )
 
-            prev_totalseconds = previous.totalduration.total_seconds()
+            prev_totalseconds = int(previous.totalduration.total_seconds())
             totalseconds_ori = copy.copy(totalseconds)
             for ii in range(2):
                 if abs(prev_totalseconds + dayseconds - totalseconds) <= 60:
