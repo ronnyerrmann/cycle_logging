@@ -75,7 +75,7 @@ class FahrradRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
-    def save(self, *args, no_more_modifications=False, **kwargs):
+    def save(self, *args, no_more_modifications=False, no_backup=False, **kwargs):
 
         if no_more_modifications:
             # Just run parent save for entries that don't need more modification
@@ -88,7 +88,8 @@ class FahrradRides(models.Model):
 
         super().save(*args, **kwargs)
 
-        backup.backup_db()
+        if not no_backup:
+            backup.backup_db()
 
         self.mark_summary_tables()
         self.update_cumulative_values()
@@ -105,7 +106,6 @@ class FahrradRides(models.Model):
         for obj in FahrradRides.objects.filter(date__lt=date_for_cum).order_by('-date'):
             if obj.cumdistance and obj.cumduration:
                 prev_cumdistance = obj.cumdistance
-                logger.info(f"prev distance {prev_cumdistance}")
                 prev_cumduration = obj.cumduration
                 break
             else:
@@ -117,7 +117,7 @@ class FahrradRides(models.Model):
         for obj in FahrradRides.objects.filter(date__gte=date_for_cum).order_by('date'):
             prev_cumdistance += obj.distance
             prev_cumduration += obj.duration
-            obj.cumdistance = prev_cumdistance
+            obj.cumdistance = round(prev_cumdistance, 4)
             obj.cumduration = prev_cumduration
             obj.save(no_more_modifications=True)
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
@@ -158,6 +158,9 @@ class FahrradRides(models.Model):
 
     @classmethod
     def load_data(cls):
+        backup.load_backup()
+        if FahrradRides.objects.all().count() == 0:
+            backup.load_backup_mysql_based()
         logger.info("Loaded data")
 
 

@@ -3,6 +3,7 @@ import glob
 import gzip
 import os
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 import cycle.models
 from my_base import Logging, create_folder_if_required
@@ -80,6 +81,46 @@ def backup_db():
             f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{obj.duration};{obj.totaldistance};"
                     f"{obj.totalduration}\n".encode())
 
-    #call_command("dumpdata", "cycle.FahrradRides", output=os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz"))
+    # To load last changes on production instance
+    call_command("dumpdata", "cycle.FahrradRides", output=os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz"))
 
 
+def load_backup():
+    filename = os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz")
+    try:
+        call_command("loaddata", filename)
+    except CommandError as e:
+        logger.warning(f"Couldn't load backup: {e}")
+
+
+def load_backup_mysql_based():
+    """ Import the backup from the MySQL based version into this version
+    - only required once
+    - takes a long time for 3k entries as it only does about 5 entries per second (faster after disabling the backup)
+    """
+    def str_to_timedelta(text):
+        data = [int(ii) for ii in (":0:0:" + text).rsplit(":", 3)[-3:]]
+        return datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
+
+    filename = os.path.join(BACKUP_FOLDER, "20230703_205749.csv.gz")
+    if os.path.isfile(filename):
+        with gzip.open(filename, "r") as f:
+            number_of_imports = 0
+            for line in f.readlines():
+                line = line.decode().split(";")      # 2008-06-12;14.94;00:38:40;247.0;11:21:00
+                date = datetime.datetime.strptime(line[0], "%Y-%m-%d").date()
+                distance = float(line[1])
+                duration = str_to_timedelta(line[2])
+                totaldistance = float(line[3])
+                totalduration = str_to_timedelta(line[4])
+                try:
+                    obj = cycle.models.FahrradRides.objects.get(date=date, distance=distance, duration=duration)
+                except cycle.models.FahrradRides.DoesNotExist:
+                    obj = cycle.models.FahrradRides(
+                        date=date, distance=distance, duration=duration,
+                        totaldistance=totaldistance, totalduration=totalduration
+                    )
+                    obj.save(no_backup=True)
+                    number_of_imports += 1
+        if number_of_imports:
+            logger.info(f"Imported {number_of_imports} entries from {filename}")
