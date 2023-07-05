@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models import Q, Sum, Count
 from django.urls import reverse
 from django.forms import DurationField
+import django.utils.duration
 # using: python manage.py inspectdb > models.py
 
 from my_base import Logging
@@ -50,6 +51,24 @@ class TimeInSecondsField(models.IntegerField):
         if not isinstance(seconds, int):
             raise ValueError(f"Got {seconds.__class__.__name__} instead of int")
         return "{:02d}:{:02d}:{:02d}".format(int(seconds / 3600), int(seconds / 60) % 60, seconds % 60)
+
+
+def _get_duration_components_no_days(duration):
+    """ Instead of d hh:mm:ss use hhh:mm:ss"""
+    days = duration.days
+    seconds = duration.seconds
+    microseconds = duration.microseconds
+
+    minutes = seconds // 60
+    seconds = seconds % 60
+
+    hours = minutes // 60 + days * 24
+    minutes = minutes % 60
+
+    return 0, hours, minutes, seconds, microseconds
+
+
+django.utils.duration._get_duration_components = _get_duration_components_no_days
 
 
 class FahrradRides(models.Model):
