@@ -14,7 +14,7 @@ import requests
 import socket
 import sys
 import urllib3
-from typing import Union
+from typing import Union, List
 
 from my_base import BASE_DIR, Logging, Mysqlset, MYSQL_SETTINGS_DIR
 
@@ -43,16 +43,32 @@ def current_public_ip() -> Union[str, None]:
 
     return data.get("ip")
 
+def current_local_hostname_ip() -> List[str]:
+    hostname = socket.getfqdn()
+    local_ip = socket.gethostbyname_ex(hostname)[2][0]  # 127.0.0.1
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.254.254.254', 1))
+        network_ip = s.getsockname()[0]
+    except Exception:
+        network_ip = '127.0.0.1'
+    finally:
+        s.close()
+    return [hostname, local_ip, network_ip]
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-#DEBUG = False
+DEBUG = False
 
 # Public IP might update while the server is up
-ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", "127.0.0.1", current_public_ip()]
+ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", current_public_ip()] + current_local_hostname_ip()
+logger.info(f"Allowed hosts: {ALLOWED_HOSTS}")
 
 if DEBUG:
     SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
@@ -60,12 +76,18 @@ else:
     with open(MYSQL_SETTINGS_DIR + "/django_secret_key.txt") as f:
         SECRET_KEY = f.read().strip()
 
-if 'runserver' not in sys.argv:
+if 'runserver' not in sys.argv and False:
+    # SSL does not work, but as long as I won't use the remote version, that's ok
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = True
-    logger.info("Enabled secure settings: SECURE_SSL_REDIRECT, SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_HSTS_SECONDS")
+    SECURE_HSTS_PRELOAD = True
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    logger.info("Enabled secure settings: "
+                "SECURE_SSL_REDIRECT, SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_HSTS_SECONDS, "
+                "SECURE_HSTS_PRELOAD, SECURE_HSTS_INCLUDE_SUBDOMAINS"
+                )
 
 
 # Application definition
