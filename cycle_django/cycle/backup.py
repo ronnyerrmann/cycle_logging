@@ -54,6 +54,7 @@ def remove_old_files(folder_path):
             month_start = file_date.replace(day=1, hour=0, minute=0, second=0)
             if month_start not in dates_covered:
                 dates_covered.add(month_start)
+                # logger.info(f"Kept file {file} because of month")
                 keep_files.add(file)
 
         # For files older than 1 week, keep the first file of a day
@@ -61,9 +62,11 @@ def remove_old_files(folder_path):
             day_start = file_date.replace(hour=0, minute=0, second=0)
             if day_start not in dates_covered:
                 dates_covered.add(day_start)
+                # logger.info(f"Kept file {file} because of week")
                 keep_files.add(file)
 
         else:
+            # logger.info(f"Kept file {file} because of young")
             keep_files.add(file)
 
     files_to_remove = set(files) - keep_files

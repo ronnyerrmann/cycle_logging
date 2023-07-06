@@ -29,7 +29,8 @@ class TestRemoveFiles(TestCase):
         _glob.assert_called_once_with("bd/*.csv.gz")
         self.assertEqual(
             sorted([
-                call("bd/20230404_234500.csv.gz"), call("bd/20230406_123456.csv.gz"), call("bd/20230504_234500.csv.gz")
+                call("bd/20230404_234500.csv.gz"), call("bd/20230406_123456.csv.gz"), call("bd/20230504_234500.csv.gz"),
+                call("bd/20230506_123456.csv.gz")
             ]), sorted(_remove.call_args_list)
         )
 
@@ -50,7 +51,10 @@ class TestBackupDB(TestCase):
 
                 backup_db()
 
-        m.assert_called_once_with("backup_database/20230620_122334.csv.gz", "w")
+        self.assertEqual([
+            call('backup_database/20230620_122334.csv.gz', 'w'),
+            call('backup_database/FahrradRides_dump.json.gz', 'wt'),
+        ], m.call_args_list)
 
         _create_folder_if_required.assert_called_once_with(BACKUP_FOLDER)
         _remove_old_files.assert_called_once_with(BACKUP_FOLDER)
