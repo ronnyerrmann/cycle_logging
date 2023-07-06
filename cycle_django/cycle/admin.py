@@ -4,7 +4,7 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
-from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary, TimeInSecondsField
+from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary, convert_to_str_hours
 
 
 class AdminForm(forms.ModelForm):
@@ -44,10 +44,10 @@ class AdminForm(forms.ModelForm):
                 totalseconds *= 60
             else:
                 raise ValidationError(
-                    f"The current total ({TimeInSecondsField.convert_sec_to_str(totalseconds_ori)}) differs from the "
-                    f"sum of the last total ({TimeInSecondsField.convert_sec_to_str(prev_totalseconds)}) plus current "
-                    f"({TimeInSecondsField.convert_sec_to_str(dayseconds)}) "
-                    f"[={TimeInSecondsField.convert_sec_to_str(prev_totalseconds + dayseconds)}]"
+                    f"The current total ({convert_to_str_hours(totalseconds_ori)}) differs from the "
+                    f"sum of the last total ({convert_to_str_hours(prev_totalseconds)}) plus current "
+                    f"({convert_to_str_hours(dayseconds)}) "
+                    f"[={convert_to_str_hours(prev_totalseconds + dayseconds)}]"
                 )
 
         return cleaned_data

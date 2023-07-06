@@ -3,67 +3,36 @@ from django.db import connection, transaction
 from django.test import TestCase
 from unittest.mock import MagicMock, patch
 
-from cycle.models import TimeInSecondsField, FahrradRides
+from cycle.models import convert_to_str_hours, FahrradRides
 
 
-class TestTimeInSecondsField(TestCase):
-
-    def setUp(self) -> None:
-        self.field = TimeInSecondsField()
+class TestConvertToStrHours(TestCase):
 
     def test_int_to_str(self):
-        value = self.field.from_db_value(912345, None, None)
+        value = convert_to_str_hours(912345)
+
+        self.assertEqual("253:25:45", value)
+
+    def test_datetime_to_str(self):
+        value = convert_to_str_hours(datetime.timedelta(days=7, seconds=3642))
+
+        self.assertEqual("169:00:42", value)
+
+    def test_float_to_str(self):
+        value = convert_to_str_hours(912345.12)
 
         self.assertEqual("253:25:45", value)
 
     def test_None_to_str(self):
-        value = self.field.from_db_value(None, None, None)
+        value = convert_to_str_hours(None)
 
         self.assertIsNone(value)
 
-    def test_float_to_str(self):
+    def test_fail(self):
         with self.assertRaises(ValueError) as test:
-            self.field.from_db_value(1.2, None, None)
+            convert_to_str_hours(MagicMock())
 
-        self.assertEqual("Got float instead of int", str(test.exception))
-
-    def test_to_python_str(self):
-        value = self.field.to_python("253:25:45")
-
-        self.assertEqual(912345, value)
-
-    def test_to_python_int(self):
-        value = self.field.to_python(123)
-
-        self.assertEqual(123, value)
-
-    def test_to_python_None(self):
-        value = self.field.to_python(None)
-
-        self.assertIsNone(value)
-
-    def test_to_python_timedelta(self):
-        value = self.field.get_prep_value(datetime.timedelta(1, 23456))
-
-        self.assertEqual(109856, value)
-
-    def test_to_python_wrong(self):
-        with self.assertRaises(ValueError) as test:
-            self.field.to_python(1.2)
-
-        self.assertEqual("Expected a timedelta object, got float", str(test.exception))
-
-
-def change_managed_settings_just_for_tests():
-    """django model managed bit needs to be switched for tests."""
-    from django.apps import apps
-
-    unmanaged_models = [m for m in apps.get_models() if not m._meta.managed]
-    for m in unmanaged_models:
-        m._meta.managed = True
-
-
-#change_managed_settings_just_for_tests()
+        self.assertEqual("Got MagicMock instead of int or timedelta", str(test.exception))
 
 
 """class TestFahrradRides(TestCase):

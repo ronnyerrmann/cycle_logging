@@ -78,8 +78,8 @@ def backup_db():
 
     with gzip.open(os.path.join(BACKUP_FOLDER, datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S.csv.gz')), "w") as f:
         for obj in cycle.models.FahrradRides.objects.all():
-            f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{obj.duration};{obj.totaldistance};"
-                    f"{obj.totalduration}\n".encode())
+            f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{cycle.models.convert_to_str_hours(obj.duration)};"
+                    f"{obj.totaldistance};{cycle.models.convert_to_str_hours(obj.totalduration)}\n".encode())
 
     # To load last changes on production instance
     call_command("dumpdata", "cycle.FahrradRides", output=os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz"))
