@@ -16,7 +16,7 @@ import sys
 import urllib3
 from typing import Union, List
 
-from my_base import BASE_DIR, Logging, SETTINGS_DIR
+from my_base import BASE_DIR, Logging, SETTINGS_DIR, DEBUG
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -63,8 +63,8 @@ def current_local_hostname_ip() -> List[str]:
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-DEBUG = False
+#DEBUG = True
+#DEBUG = not os.environ.get("IS_PRODUCTION", "False").lower() == "true"
 
 # Public IP might update while the server is up
 ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", current_public_ip()] + current_local_hostname_ip()

@@ -2,9 +2,9 @@ from datetime import datetime
 import os
 import subprocess
 
-DATABASE_DUMP_FOLDERS = [
-    "/home/ronny/Documents/Scripts/cycle_logging/cycle_django/backup_database",
-    "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging/cycle_django/backup_database",
+SETTINGS_FOLDERS = [
+    "/home/ronny/Documents/Scripts/cycle_logging",                      # Test Production locally
+    "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
 ]
 if not os.path.exists("cycle_logging"):
     cmd = ["git", "clone", "https://github.com/ronnyerrmann/cycle_logging.git"]
@@ -19,15 +19,18 @@ docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = ["docker", "build", "--tag", docker_tag, "."]
 subprocess.run(cmd)
 
-for database_dump_folder in DATABASE_DUMP_FOLDERS:
-    if os.path.isfile(os.path.join(database_dump_folder, "FahrradRides_dump.json.gz")):
+for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
+    DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDERS, "cycle_django", "backup_database")
+    if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "FahrradRides_dump.json.gz")):
         break
 else:
-    print("No database dump found in DATABASE_DUMP_FOLDERS")
+    print("No database dump found in SETTINGS_FOLDERS")
 # Mount . to /cycle_django in the container
 cmd = ["docker", "run", "--detach",
+       "-e", "IS_PRODUCTION=True",
        "-v", ".:/cycle_logging",
-       "-v", f"{database_dump_folder}:/cycle_logging/cycle_django/database_dump",
+       "-v", f"{SETTINGS_FOLDERS}:/cycle_setup",
+       "-v", f"{DATABASE_BACKUP_FOLDER}:/cycle_logging/cycle_django/database_dump",
        "-p", "8314:8314",
        docker_tag]
 print(" ".join(cmd))
