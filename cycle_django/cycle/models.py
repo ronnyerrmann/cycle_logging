@@ -22,7 +22,7 @@ def convert_to_str_hours(value: Union[int, datetime.timedelta]) -> str:
         return "{:02d}:{:02d}:{:02d}".format(int(value / 3600), int(value / 60) % 60, value % 60)
     if value is None:
         return value
-    #logger.error(f"seconds should be int, but are {type(value)}: {value} - {isinstance(value, float)}")
+    # logger.error(f"seconds should be int, but are {type(value)}: {value} - {isinstance(value, float)}")
     raise ValueError(f"Got {value.__class__.__name__} instead of int or timedelta")
 
 

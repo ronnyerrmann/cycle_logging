@@ -18,6 +18,21 @@ The tests can be executed by running in folder `cycle_logging/cycle_django`:
 python manage.py test
 ```
 
+To start a test server (`DEBUG = True`):
+```commandline
+python3 manage.py runserver 127.0.0.1:8000
+```
+
+For production (`DEBUG = False`) and a Gunicorn server:
+```commandline
+gunicorn cycle_django.wsgi -b  0.0.0.0:8002
+```
+
+To allow connections from outside the host machine (example for port 8002)
+```commandline
+sudo ufw allow 8002
+```
+
 The website runs on a test server: [Cycle Results (Django)](http://ronnyerrmann.ddns.net:8000).
 
 ### Learnings
