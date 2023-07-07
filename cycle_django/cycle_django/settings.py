@@ -16,7 +16,7 @@ import sys
 import urllib3
 from typing import Union, List
 
-from my_base import BASE_DIR, Logging, Mysqlset, MYSQL_SETTINGS_DIR
+from my_base import BASE_DIR, Logging, SETTINGS_DIR
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -73,7 +73,7 @@ logger.info(f"Allowed hosts: {ALLOWED_HOSTS}")
 if DEBUG:
     SECRET_KEY = 'django-insecure-ka^qzl%4!36p1xn(losx#7bu5_@%ropmewdj#)cnoha4m@-qxf'
 else:
-    with open(MYSQL_SETTINGS_DIR + "/django_secret_key.txt") as f:
+    with open(SETTINGS_DIR + "/django_secret_key.txt") as f:
         SECRET_KEY = f.read().strip()
 
 if 'runserver' not in sys.argv and False:

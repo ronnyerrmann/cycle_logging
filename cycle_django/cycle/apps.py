@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 from django.db.utils import OperationalError
 
-from my_base import Logging, MYSQL_SETTINGS_DIR
+from my_base import Logging, SETTINGS_DIR
 
 logger = Logging.setup_logger(__name__)
 
@@ -33,7 +33,7 @@ class CycleConfig(AppConfig):
         username = 'ronny.errmann@gmail.com'
         try:
             if not User.objects.filter(username=username).exists():
-                with open(MYSQL_SETTINGS_DIR + "/django_admin_password.txt") as f:
+                with open(SETTINGS_DIR + "/django_admin_password.txt") as f:
                     password = f.read().strip()
                 superuser = User.objects.create_superuser(
                     username=username,
