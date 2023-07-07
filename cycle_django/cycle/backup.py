@@ -4,6 +4,7 @@ import gzip
 import os
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db.utils import OperationalError
 
 import cycle.models
 from my_base import Logging, create_folder_if_required
@@ -100,7 +101,7 @@ def load_backup():
 
     try:
         call_command("loaddata", filename)
-    except CommandError as e:
+    except (CommandError, OperationalError) as e:
         logger.warning(f"Couldn't load backup: {e}")
 
 

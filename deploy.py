@@ -17,16 +17,38 @@ cmd_branch = ["git", "checkout", args.branch]
 new = not os.path.exists("cycle_logging")
 if new:
     cmd = ["git", "clone", "https://github.com/ronnyerrmann/cycle_logging.git"]
+    print(" ".join(cmd))
     subprocess.run(cmd)
 os.chdir("cycle_logging")
-subprocess.run(cmd_branch)
 if not new:
     cmd = ["git", "pull"]
+    print(" ".join(cmd))
     subprocess.run(cmd)
+print(" ".join(cmd_branch))
+subprocess.run(cmd_branch)
 
 # Run everything below only there was a pull
 docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = ["docker", "build", "--tag", docker_tag, "."]
+print(" ".join(cmd))
+subprocess.run(cmd)
+
+with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
+    f.write(
+        "#!/bin/bash\n"
+        "echo 'python manage.py makemigrations'\n"
+        "python manage.py makemigrations\n"
+        "echo 'python manage.py migrate'\n"
+        "python manage.py migrate\n"
+        "gunicorn cycle_django.wsgi -b 0.0.0.0:8314\n"
+    )
+
+cmd = ["docker", "kill", "cycle_log"]
+print(" ".join(cmd))
+subprocess.run(cmd)
+
+cmd = ["docker", "rm", "cycle_log"]
+print(" ".join(cmd))
 subprocess.run(cmd)
 
 for SETTINGS_FOLDERS in SETTINGS_FOLDERS:

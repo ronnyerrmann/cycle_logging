@@ -6,6 +6,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # EXPOSE 8314
 
 WORKDIR /cycle_logging/cycle_django
-CMD ["python", "manage.py", "makemigrations"]
-CMD ["python", "manage.py", "migrate"]
-CMD [ "gunicorn", "cycle_django.wsgi", "-b", "0.0.0.0:8314"]
+#CMD ["python", "manage.py", "makemigrations"]
+#CMD ["python", "manage.py", "migrate"]
+#CMD [ "gunicorn", "cycle_django.wsgi", "-b", "0.0.0.0:8314"]
+
+# Without /bin/bash the script wouldn't be executed
+CMD /bin/bash -c "sh docker_startup.sh >> docker_run.log 2>&1"
+
