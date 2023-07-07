@@ -1,18 +1,28 @@
+import argparse
 from datetime import datetime
 import os
 import subprocess
+
 
 SETTINGS_FOLDERS = [
     "/home/ronny/Documents/Scripts/cycle_logging",                      # Test Production locally
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
 ]
-if not os.path.exists("cycle_logging"):
+
+parser = argparse.ArgumentParser(description="Deploy to Production")
+parser.add_argument("-b", "--branch", help="Optional branch", default="main")
+args = parser.parse_args()
+cmd_branch = ["git", "checkout", args.branch]
+
+new = not os.path.exists("cycle_logging")
+if new:
     cmd = ["git", "clone", "https://github.com/ronnyerrmann/cycle_logging.git"]
     subprocess.run(cmd)
-
 os.chdir("cycle_logging")
-cmd = ["git", "pull"]
-subprocess.run(cmd)
+subprocess.run(cmd_branch)
+if not new:
+    cmd = ["git", "pull"]
+    subprocess.run(cmd)
 
 # Run everything below only there was a pull
 docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
@@ -32,6 +42,7 @@ cmd = ["docker", "run", "--detach",
        "-v", f"{SETTINGS_FOLDERS}:/cycle_setup",
        "-v", f"{DATABASE_BACKUP_FOLDER}:/cycle_logging/cycle_django/database_dump",
        "-p", "8314:8314",
+       "--name", "cycle_log",
        docker_tag]
 print(" ".join(cmd))
 subprocess.run(cmd)
