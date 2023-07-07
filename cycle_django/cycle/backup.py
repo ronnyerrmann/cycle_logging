@@ -89,7 +89,15 @@ def backup_db():
 
 
 def load_backup():
-    filename = os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz")
+    # "database_dump" is mountpoint in Docker
+    for folder in ["database_dump", BACKUP_FOLDER]:
+        filename = os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz")
+        if os.path.isfile(filename):
+            break
+    else:
+        logger.warning("No database dump found")
+        return
+
     try:
         call_command("loaddata", filename)
     except CommandError as e:
