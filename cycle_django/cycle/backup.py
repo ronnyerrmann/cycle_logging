@@ -91,7 +91,7 @@ def backup_db():
 def load_backup():
     # "database_dump" is mountpoint in Docker
     for folder in ["database_dump", BACKUP_FOLDER]:
-        filename = os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz")
+        filename = os.path.join(folder, "FahrradRides_dump.json.gz")
         if os.path.isfile(filename):
             break
     else:

@@ -19,6 +19,7 @@ if not DEBUG and os.path.exists(production_settings_folder):
 else:
     SETTINGS_DIR = parent_dir
 
+logger.info(f"DEBUG={DEBUG} and SETTINGS_DIR={SETTINGS_DIR}")
 
 def create_folder_if_required(folder_path):
     try:

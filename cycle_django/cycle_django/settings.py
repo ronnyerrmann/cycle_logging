@@ -66,8 +66,8 @@ def current_local_hostname_ip() -> List[str]:
 #DEBUG = True
 #DEBUG = not os.environ.get("IS_PRODUCTION", "False").lower() == "true"
 
-# Public IP might update while the server is up
-ALLOWED_HOSTS = ["ronnyerrmann.ddns.net", current_public_ip()] + current_local_hostname_ip()
+# Public IP might update while the server is up, needs to give 127.0.0.1 for dockerised runs
+ALLOWED_HOSTS = ["127.0.0.1", "ronnyerrmann.ddns.net", current_public_ip()] + current_local_hostname_ip()
 logger.info(f"Allowed hosts: {ALLOWED_HOSTS}")
 
 if DEBUG:
