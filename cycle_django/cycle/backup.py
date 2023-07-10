@@ -4,6 +4,7 @@ import gzip
 import os
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.core.serializers.base import DeserializationError
 from django.db.utils import OperationalError
 
 import cycle.models
@@ -101,6 +102,12 @@ def load_backup():
 
     try:
         call_command("loaddata", filename)
+    except DeserializationError as e:
+        if str(e).find("Invalid model identifier") != -1:
+            logger.error(f"Deserialiser Error: {e}")
+            return
+        else:
+            raise
     except (CommandError, OperationalError) as e:
         logger.warning(f"Couldn't load backup: {e}")
         return
@@ -117,10 +124,10 @@ def load_backup_mysql_based():
         data = [int(ii) for ii in (":0:0:" + text).rsplit(":", 3)[-3:]]
         return datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
 
-    filename = os.path.join(BACKUP_FOLDER, "20230703_205749.csv.gz")
+    filename = os.path.join(BACKUP_FOLDER, "20230709_202017.csv.gz")
     if os.path.isfile(filename):
+        number_of_imports = 0
         with gzip.open(filename, "r") as f:
-            number_of_imports = 0
             for line in f.readlines():
                 line = line.decode().split(";")      # 2008-06-12;14.94;00:38:40;247.0;11:21:00
                 date = datetime.datetime.strptime(line[0], "%Y-%m-%d").date()

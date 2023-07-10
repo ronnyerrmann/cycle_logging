@@ -121,6 +121,7 @@ class CycleRides(models.Model):
         # Mark in the summary tables that dates were updated
         if update_all:
             dates_to_mark = CycleRides.objects.values_list("date", flat=True)
+            logger.info("Mark all summary tables to be updated")
         else:
             dates_to_mark = [obj.date]
             if obj.pk:
@@ -158,9 +159,9 @@ class CycleRides(models.Model):
     def load_data(cls):
         loaded_backup = backup.load_backup()
         if CycleRides.objects.all().count() == 0:
-            loaded_backup_mysql_based = backup.load_backup_mysql_based()
-        logger.info("Loaded data")
-        if loaded_backup or loaded_backup_mysql_based:
+            loaded_backup |= backup.load_backup_mysql_based()
+        if loaded_backup:
+            logger.info("Loaded data")
             # Update the summary tables if database dump or backup was loaded successfully
             cls.mark_summary_tables(None, update_all=True)
 
