@@ -67,7 +67,7 @@ class FahrradRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
-    def save(self, *args, no_more_modifications=False, no_backup=False, **kwargs):
+    def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
 
         if no_more_modifications:
             # Just run parent save for entries that don't need more modification
@@ -83,7 +83,9 @@ class FahrradRides(models.Model):
         if not no_backup:
             backup.backup_db()
 
-        self.mark_summary_tables()
+        if not no_summary:
+            self.mark_summary_tables(self)
+
         self.update_cumulative_values()
 
     def update_cumulative_values(self):
@@ -114,13 +116,17 @@ class FahrradRides(models.Model):
             obj.save(no_more_modifications=True)
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
 
-    def mark_summary_tables(self):
+    @staticmethod
+    def mark_summary_tables(obj: Union["FahrradRides", None], update_all=False):
         # Mark in the summary tables that dates were updated
-        dates_to_mark = [self.date]
-        if self.pk:
-            # Object already exists in the database, check for field changes
-            original_obj = FahrradRides.objects.get(pk=self.pk)
-            dates_to_mark.append(original_obj.date)
+        if update_all:
+            dates_to_mark = FahrradRides.objects.values_list("date", flat=True)
+        else:
+            dates_to_mark = [obj.date]
+            if obj.pk:
+                # Object already exists in the database, check for field changes
+                original_obj = FahrradRides.objects.get(pk=obj.pk)
+                dates_to_mark.append(original_obj.date)
 
         begin_of_week = set([date - datetime.timedelta(days=date.weekday()) for date in dates_to_mark])
         begin_of_month = set([datetime.date(date.year, date.month, 1) for date in dates_to_mark])
@@ -150,10 +156,13 @@ class FahrradRides(models.Model):
 
     @classmethod
     def load_data(cls):
-        backup.load_backup()
+        loaded_backup = backup.load_backup()
         if FahrradRides.objects.all().count() == 0:
-            backup.load_backup_mysql_based()
+            loaded_backup_mysql_based = backup.load_backup_mysql_based()
         logger.info("Loaded data")
+        if loaded_backup or loaded_backup_mysql_based:
+            # Update the summary tables if database dump or backup was loaded successfully
+            cls.mark_summary_tables(None, update_all=True)
 
 
 def update_fields_common(my_filter, obj):

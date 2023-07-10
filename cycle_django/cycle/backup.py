@@ -103,6 +103,9 @@ def load_backup():
         call_command("loaddata", filename)
     except (CommandError, OperationalError) as e:
         logger.warning(f"Couldn't load backup: {e}")
+        return
+
+    return True
 
 
 def load_backup_mysql_based():
@@ -132,7 +135,8 @@ def load_backup_mysql_based():
                         date=date, distance=distance, duration=duration,
                         totaldistance=totaldistance, totalduration=totalduration
                     )
-                    obj.save(no_backup=True)
+                    obj.save(no_backup=True, no_summary=True)
                     number_of_imports += 1
         if number_of_imports:
             logger.info(f"Imported {number_of_imports} entries from {filename}")
+            return True
