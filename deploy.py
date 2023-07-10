@@ -60,9 +60,9 @@ else:
 # Mount . to /cycle_django in the container
 cmd = ["docker", "run", "--detach",
        "-e", "IS_PRODUCTION=True",
-       "-v", ".:/cycle_logging",
-       "-v", f"{SETTINGS_FOLDERS}:/cycle_setup",
-       "-v", f"{DATABASE_BACKUP_FOLDER}:/cycle_logging/cycle_django/database_dump",
+       "-v", f"{os.path.abspath('.')}:/cycle_logging",
+       "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
+       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/cycle_logging/cycle_django/database_dump",
        "-p", "8314:8314",
        "--name", "cycle_log",
        docker_tag]
