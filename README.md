@@ -41,12 +41,14 @@ The repository will be cloned into the current folder.
 In the deploy script, the `SETTINGS_FOLDERS` need to be adjusted to give a path that contains `django_admin_password.txt` and `django_secret_key.txt`.
 The files contain a single line with a good password and key, respectively.
 The backup of the database will be stored in the folder from which the deploy script was executed, under `cycle_logging/cycle_django/backup_database/`.
+The log of the migrations and the gunicorn server are stored under `cycle_logging/cycle_django/docker_run.log`.
 
 
 The website runs on a test server: [Cycle Results (Django)](http://173.212.217.18:8314).
 
 ### Learnings
 * Django makes the development easier only if it can manage tables
+* If the apt version of docker can't connect to the internet inside the container (e.g. when running pip), use the snap version instead of spending hours.
 
 ### Final notes:
 If you tried some or all of the scripts, let me know how it went: Ronny Errmann: ronny.errmann@gmail.com

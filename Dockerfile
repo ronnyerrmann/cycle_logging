@@ -12,4 +12,4 @@ WORKDIR /cycle_logging/cycle_django
 #CMD [ "gunicorn", "cycle_django.wsgi", "-b", "0.0.0.0:8314"]
 
 # Without /bin/bash the script wouldn't be executed locally;
-CMD /bin/sh -c "sh docker_startup.sh >> docker_run1.log 2>&1"
+CMD /bin/sh -c "sh docker_startup.sh >> docker_run.log 2>&1"
