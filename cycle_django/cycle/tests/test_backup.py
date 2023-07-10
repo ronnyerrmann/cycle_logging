@@ -35,7 +35,7 @@ class TestRemoveFiles(TestCase):
         )
 
 
-@patch("cycle.models.FahrradRides.objects.all", MagicMock(return_value=[]))     # write no data for now
+@patch("cycle.models.CycleRides.objects.all", MagicMock(return_value=[]))     # write no data for now
 @patch(MODULE_PATH + "remove_old_files")
 @patch(MODULE_PATH + "create_folder_if_required")
 class TestBackupDB(TestCase):
@@ -53,7 +53,7 @@ class TestBackupDB(TestCase):
 
         self.assertEqual([
             call('backup_database/20230620_122334.csv.gz', 'w'),
-            call('backup_database/FahrradRides_dump.json.gz', 'wt'),
+            call('backup_database/CycleRides_dump.json.gz', 'wt'),
         ], m.call_args_list)
 
         _create_folder_if_required.assert_called_once_with(BACKUP_FOLDER)

@@ -11,7 +11,7 @@ from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
 from django.shortcuts import get_object_or_404
 
-from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary
+from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary
 from .forms import PlotDataForm, PlotDataFormSummary
 from my_base import Logging
 
@@ -23,12 +23,12 @@ def index(request):
     """View function for home page of site."""
 
     # Find the minimum date:
-    start_date = FahrradRides.objects.all().aggregate(Min('date'))["date__min"]
-    end_date = FahrradRides.objects.all().aggregate(Max('date'))["date__max"]
-    number_of_days = FahrradRides.objects.all().count()
-    number_of_weeks = FahrradWeeklySummary.objects.all().count()
-    number_of_months = FahrradMonthlySummary.objects.all().count()
-    number_of_years = FahrradYearlySummary.objects.all().count()
+    start_date = CycleRides.objects.all().aggregate(Min('date'))["date__min"]
+    end_date = CycleRides.objects.all().aggregate(Max('date'))["date__max"]
+    number_of_days = CycleRides.objects.all().count()
+    number_of_weeks = CycleWeeklySummary.objects.all().count()
+    number_of_months = CycleMonthlySummary.objects.all().count()
+    number_of_years = CycleYearlySummary.objects.all().count()
 
     context = {
         'start_date': start_date.strftime('%Y-%m-%d') if start_date is not None else None,
@@ -112,13 +112,13 @@ class BaseDataListView(generic.ListView):
 
 class DataListView(BaseDataListView):
     # executed when server is initialised
-    #model = FahrradRides
+    #model = CycleRides
     context_dataset = "day"
     paginate_by = 200
 
     def get_queryset(self):
         # executed when the page is opened
-        return FahrradRides.objects.all()
+        return CycleRides.objects.all()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -226,38 +226,38 @@ class DataWListView(DataSummaryView):
     context_dataset = "week"
 
     def get_queryset(self):
-        FahrradWeeklySummary.update_fields()
-        return FahrradWeeklySummary.objects.all()
+        CycleWeeklySummary.update_fields()
+        return CycleWeeklySummary.objects.all()
 
 
 class DataMListView(DataSummaryView):
     context_dataset = "month"
 
     def get_queryset(self):
-        FahrradMonthlySummary.update_fields()
-        return FahrradMonthlySummary.objects.all()
+        CycleMonthlySummary.update_fields()
+        return CycleMonthlySummary.objects.all()
 
 
 class DataYListView(DataSummaryView):
     context_dataset = "year"
 
     def get_queryset(self):
-        FahrradYearlySummary.update_fields()
-        return FahrradYearlySummary.objects.all()
+        CycleYearlySummary.update_fields()
+        return CycleYearlySummary.objects.all()
 
 
 def data_detail_view(request, date_wmy=None, entryid=None):
     if entryid is not None:
-        cycleThisData = get_object_or_404(FahrradRides, pk=entryid)
+        cycleThisData = get_object_or_404(CycleRides, pk=entryid)
         dataType = "d"
     elif date_wmy is not None:
         dataType = "wmy"
         if date_wmy[0] == "w":
-            cycleThisData = get_object_or_404(FahrradWeeklySummary, pk=date_wmy[1:])
+            cycleThisData = get_object_or_404(CycleWeeklySummary, pk=date_wmy[1:])
         elif date_wmy[0] == "m":
-            cycleThisData = get_object_or_404(FahrradMonthlySummary, pk=date_wmy[1:])
+            cycleThisData = get_object_or_404(CycleMonthlySummary, pk=date_wmy[1:])
         elif date_wmy[0] == "y":
-            cycleThisData = get_object_or_404(FahrradYearlySummary, pk=date_wmy[1:])
+            cycleThisData = get_object_or_404(CycleYearlySummary, pk=date_wmy[1:])
         else:
             raise ValueError('date_wmy has an unknown start: '+date_wmy)
     else:

@@ -44,7 +44,7 @@ def _get_duration_components_no_days(duration):
 django.utils.duration._get_duration_components = _get_duration_components_no_days
 
 
-class FahrradRides(models.Model):
+class CycleRides(models.Model):
     # most of the fieldnames are lower case of the db fieldnames
     entryid = models.AutoField(primary_key=True, help_text='Will be filled automatically')
     date = models.DateField(help_text='Give the Date')
@@ -93,11 +93,11 @@ class FahrradRides(models.Model):
         date_for_cum = self.date
         if self.pk:
             # Object already exists in the database, check for field changes
-            original_obj = FahrradRides.objects.get(pk=self.pk)
+            original_obj = CycleRides.objects.get(pk=self.pk)
             date_for_cum = min(date_for_cum, original_obj.date)
 
         # Last object with a culm distance
-        for obj in FahrradRides.objects.filter(date__lt=date_for_cum).order_by('-date'):
+        for obj in CycleRides.objects.filter(date__lt=date_for_cum).order_by('-date'):
             if obj.cumdistance and obj.cumduration:
                 prev_cumdistance = obj.cumdistance
                 prev_cumduration = obj.cumduration
@@ -108,7 +108,7 @@ class FahrradRides(models.Model):
             prev_cumdistance = 0
             prev_cumduration = datetime.timedelta(0)
 
-        for obj in FahrradRides.objects.filter(date__gte=date_for_cum).order_by('date'):
+        for obj in CycleRides.objects.filter(date__gte=date_for_cum).order_by('date'):
             prev_cumdistance += obj.distance
             prev_cumduration += obj.duration
             obj.cumdistance = round(prev_cumdistance, 4)
@@ -117,15 +117,15 @@ class FahrradRides(models.Model):
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
 
     @staticmethod
-    def mark_summary_tables(obj: Union["FahrradRides", None], update_all=False):
+    def mark_summary_tables(obj: Union["CycleRides", None], update_all=False):
         # Mark in the summary tables that dates were updated
         if update_all:
-            dates_to_mark = FahrradRides.objects.values_list("date", flat=True)
+            dates_to_mark = CycleRides.objects.values_list("date", flat=True)
         else:
             dates_to_mark = [obj.date]
             if obj.pk:
                 # Object already exists in the database, check for field changes
-                original_obj = FahrradRides.objects.get(pk=obj.pk)
+                original_obj = CycleRides.objects.get(pk=obj.pk)
                 dates_to_mark.append(original_obj.date)
 
         begin_of_week = set([date - datetime.timedelta(days=date.weekday()) for date in dates_to_mark])
@@ -133,23 +133,23 @@ class FahrradRides(models.Model):
         begin_of_year = set([datetime.date(date.year, 1, 1) for date in begin_of_month])
         for date in begin_of_week:
             try:
-                obj = FahrradWeeklySummary.objects.get(date=date)
-            except FahrradWeeklySummary.DoesNotExist:
-                obj = FahrradWeeklySummary(date=date)
+                obj = CycleWeeklySummary.objects.get(date=date)
+            except CycleWeeklySummary.DoesNotExist:
+                obj = CycleWeeklySummary(date=date)
             obj.updated = True
             obj.save()
         for date in begin_of_month:
             try:
-                obj = FahrradMonthlySummary.objects.get(date=date)
-            except FahrradMonthlySummary.DoesNotExist:
-                obj = FahrradMonthlySummary(date=date)
+                obj = CycleMonthlySummary.objects.get(date=date)
+            except CycleMonthlySummary.DoesNotExist:
+                obj = CycleMonthlySummary(date=date)
             obj.updated = True
             obj.save()
         for date in begin_of_year:
             try:
-                obj = FahrradYearlySummary.objects.get(date=date)
-            except FahrradYearlySummary.DoesNotExist:
-                obj = FahrradYearlySummary(date=date)
+                obj = CycleYearlySummary.objects.get(date=date)
+            except CycleYearlySummary.DoesNotExist:
+                obj = CycleYearlySummary(date=date)
             obj.updated = True
             obj.save()
 
@@ -157,7 +157,7 @@ class FahrradRides(models.Model):
     @classmethod
     def load_data(cls):
         loaded_backup = backup.load_backup()
-        if FahrradRides.objects.all().count() == 0:
+        if CycleRides.objects.all().count() == 0:
             loaded_backup_mysql_based = backup.load_backup_mysql_based()
         logger.info("Loaded data")
         if loaded_backup or loaded_backup_mysql_based:
@@ -166,7 +166,7 @@ class FahrradRides(models.Model):
 
 
 def update_fields_common(my_filter, obj):
-    summary = FahrradRides.objects.filter(my_filter).aggregate(
+    summary = CycleRides.objects.filter(my_filter).aggregate(
         distance=Sum("distance"),
         duration=Sum("duration"),
         numberofdays=Count("entryid")
@@ -179,7 +179,7 @@ def update_fields_common(my_filter, obj):
     obj.save()
 
 
-class FahrradWeeklySummary(models.Model):
+class CycleWeeklySummary(models.Model):
     date = models.DateField(primary_key=True)
     distance = models.FloatField(null=True)
     duration = models.DurationField(verbose_name="Duration in week", null=True)
@@ -195,12 +195,12 @@ class FahrradWeeklySummary(models.Model):
 
     @staticmethod
     def update_fields():
-        for obj in FahrradWeeklySummary.objects.filter(updated=True):
+        for obj in CycleWeeklySummary.objects.filter(updated=True):
             my_filter = Q(date__gte=obj.date) & Q(date__lt=obj.date + datetime.timedelta(days=7))
             update_fields_common(my_filter, obj)
 
 
-class FahrradMonthlySummary(models.Model):
+class CycleMonthlySummary(models.Model):
     date = models.DateField(primary_key=True)
     distance = models.FloatField(null=True)
     duration = models.DurationField(verbose_name="Duration in month", null=True)
@@ -216,14 +216,14 @@ class FahrradMonthlySummary(models.Model):
 
     @staticmethod
     def update_fields():
-        for obj in FahrradMonthlySummary.objects.filter(updated=True):
+        for obj in CycleMonthlySummary.objects.filter(updated=True):
             end_date = obj.date + datetime.timedelta(days=31)
             end_date -= datetime.timedelta(days=end_date.day - 1)
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)
 
 
-class FahrradYearlySummary(models.Model):
+class CycleYearlySummary(models.Model):
     date = models.DateField(primary_key=True, help_text='First date of the year')
     distance = models.FloatField(null=True)
     duration = models.DurationField(verbose_name="Duration in year", null=True)
@@ -239,7 +239,7 @@ class FahrradYearlySummary(models.Model):
 
     @staticmethod
     def update_fields():
-        for obj in FahrradYearlySummary.objects.filter(updated=True):
+        for obj in CycleYearlySummary.objects.filter(updated=True):
             end_date = datetime.date(obj.date.year+1, 1, 1)
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)

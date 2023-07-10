@@ -17,7 +17,7 @@ logger = Logging.setup_logger(__name__)
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-@receiver(post_save, sender=FahrradRides)
+@receiver(post_save, sender=CycleRides)
 def handle_object_save(sender, instance, created, **kwargs):
     # Test method on how to use receiver to react to signals
     # requires in apps.py class CycleConfig(AppConfig):
@@ -27,7 +27,7 @@ def handle_object_save(sender, instance, created, **kwargs):
     print(113, sender, instance, created, kwargs)
     if created:
         # Access all objects of the table
-        all_objects = FahrradRides.objects.all()
+        all_objects = CycleRides.objects.all()
         # Perform desired operations with all_objects
         for obj in all_objects:
             print(111, obj)"""
@@ -81,18 +81,18 @@ def backup_db():
     remove_old_files(BACKUP_FOLDER)
 
     with gzip.open(os.path.join(BACKUP_FOLDER, datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S.csv.gz')), "w") as f:
-        for obj in cycle.models.FahrradRides.objects.all():
+        for obj in cycle.models.CycleRides.objects.all():
             f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{cycle.models.convert_to_str_hours(obj.duration)};"
                     f"{obj.totaldistance};{cycle.models.convert_to_str_hours(obj.totalduration)}\n".encode())
 
     # To load last changes on production instance
-    call_command("dumpdata", "cycle.FahrradRides", output=os.path.join(BACKUP_FOLDER, "FahrradRides_dump.json.gz"))
+    call_command("dumpdata", "cycle.CycleRides", output=os.path.join(BACKUP_FOLDER, "CycleRides_dump.json.gz"))
 
 
 def load_backup():
     # "database_dump" is mountpoint in Docker
     for folder in ["database_dump", BACKUP_FOLDER]:
-        filename = os.path.join(folder, "FahrradRides_dump.json.gz")
+        filename = os.path.join(folder, "CycleRides_dump.json.gz")
         if os.path.isfile(filename):
             break
     else:
@@ -129,9 +129,9 @@ def load_backup_mysql_based():
                 totaldistance = float(line[3])
                 totalduration = str_to_timedelta(line[4])
                 try:
-                    obj = cycle.models.FahrradRides.objects.get(date=date, distance=distance, duration=duration)
-                except cycle.models.FahrradRides.DoesNotExist:
-                    obj = cycle.models.FahrradRides(
+                    obj = cycle.models.CycleRides.objects.get(date=date, distance=distance, duration=duration)
+                except cycle.models.CycleRides.DoesNotExist:
+                    obj = cycle.models.CycleRides(
                         date=date, distance=distance, duration=duration,
                         totaldistance=totaldistance, totalduration=totalduration
                     )

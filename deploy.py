@@ -53,7 +53,7 @@ subprocess.run(cmd)
 
 for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
     DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDERS, "cycle_django", "backup_database")
-    if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "FahrradRides_dump.json.gz")):
+    if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "CycleRides.json.gz")):
         break
 else:
     print("No database dump found in SETTINGS_FOLDERS")

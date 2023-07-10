@@ -49,11 +49,11 @@ class CycleConfig(AppConfig):
 
     @staticmethod
     def load_data():
-        from .models import FahrradRides
+        from .models import CycleRides
         try:
-            FahrradRides.load_data()
+            CycleRides.load_data()
         except OperationalError as e:
             if str(e).startswith("no such table: "):
-                logger.warning("Missing Table for FahrradRides")
+                logger.warning("Missing Table for CycleRides")
             else:
                 raise

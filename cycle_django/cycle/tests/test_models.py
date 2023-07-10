@@ -3,7 +3,7 @@ from django.db import connection, transaction
 from django.test import TestCase
 from unittest.mock import MagicMock, patch
 
-from cycle.models import convert_to_str_hours, FahrradRides
+from cycle.models import convert_to_str_hours, CycleRides
 
 
 class TestConvertToStrHours(TestCase):
@@ -35,16 +35,16 @@ class TestConvertToStrHours(TestCase):
         self.assertEqual("Got MagicMock instead of int or timedelta", str(test.exception))
 
 
-"""class TestFahrradRides(TestCase):
+"""class TestCycleRides(TestCase):
 
     def setUp(self) -> None:
         super().setUp()
 
-        #FahrradRides.objects.create(date="2023-06-17", daykm=12.34, dayseconds=2345, totalkm=34.5, totalseconds=4567)
+        #CycleRides.objects.create(date="2023-06-17", daykm=12.34, dayseconds=2345, totalkm=34.5, totalseconds=4567)
 
     @patch("cycle.backup.backup_db")
     def test_save(self, _backup_db):
-        obj = FahrradRides.objects[0]
+        obj = CycleRides.objects[0]
         obj.save()
 
         _backup_db.assert_called_once_with()"""

@@ -4,7 +4,7 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
-from .models import FahrradRides, FahrradWeeklySummary, FahrradMonthlySummary, FahrradYearlySummary, convert_to_str_hours
+from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, convert_to_str_hours
 
 
 class AdminForm(forms.ModelForm):
@@ -22,7 +22,7 @@ class AdminForm(forms.ModelForm):
         if speed < 2 or speed > 30:
             raise ValidationError(f"A speed of {speed:4.2f} km/h is outside the sensible range")
 
-        previous = FahrradRides.objects.filter(date__lt=date).order_by('-date').first()
+        previous = CycleRides.objects.filter(date__lt=date).order_by('-date').first()
 
         if previous:
             if abs(previous.totaldistance + distance - totaldistance) >= 1:
@@ -53,8 +53,8 @@ class AdminForm(forms.ModelForm):
         return cleaned_data
 
 
-@admin.register(FahrradRides)
-class FahrradRidesAdmin(admin.ModelAdmin):
+@admin.register(CycleRides)
+class CycleRidesAdmin(admin.ModelAdmin):
     form = AdminForm
     list_display = (
         'date', 'distance', 'duration', 'speed', 'totaldistance', 'totalduration', 'totalspeed', 'cumdistance', 'cumduration'
@@ -81,21 +81,21 @@ class FahrradRidesAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)"""
 
 
-@admin.register(FahrradWeeklySummary)
-class FahrradWeeklySummaryAdmin(admin.ModelAdmin):
+@admin.register(CycleWeeklySummary)
+class CycleWeeklySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
 
 
-@admin.register(FahrradMonthlySummary)
-class FahrradMonthlySummaryAdmin(admin.ModelAdmin):
+@admin.register(CycleMonthlySummary)
+class CycleMonthlySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
 
 
-#admin.site.register(FahrradYearlySummary)
-class FahrradYearlySummaryAdmin(admin.ModelAdmin):
+#admin.site.register(CycleYearlySummary)
+class CycleYearlySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
 
 
-# Register the admin class with the associated model
-admin.site.register(FahrradYearlySummary, FahrradYearlySummaryAdmin)
+# Register the admin class with the associated model instead of using a decorator
+admin.site.register(CycleYearlySummary, CycleYearlySummaryAdmin)
 
