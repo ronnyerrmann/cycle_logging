@@ -171,7 +171,7 @@ def update_fields_common(my_filter, obj):
         duration=Sum("duration"),
         numberofdays=Count("entryid")
     )
-    obj.distance = summary["distance"]
+    obj.distance = round(summary["distance"], 4)
     obj.duration = summary["duration"]
     obj.speed = round(summary["distance"] / summary["duration"].total_seconds() * 3600, 4)
     obj.numberofdays = summary["numberofdays"]
