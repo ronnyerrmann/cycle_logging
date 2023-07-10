@@ -23,7 +23,7 @@ To start a test server (`DEBUG = True`):
 python3 manage.py runserver 127.0.0.1:8000
 ```
 
-For production (`DEBUG = False`) and a Gunicorn server:
+For production (`DEBUG = False`, which can be set by environment `IS_PRODUCTION=True`) and a Gunicorn server:
 ```commandline
 gunicorn cycle_django.wsgi -b  0.0.0.0:8002
 ```
@@ -33,7 +33,17 @@ To allow connections from outside the host machine (example for port 8002)
 sudo ufw allow 8002
 ```
 
-The website runs on a test server: [Cycle Results (Django)](http://ronnyerrmann.ddns.net:8000).
+The deploy process, including git clone, pull, creation of a docker container, and start of the gunicorn server can be done with
+```commandline
+python3 path/to/deploy.py
+```
+The repository will be cloned into the current folder. 
+In the deploy script, the `SETTINGS_FOLDERS` need to be adjusted to give a path that contains `django_admin_password.txt` and `django_secret_key.txt`.
+The files contain a single line with a good password and key, respectively.
+The backup of the database will be stored in the folder from which the deploy script was executed, under `cycle_logging/cycle_django/backup_database/`.
+
+
+The website runs on a test server: [Cycle Results (Django)](http://173.212.217.18:8314).
 
 ### Learnings
 * Django makes the development easier only if it can manage tables
