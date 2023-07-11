@@ -14,31 +14,36 @@ for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
     if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "CycleRides_dump.json.gz")):
         break
 else:
-    print("No database dump found in SETTINGS_FOLDERS")
+    print(f"No database dump found in SETTINGS_FOLDERS, will use {SETTINGS_FOLDERS} for settings")
+
+
+def run_with_print(cmd):
+    print(" ".join(cmd))
+    return subprocess.run(cmd)
+
 
 parser = argparse.ArgumentParser(description="Deploy to Production")
 parser.add_argument("-b", "--branch", help="Optional branch", default="main")
 args = parser.parse_args()
-cmd_branch = ["git", "checkout", args.branch]
 
 new = not os.path.exists("cycle_logging")
 if new:
     cmd = ["git", "clone", "https://github.com/ronnyerrmann/cycle_logging.git"]
-    print(" ".join(cmd))
-    subprocess.run(cmd)
+    run_with_print(cmd)
 os.chdir("cycle_logging")
 if not new:
-    cmd = ["git", "pull"]
-    print(" ".join(cmd))
-    subprocess.run(cmd)
-print(" ".join(cmd_branch))
-subprocess.run(cmd_branch)
+    cmd = ["git", "fetch", "origin"]
+    run_with_print(cmd)
+cmd = ["git", "checkout", args.branch]
+run_with_print(cmd)
+if not new:
+    cmd = ["git", "reset", "--hard", f"origin/{args.branch}"]
+    run_with_print(cmd)
 
-# Run everything below only there was a pull
+# Run everything below only if there was a new commit
 docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = ["docker", "build", "--tag", docker_tag, "."]
-print(" ".join(cmd))
-subprocess.run(cmd)
+run_with_print(cmd)
 
 cmds = ["python manage.py makemigrations", "python manage.py migrate", "python manage.py collectstatic --noinput",
         "gunicorn cycle_django.wsgi -b 0.0.0.0:8314"]
@@ -48,12 +53,10 @@ with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
         f.write(f"echo '{cmd}'\n{cmd}\n")
 
 cmd = ["docker", "kill", "cycle_log"]
-print(" ".join(cmd))
-subprocess.run(cmd)
+run_with_print(cmd)
 
 cmd = ["docker", "rm", "cycle_log"]
-print(" ".join(cmd))
-subprocess.run(cmd)
+run_with_print(cmd)
 
 # Mount . to /cycle_django in the container
 cmd = ["docker", "run", "--detach",
@@ -64,5 +67,4 @@ cmd = ["docker", "run", "--detach",
        "-p", "8314:8314", "-p", "8315:8315",
        "--name", "cycle_log",
        docker_tag]
-print(" ".join(cmd))
-subprocess.run(cmd)
+run_with_print(cmd)
