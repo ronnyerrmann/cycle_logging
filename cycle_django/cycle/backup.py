@@ -16,6 +16,10 @@ logger = Logging.setup_logger(__name__)
 
 
 class Backup:
+    time_dump_last_loaded = None
+    warn_db_dump_not_found = ["No database dump found"]
+    warn_db_dump_old = True
+
     @staticmethod
     def remove_old_files(folder_path):
         files = glob.glob(os.path.join(folder_path, "*.csv.gz"))
@@ -77,7 +81,15 @@ class Backup:
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", "CycleRides_dump.json.gz")
         if not os.path.isfile(filename):
-            logger.warning("No database dump found")
+            if self.warn_db_dump_not_found:
+                logger.warning(self.warn_db_dump_not_found.pop())
+            return
+
+        file_changed = os.path.getmtime(filename)
+        if self.time_dump_last_loaded and file_changed < file_changed:
+            if self.warn_db_dump_old:
+                logger.info(f"Don't load data, because it's not new {type(file_changed)}")
+                self.warn_db_dump_old = False
             return
 
         try:
@@ -92,6 +104,8 @@ class Backup:
             logger.warning(f"Couldn't load backup: {e}")
             return
 
+        self.time_dump_last_loaded = file_changed
+        self.warn_db_dump_old = True
         return True
 
 
