@@ -3,14 +3,18 @@ from datetime import date, datetime
 from django.test import TestCase
 from unittest.mock import call, MagicMock, mock_open, patch
 
-from cycle.backup import remove_old_files, backup_db, BACKUP_FOLDER
+from cycle.backup import Backup, BACKUP_FOLDER
 
 MODULE_PATH = "cycle.backup."
 
 
+class BackupTest(TestCase):
+    def setUp(self) -> None:
+        self.backup = Backup()
+
 @patch(MODULE_PATH + "os.remove")
 @patch(MODULE_PATH + "glob.glob")
-class TestRemoveFiles(TestCase):
+class TestRemoveFiles(BackupTest):
 
     def test_remove_files(self, _glob, _remove):
         file_list = ["bd/20230404_123456.csv.gz", "bd/20230404_234500.csv.gz", "bd/20230406_123456.csv.gz",
@@ -24,7 +28,7 @@ class TestRemoveFiles(TestCase):
             mock_date.today.return_value = date(2023, 6, 20)
             mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
 
-            remove_old_files("bd")
+            self.backup.remove_old_files("bd")
 
         _glob.assert_called_once_with("bd/*.csv.gz")
         self.assertEqual(
@@ -36,9 +40,9 @@ class TestRemoveFiles(TestCase):
 
 
 @patch("cycle.models.CycleRides.objects.all", MagicMock(return_value=[]))     # write no data for now
-@patch(MODULE_PATH + "remove_old_files")
+@patch(MODULE_PATH + "Backup.remove_old_files")
 @patch(MODULE_PATH + "create_folder_if_required")
-class TestBackupDB(TestCase):
+class TestBackupDB(BackupTest):
 
     def test(self, _create_folder_if_required, _remove_old_files):
         m = mock_open()
@@ -49,7 +53,7 @@ class TestBackupDB(TestCase):
                 mock_datetime.utcnow.return_value = datetime(2023, 6, 20, 12, 23, 34)
                 mock_datetime.side_effect = lambda *args, **kw: date(*args, **kw)
 
-                backup_db()
+                self.backup.backup_db()
 
         self.assertEqual([
             call('backup_database/20230620_122334.csv.gz', 'w'),

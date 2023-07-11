@@ -8,7 +8,7 @@ import django.utils.duration
 # using: python manage.py inspectdb > models.py
 
 from my_base import Logging
-from . import backup
+from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
 
@@ -81,7 +81,7 @@ class CycleRides(models.Model):
         super().save(*args, **kwargs)
 
         if not no_backup:
-            backup.backup_db()
+            Backup().backup_db()
 
         if not no_summary:
             self.mark_summary_tables(self)
@@ -157,6 +157,7 @@ class CycleRides(models.Model):
 
     @classmethod
     def load_data(cls):
+        backup = Backup()
         loaded_backup = backup.load_backup()
         if CycleRides.objects.all().count() == 0:
             loaded_backup |= backup.load_backup_mysql_based()
