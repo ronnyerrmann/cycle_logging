@@ -200,7 +200,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
-STATIC_URL = '/static/'
+if DEBUG:
+    STATIC_URL = '/static/'
+else:
+    # instead of using a hardcoded IP it would be nicer to make it dependent on a environment, as a test environment
+    # should use 127.0.0.1, and a production environment the public ip dns name
+    STATIC_URL = 'http://173.212.217.18:8315/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
