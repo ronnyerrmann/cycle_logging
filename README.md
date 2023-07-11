@@ -32,19 +32,20 @@ To allow connections from outside the host machine (example for port 8002)
 ```commandline
 sudo ufw allow 8002
 ```
-
+### Deploy to production in a Docker environment
 The deploy process, including git clone, pull, creation of a docker container, and start of the gunicorn server can be done with
 ```commandline
 python3 path/to/deploy.py
 ```
 The repository will be cloned into the current folder. 
-In the deploy script, the `SETTINGS_FOLDERS` need to be adjusted to give a path that contains `django_admin_password.txt` and `django_secret_key.txt`.
+In the deploy script, the `SETTINGS_FOLDERS` needs to be adjusted to give a path that contains `django_admin_password.txt` and `django_secret_key.txt`.
 The files contain a single line with a good password and key, respectively.
+In the deploy script the `DATABASE_BACKUP_FOLDER` needs to be adjusted if a database dump should be read on startup of the gunicorn server.
 The backup of the database will be stored in the folder from which the deploy script was executed, under `cycle_logging/cycle_django/backup_database/`.
 The log of the migrations and the gunicorn server are stored under `cycle_logging/cycle_django/docker_run.log`.
 
-
-The website runs on a test server: [Cycle Results (Django)](http://173.212.217.18:8314).
+### Live version
+The website runs on a test server: [Cycle Results](http://173.212.217.18:8314).
 
 ### Learnings
 * Django makes the development easier only if it can manage tables

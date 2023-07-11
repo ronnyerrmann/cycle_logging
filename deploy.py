@@ -9,6 +9,13 @@ SETTINGS_FOLDERS = [
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
 ]
 
+for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
+    DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDERS, "cycle_django", "backup_database")
+    if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "CycleRides_dump.json.gz")):
+        break
+else:
+    print("No database dump found in SETTINGS_FOLDERS")
+
 parser = argparse.ArgumentParser(description="Deploy to Production")
 parser.add_argument("-b", "--branch", help="Optional branch", default="main")
 args = parser.parse_args()
@@ -51,18 +58,12 @@ cmd = ["docker", "rm", "cycle_log"]
 print(" ".join(cmd))
 subprocess.run(cmd)
 
-for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
-    DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDERS, "cycle_django", "backup_database")
-    if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "CycleRides_dump.json.gz")):
-        break
-else:
-    print("No database dump found in SETTINGS_FOLDERS")
 # Mount . to /cycle_django in the container
 cmd = ["docker", "run", "--detach",
        "-e", "IS_PRODUCTION=True",
        "-v", f"{os.path.abspath('.')}:/cycle_logging",
        "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
-       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/cycle_logging/cycle_django/database_dump",
+       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/cycle_logging/cycle_django/load_db_dump_at_startup",
        "-p", "8314:8314",
        "--name", "cycle_log",
        docker_tag]
