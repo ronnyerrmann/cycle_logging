@@ -40,15 +40,12 @@ cmd = ["docker", "build", "--tag", docker_tag, "."]
 print(" ".join(cmd))
 subprocess.run(cmd)
 
+cmds = ["python manage.py makemigrations", "python manage.py migrate", "python manage.py collectstatic --noinput",
+        "gunicorn cycle_django.wsgi -b 0.0.0.0:8314"]
 with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
-    f.write(
-        "#!/bin/bash\n"
-        "echo 'python manage.py makemigrations'\n"
-        "python manage.py makemigrations\n"
-        "echo 'python manage.py migrate'\n"
-        "python manage.py migrate\n"
-        "gunicorn cycle_django.wsgi -b 0.0.0.0:8314\n"
-    )
+    f.write("#!/bin/bash\n")
+    for cmd in cmds:
+        f.write(f"echo '{cmd}'\n{cmd}\n")
 
 cmd = ["docker", "kill", "cycle_log"]
 print(" ".join(cmd))
