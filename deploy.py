@@ -61,7 +61,7 @@ cmd = ["docker", "run", "--detach",
        "-v", f"{os.path.abspath('.')}:/cycle_logging",
        "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
        "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/cycle_logging/cycle_django/load_db_dump_at_startup",
-       "-p", "8314:8314",
+       "-p", "8314:8314", "-p", "8315:8315",
        "--name", "cycle_log",
        docker_tag]
 print(" ".join(cmd))
