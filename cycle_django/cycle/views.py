@@ -225,7 +225,6 @@ class DataListView(BaseDataListView):
             frac_km, int_km = numpy.modf(self.data_frame["distance"])
             frac_km *= 1E2
             frac_sec = ((self.data_frame["duration_td"]) % (60 * 1E9)).dt.total_seconds()
-            logger.info(f"111, {frac_km[:10]} and {frac_sec[:10]}")
             fig_frac = go.Figure()
             fig_frac.add_trace(go.Histogram(x=frac_sec, nbinsx=60, name="Duration"))
             fig_frac.add_trace(go.Histogram(x=frac_km, nbinsx=100, name="Distance"))
