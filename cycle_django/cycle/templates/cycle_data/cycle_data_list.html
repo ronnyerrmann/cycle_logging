@@ -19,19 +19,28 @@
     {% endautoescape %}
     <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
     <table  class='table_inner_borders'>
-      <tr> <th> </th> <th>Date</th> <th>Distance</th> <th>Time</th> <th>Speed</th> </tr>
-      {% for entry in cycle_data_list %}
-        <tr> <td>
+      <tr>
         {% if dataset == 'day' %}
-          <a href="{{ entry.get_absolute_url }}">{{ entry.entryid}}</a></td> <td>{{entry.date}}</td>
-          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}
+          <th> </th>
+        {% endif %}
+        <th>Date</th> <th>Distance</th> <th>Duration</th> <th>Speed</th>
+        {% if dataset == 'day' %}
+          <th>Total Distance</th> <th>Total Duration</th> <th>Cumulative Speed</th>
+        {% endif %}
+      </tr>
+      {% for entry in cycle_data_list %}
+        <tr>
+        {% if dataset == 'day' %}
+          <td><a href="{{ entry.get_absolute_url }}">{{ entry.entryid}}</a></td> <td>{{entry.date}}</td>
+          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+          <td>{{entry.totaldistance}}</td> <td>{{entry.totalduration}}</td> <td>{{entry.totalspeed}}</td>
         {% elif dataset == "week" or dataset == "month" or dataset == "year"%}
-          </td> <td><a href="{{ entry.get_absolute_url }}">{{ entry.date}}</a></td>
-          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}
+          <td><a href="{{ entry.get_absolute_url }}">{{ entry.date}}</a></td>
+          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
         {% else %}
           Do not know dataset: {{ dataset }}
         {% endif %}
-        </td> </tr>
+        </tr>
     {% empty %}
       There are no entries in the database.
     {% endfor %}
