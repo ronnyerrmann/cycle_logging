@@ -106,6 +106,7 @@ class Backup:
             return
 
         self.time_dump_last_loaded = file_changed
+        logger.info(f"Load was fine {self.time_dump_last_loaded}")
         self.warn_db_dump_old = True
         return True
 
