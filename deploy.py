@@ -74,3 +74,6 @@ cmd = [docker_bin, "run", "--detach",
        "--name", "cycle_log",
        docker_tag]
 run_with_print(cmd)
+
+# Further improvement: Only kill the old container after the new has started up (and a wget was successful)
+# Start with different port and then forward port internally
