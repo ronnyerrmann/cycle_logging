@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 import subprocess
 
-
+DOCKER_BINS = ["/usr/bin/docker", "/snap/bin/docker"]
 SETTINGS_FOLDERS = [
     "/home/ronny/Documents/Scripts/cycle_logging",                      # Test Production locally
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
@@ -16,6 +16,12 @@ for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
 else:
     print(f"No database dump found in SETTINGS_FOLDERS, will use {SETTINGS_FOLDERS} for settings")
 
+for docker_bin in DOCKER_BINS:
+    if os.path.isfile(docker_bin):
+        break
+else:
+    print(f"No docker found in DOCKER_BINS: {DOCKER_BINS}, will use just 'docker'")
+    docker_bin = "docker"
 
 def run_with_print(cmd):
     print(" ".join(cmd))
@@ -42,7 +48,7 @@ if not new:
 
 # Run everything below only if there was a new commit
 docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-cmd = ["docker", "build", "--tag", docker_tag, "."]
+cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
 cmds = ["python manage.py makemigrations", "python manage.py migrate", "python manage.py collectstatic --noinput",
@@ -52,14 +58,14 @@ with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
     for cmd in cmds:
         f.write(f"echo '{cmd}'\n{cmd}\n")
 
-cmd = ["docker", "kill", "cycle_log"]
+cmd = [docker_bin, "kill", "cycle_log"]
 run_with_print(cmd)
 
-cmd = ["docker", "rm", "cycle_log"]
+cmd = [docker_bin, "rm", "cycle_log"]
 run_with_print(cmd)
 
 # Mount . to /cycle_django in the container
-cmd = ["docker", "run", "--detach",
+cmd = [docker_bin, "run", "--detach",
        "-e", "IS_PRODUCTION=True",
        "-v", f"{os.path.abspath('.')}:/cycle_logging",
        "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
