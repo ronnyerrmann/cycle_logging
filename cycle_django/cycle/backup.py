@@ -16,7 +16,7 @@ logger = Logging.setup_logger(__name__)
 
 
 class Backup:
-    time_dump_last_loaded = None
+    file_changed_last_loaded = None
     warn_db_dump_not_found = ["No database dump found"]
     warn_db_dump_old = True
 
@@ -87,12 +87,12 @@ class Backup:
             return
         logger.info(f"Found")
         file_changed = os.path.getmtime(filename)
-        if self.time_dump_last_loaded and file_changed < file_changed:
+        if self.file_changed_last_loaded and file_changed <= self.file_changed_last_loaded:
             if self.warn_db_dump_old:
                 logger.info(f"Don't load data, because it's not new {type(file_changed)}")
                 self.warn_db_dump_old = False
             return
-        logger.info(f"not too old {file_changed}, {self.time_dump_last_loaded}")
+        logger.info(f"not too old {file_changed}, {self.file_changed_last_loaded}")
         try:
             call_command("loaddata", filename)
         except DeserializationError as e:
@@ -105,8 +105,8 @@ class Backup:
             logger.warning(f"Couldn't load backup: {e}")
             return
 
-        self.__class__.time_dump_last_loaded = file_changed
-        logger.info(f"Load was fine {self.time_dump_last_loaded}")
+        self.__class__.file_changed_last_loaded = file_changed
+        logger.info(f"Load was fine {self.file_changed_last_loaded}")
         self.warn_db_dump_old = True
         return True
 
