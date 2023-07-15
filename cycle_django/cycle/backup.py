@@ -16,7 +16,7 @@ logger = Logging.setup_logger(__name__)
 
 
 class Backup:
-    time_dump_last_loaded = None
+    file_changed_last_loaded = None
     warn_db_dump_not_found = ["No database dump found"]
 
     @staticmethod
