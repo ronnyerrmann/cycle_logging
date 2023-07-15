@@ -1,4 +1,5 @@
 import abc
+import numpy
 import pandas
 from plotly.offline import plot
 import plotly.express as px
@@ -107,7 +108,8 @@ class BaseDataListView(generic.ListView):
             # Convert the duration fields from string into timedelta fields
             columns_time = [col for col in columns if col.find("duration") != -1]
             for col in columns_time:
-                data_frame[col] = pandas.to_timedelta(data_frame[col]) + pandas.to_datetime('1970/01/01')
+                data_frame[col+"_td"] = pandas.to_timedelta(data_frame[col])
+                data_frame[col] = data_frame[col+"_td"] + pandas.to_datetime('1970/01/01')
             return data_frame
 
     def create_plot(self):
@@ -216,9 +218,30 @@ class DataListView(BaseDataListView):
                 ),
             )
 
+            # Frac of km, Seconds histogram
+            cx = "frac-km_sec"
+            cy1 = "count_frac-km"
+            cy2 = "count_sec"
+            frac_km, int_km = numpy.modf(self.data_frame["distance"])
+            frac_km *= 1E2
+            frac_sec = ((self.data_frame["duration_td"]) % (60 * 1E9)).dt.total_seconds()
+            logger.info(f"111, {frac_km[:10]} and {frac_sec[:10]}")
+            fig_frac = go.Figure()
+            fig_frac.add_trace(go.Histogram(x=frac_sec, nbinsx=60, name="Duration"))
+            fig_frac.add_trace(go.Histogram(x=frac_km, nbinsx=100, name="Distance"))
+            # Reduce opacity to see both histograms
+            # fig_frac.update_traces(opacity=0.75)
+            fig_frac.update_layout(
+                # Overlay both histograms
+                barmode='overlay',
+                xaxis=dict(title="Distance [m * 10] / Duration [s]", domain=[0.0, 0.9]),
+                yaxis=dict(title="Number of occurrences in data"),
+            )
+
             plot_dict = {
                 "plot_total_div": plot(fig_total, output_type="div"),
-                "plot_diff_div": plot(fig_diff, output_type="div")
+                "plot_diff_div": plot(fig_diff, output_type="div"),
+                "plot_frac_div": plot(fig_frac, output_type="div"),
             }
 
             return plot_dict
