@@ -18,7 +18,6 @@ logger = Logging.setup_logger(__name__)
 class Backup:
     time_dump_last_loaded = None
     warn_db_dump_not_found = ["No database dump found"]
-    warn_db_dump_old = True
 
     @staticmethod
     def remove_old_files(folder_path):
@@ -86,11 +85,12 @@ class Backup:
             return
 
         file_changed = os.path.getmtime(filename)
-        if self.time_dump_last_loaded and file_changed < file_changed:
-            if self.warn_db_dump_old:
-                logger.info(f"Don't load data, because it's not new {type(file_changed)}")
-                self.warn_db_dump_old = False
-            return
+
+        if self.file_changed_last_loaded:
+            if file_changed <= self.file_changed_last_loaded:
+                return
+            else:
+                logger.info("Load database dump as it has changed.")
 
         try:
             call_command("loaddata", filename)
@@ -104,8 +104,7 @@ class Backup:
             logger.warning(f"Couldn't load backup: {e}")
             return
 
-        self.time_dump_last_loaded = file_changed
-        self.warn_db_dump_old = True
+        self.__class__.file_changed_last_loaded = file_changed
         return True
 
 
