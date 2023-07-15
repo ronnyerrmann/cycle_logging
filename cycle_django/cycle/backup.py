@@ -78,8 +78,10 @@ class Backup:
 
 
     def load_backup(self):
+        logger.info("Load db file")
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", "CycleRides_dump.json.gz")
+        logger.info(f"Load db file {filename}")
         if not os.path.isfile(filename):
             if self.warn_db_dump_not_found:
                 logger.warning(self.warn_db_dump_not_found.pop())
