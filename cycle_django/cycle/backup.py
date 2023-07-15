@@ -78,7 +78,6 @@ class Backup:
 
 
     def load_backup(self):
-        logger.info("Load db file")
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", "CycleRides_dump.json.gz")
         logger.info(f"Load db file {filename}")
@@ -86,14 +85,14 @@ class Backup:
             if self.warn_db_dump_not_found:
                 logger.warning(self.warn_db_dump_not_found.pop())
             return
-
+        logger.info(f"Found")
         file_changed = os.path.getmtime(filename)
         if self.time_dump_last_loaded and file_changed < file_changed:
             if self.warn_db_dump_old:
                 logger.info(f"Don't load data, because it's not new {type(file_changed)}")
                 self.warn_db_dump_old = False
             return
-
+        logger.info(f"not too old {file_changed}, {self.time_dump_last_loaded}")
         try:
             call_command("loaddata", filename)
         except DeserializationError as e:
