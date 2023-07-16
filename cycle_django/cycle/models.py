@@ -81,7 +81,7 @@ class CycleRides(models.Model):
         super().save(*args, **kwargs)
 
         if not no_backup:
-            Backup().backup_db()
+            Backup().backup_cycle_rides()
 
         if not no_summary:
             self.mark_summary_tables(self)
@@ -158,7 +158,7 @@ class CycleRides(models.Model):
     @classmethod
     def load_data(cls):
         backup = Backup()
-        loaded_backup = backup.load_backup()
+        loaded_backup = backup.load_dump_cycle_rides()
         if CycleRides.objects.all().count() == 0:
             loaded_backup |= backup.load_backup_mysql_based()
         if loaded_backup:

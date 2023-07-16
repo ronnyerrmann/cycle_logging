@@ -53,7 +53,7 @@ class TestBackupDB(BackupTest):
                 mock_datetime.utcnow.return_value = datetime(2023, 6, 20, 12, 23, 34)
                 mock_datetime.side_effect = lambda *args, **kw: date(*args, **kw)
 
-                self.backup.backup_db()
+                self.backup.backup_cycle_rides()
 
         self.assertEqual([
             call('backup_database/20230620_122334.csv.gz', 'w'),

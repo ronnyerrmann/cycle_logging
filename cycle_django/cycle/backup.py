@@ -16,7 +16,7 @@ logger = Logging.setup_logger(__name__)
 
 
 class Backup:
-    file_changed_last_loaded = None
+    file_changed_last_loaded = {}
     warn_db_dump_not_found = ["No database dump found"]
 
     @staticmethod
@@ -63,7 +63,7 @@ class Backup:
             for file_to_remove in files_to_remove:
                 os.remove(file_to_remove)
 
-    def backup_db(self):
+    def backup_cycle_rides(self):
         create_folder_if_required(BACKUP_FOLDER)
         self.remove_old_files(BACKUP_FOLDER)
 
@@ -72,13 +72,16 @@ class Backup:
                 f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{cycle.models.convert_to_str_hours(obj.duration)};"
                         f"{obj.totaldistance};{cycle.models.convert_to_str_hours(obj.totalduration)}\n".encode())
 
+        self.dump_cycle_rides_dbs()
+
+    def dump_cycle_rides_dbs(self):
         # To load last changes on production instance
         call_command("dumpdata", "cycle.CycleRides", output=os.path.join(BACKUP_FOLDER, "CycleRides_dump.json.gz"))
 
 
-    def load_backup(self):
+    def load_database_dump(self, database_dump_file):
         # "load_db_dump_at_startup" is mountpoint in Docker
-        filename = os.path.join("load_db_dump_at_startup", "CycleRides_dump.json.gz")
+        filename = os.path.join("load_db_dump_at_startup", database_dump_file)
         if not os.path.isfile(filename):
             if self.warn_db_dump_not_found:
                 logger.warning(self.warn_db_dump_not_found.pop())
@@ -86,8 +89,8 @@ class Backup:
 
         file_changed = os.path.getmtime(filename)
 
-        if self.file_changed_last_loaded:
-            if file_changed <= self.file_changed_last_loaded:
+        if self.file_changed_last_loaded.get(database_dump_file):
+            if file_changed <= self.file_changed_last_loaded[database_dump_file]:
                 return
             else:
                 logger.info("Load database dump as it has changed.")
@@ -104,9 +107,14 @@ class Backup:
             logger.warning(f"Couldn't load backup: {e}")
             return
 
-        self.__class__.file_changed_last_loaded = file_changed
+        self.__class__.file_changed_last_loaded[database_dump_file] = file_changed
         return True
 
+    def load_dump_cycle_rides(self):
+        return self.load_database_dump("CycleRides_dump.json.gz")
+
+    def load_dump_no_go_areas(self):
+        return self.load_database_dump("NoGoAreas_dump.json.gz")
 
     def load_backup_mysql_based(self):
         """ Import the backup from the MySQL based version into this version
@@ -139,4 +147,5 @@ class Backup:
                         number_of_imports += 1
             if number_of_imports:
                 logger.info(f"Imported {number_of_imports} entries from {filename}")
+                self.dump_cycle_rides_dbs()
                 return True
