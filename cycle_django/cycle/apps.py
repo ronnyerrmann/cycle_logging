@@ -1,3 +1,4 @@
+import sys
 from django.apps import AppConfig
 from django.db.utils import OperationalError
 
@@ -12,19 +13,10 @@ class CycleConfig(AppConfig):
 
     def ready(self):
         #super().ready()
-        self.add_superuser()
-        self.load_data()
+        if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv:
+            self.add_superuser()
+            self.load_data()
         logger.info("Initialisation done")
-
-        """import os
-        os.environ["DJANGO_SUPERUSER_PASSWORD"] = "abc"
-        call_command('createsuperuser',
-                     username='ronny.errmann@gmail.com',
-                     email='ronny.errmann@gmail.com',
-                     interactive=False,
-                     )
-        # Initialise the basic users once the migration finished
-        import cycle.signals"""
 
     @staticmethod
     def add_superuser():
