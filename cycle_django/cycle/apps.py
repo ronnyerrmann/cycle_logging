@@ -13,7 +13,7 @@ class CycleConfig(AppConfig):
 
     def ready(self):
         #super().ready()
-        if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv:
+        if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv and 'collectstatic' not in sys.argv:
             self.add_superuser()
             self.load_data()
         logger.info("Initialisation done")
