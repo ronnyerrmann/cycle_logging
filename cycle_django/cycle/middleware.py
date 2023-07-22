@@ -12,8 +12,9 @@ class PreDatabaseMiddleware:
     def __call__(self, request):
         # Code to be executed before any data is loaded from the database
         #logger.info(f"Executing code before database queries {request}")
-        if Backup().load_backup():
-            CycleRides.mark_summary_tables(None, update_all=True)
+        if 'makemigrations' not in request.META.get('argv', []) and 'migrate' not in request.META.get('argv', []):
+            if Backup().load_backup():
+                CycleRides.mark_summary_tables(None, update_all=True)
 
         # Continue with normal behaviour
         response = self.get_response(request)
