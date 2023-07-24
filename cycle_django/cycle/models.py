@@ -1,5 +1,8 @@
 import datetime
-from typing import Union
+import gpxpy
+import json
+import os
+from typing import List, Union
 
 from django.db import models
 from django.db.models import Q, Sum, Count
@@ -245,3 +248,98 @@ class CycleYearlySummary(models.Model):
             end_date = datetime.date(obj.date.year+1, 1, 1)
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)
+
+
+class GPSData(models.Model):
+    filename = models.CharField(primary_key=True, max_length=100)
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+    datetimes = models.TextField()
+    latitudes = models.TextField()
+    longitudes = models.TextField()
+    altitudes = models.TextField()
+    speeds = models.TextField(null=True)
+    GPX_FOLDERS = ["/home/ronny/Documents/gps-logger/"]
+
+    class Meta:
+        ordering = ['start']
+
+    def __str__(self):
+        return f"{self.filename} - {self.datetimes.count(',')+1}"
+
+    def save(self, *args, no_backup=False, **kwargs):
+
+        super().save(*args, **kwargs)
+        if not no_backup:
+            Backup().dump_gpsdata_dbs()
+
+    @classmethod
+    def load_data(cls):
+        backup = Backup()
+        backup.load_dump_GPSData()
+
+        #cls.import_gpx_file_to_database(cls.GPX_FOLDERS)
+
+    @staticmethod
+    def import_gpx_file_to_database(gpx_folders: List[str]):
+        # Get all gpxfiles that are not in the database
+        for folder in gpx_folders:
+            gpx_files = []
+            for foldername, subfolders, filenames in os.walk(folder):
+                gpx_files += [
+                    (foldername, filename) for filename in filenames
+                    if filename.endswith(".gpx") and not GPSData.objects.filter(filename=filename).exists()
+                ]
+        gpx_files = [gpx_files[0]]    # to remove later
+        # Read the gpx files
+        for ii, (foldername, filename) in enumerate(gpx_files):
+            with open(os.path.join(foldername, filename), 'r') as gpx_file:
+                gpx = gpxpy.parse(gpx_file)
+
+                for track in gpx.tracks:
+                    datetimes = []
+                    latitudes = []
+                    longitudes = []
+                    altitudes = []
+                    for segment in track.segments:
+                        for point in segment.points:
+                            if not datetimes:
+                                start = point.time
+                            datetimes.append(point.time.timestamp())
+                            latitudes.append(point.latitude)
+                            longitudes.append(point.longitude)
+                            altitudes.append(point.elevation)
+                    end = point.time
+
+                obj = GPSData(
+                    filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
+                    latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
+                    altitudes=json.dumps(altitudes),
+                )
+                obj.save(no_backup=(ii < len(gpx_files)-1))
+                logger.info(f"Loaded {len(datetimes)} points from {filename}")
+
+class NoGoAreas(models.Model):
+    name = models.TextField(primary_key=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    radius = models.FloatField()
+    auto_whole_world = "Auto whole world"
+
+    def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
+
+        super().save(*args, **kwargs)
+        Backup().dump_no_go_areas_dbs()
+
+    @classmethod
+    def load_data(cls):
+        try:
+            NoGoAreas.objects.filter(pk=cls.auto_whole_world).delete()
+        except NoGoAreas.DoesNotExist:
+            pass
+        backup = Backup()
+        loaded_backup = backup.load_dump_no_go_areas()
+        if NoGoAreas.objects.all().count() == 0:
+            logger.warning(f"No no-go-area defined, hence will create one for the whole world")
+            obj = NoGoAreas(name=cls.auto_whole_world, latitude=0., longitude=0, radius=40000.)
+            obj.save()

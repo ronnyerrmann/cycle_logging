@@ -41,11 +41,13 @@ class CycleConfig(AppConfig):
 
     @staticmethod
     def load_data():
-        from .models import CycleRides
-        try:
-            CycleRides.load_data()
-        except OperationalError as e:
-            if str(e).startswith("no such table: "):
-                logger.warning("Missing Table for CycleRides")
-            else:
-                raise
+        from .models import CycleRides, NoGoAreas, GPSData
+        # Load Cycle rides
+        for model in CycleRides, NoGoAreas, GPSData:
+            try:
+                model.load_data()
+            except OperationalError as e:
+                if str(e).startswith("no such table: "):
+                    logger.warning(f"Missing Table for {model}")
+                else:
+                    raise

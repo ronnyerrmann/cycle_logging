@@ -78,6 +78,12 @@ class Backup:
         # To load last changes on production instance
         call_command("dumpdata", "cycle.CycleRides", output=os.path.join(BACKUP_FOLDER, "CycleRides_dump.json.gz"))
 
+    def dump_gpsdata_dbs(self):
+        call_command("dumpdata", "cycle.GPSData", output=os.path.join(BACKUP_FOLDER, "GPSData_dump.json.gz"))
+
+    def dump_no_go_areas_dbs(self):
+        # To load last changes on production instance
+        call_command("dumpdata", "cycle.NoGoAreas", output=os.path.join(BACKUP_FOLDER, "NoGoAreas_dump.json.gz"))
 
     def load_database_dump(self, database_dump_file):
         # "load_db_dump_at_startup" is mountpoint in Docker
@@ -113,6 +119,9 @@ class Backup:
     def load_dump_cycle_rides(self):
         return self.load_database_dump("CycleRides_dump.json.gz")
 
+    def load_dump_GPSData(self):
+        return self.load_database_dump("GPSData_dump.json.gz")
+
     def load_dump_no_go_areas(self):
         return self.load_database_dump("NoGoAreas_dump.json.gz")
 
@@ -125,7 +134,7 @@ class Backup:
             data = [int(ii) for ii in (":0:0:" + text).rsplit(":", 3)[-3:]]
             return datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
 
-        filename = os.path.join(BACKUP_FOLDER, "20230709_202017.csv.gz")
+        filename = os.path.join(BACKUP_FOLDER, "20230722_070547.csv.gz")
         if os.path.isfile(filename):
             number_of_imports = 0
             with gzip.open(filename, "r") as f:
