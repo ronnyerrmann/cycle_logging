@@ -1,4 +1,6 @@
 import abc
+import copy
+
 import numpy
 import pandas
 from plotly.offline import plot
@@ -74,10 +76,16 @@ class BaseDataListView(generic.ListView):
     def get_context_data(self, **kwargs):
         # Call the base implementation first to get the context
         context = super().get_context_data(**kwargs)
+        # Better instead of copy and replace: https://www.valentinog.com/blog/drf-request/
+        request_get = copy.copy(self.request.GET)
         if not self.request.GET:
             # should be a django.http.request.QueryDict instead
             # if self.request.GET is empty (first time, it doesn't use the set initial values in ChoiceField
-            self.request.GET = {'x_data': 'date', 'y_data': 'distance', 'z_data': 'speed'}
+            request_get = {}
+        for key, value in {'x_data': 'date', 'y_data': 'distance', 'z_data': 'speed'}.items():
+            if not request_get.get(key):
+                request_get.update({key: value})
+        self.request.GET = request_get
         # Create any data and add it to the context
         context['dataset'] = self.context_dataset
         context['plot_div'] = self.create_plot()
