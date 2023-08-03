@@ -2,6 +2,7 @@ import datetime
 import gpxpy
 import json
 import os
+import pytz
 from typing import List, Union
 
 from django.db import models
@@ -69,6 +70,19 @@ class CycleRides(models.Model):
     def get_absolute_url(self):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
+
+    def get_gps_url(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)#, tzinfo=datetime.tzinfo('UTC'))
+        date = timezone.localize(date)
+        objs = GPSData.objects.filter(
+            start__lt=date+datetime.timedelta(days=1)-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        data = []
+        for obj in objs:
+            data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0]])
+        return data
 
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
 
@@ -267,8 +281,11 @@ class GPSData(models.Model):
     def __str__(self):
         return f"{self.filename} - {self.datetimes.count(',')+1}"
 
-    def save(self, *args, no_backup=False, **kwargs):
+    def get_absolute_url(self):
+        """Returns the url to access a detail record for this GPS file."""
+        return reverse('gps_detail', args=[self.filename])
 
+    def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)
         if not no_backup:
             Backup().dump_gpsdata_dbs()

@@ -12,7 +12,7 @@ from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
 from django.shortcuts import get_object_or_404
 
-from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary
+from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData
 from .forms import PlotDataForm, PlotDataFormSummary
 from my_base import Logging
 
@@ -48,6 +48,7 @@ def index(request):
     number_of_weeks = CycleWeeklySummary.objects.all().count()
     number_of_months = CycleMonthlySummary.objects.all().count()
     number_of_years = CycleYearlySummary.objects.all().count()
+    number_of_gps_files = GPSData.objects.all().count()
 
     context = {
         'start_date': start_date.strftime('%Y-%m-%d') if start_date is not None else None,
@@ -56,6 +57,7 @@ def index(request):
         'number_of_weeks': number_of_weeks,
         'number_of_months': number_of_months,
         'number_of_years': number_of_years,
+        'number_of_gps_files': number_of_gps_files
     }
 
     # Render the HTML template index.html with the data in the context variable
@@ -304,3 +306,21 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         raise ValueError('Both date_wmy and entryid are none.')
 
     return render(request, 'cycle_data/cycle_detail.html', context={'cycle': cycleThisData, 'dataType': dataType})
+
+
+def gps_detail_view(request, filename=None):
+    if filename is not None:
+        gpsThisData = get_object_or_404(GPSData, pk=filename)
+    else:
+        raise ValueError('filename is none.')
+
+    return render(request, 'cycle_data/gps_detail.html', context={'gps': gpsThisData})
+
+
+class GPSDataListView(generic.ListView):
+    context_object_name = 'gps_data_list'     # This is used as variable in cycle_data_list.html
+    template_name = 'cycle_data/gps_data_list.html'
+
+    def get_queryset(self):
+        # executed when the page is opened
+        return GPSData.objects.all()

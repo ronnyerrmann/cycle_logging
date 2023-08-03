@@ -1,0 +1,25 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h3>GPS file list</h3>
+  {% if gps_data_list %}
+  <ul>
+    <p>Number of (shown) entries: {{ gps_data_list.count }}</p>
+    <table  class='table_inner_borders'>
+      <tr>
+        <th>Filename</th> <th>Start</th> <th>End</th>
+      </tr>
+      {% for entry in gps_data_list %}
+        <tr>
+          <td><a href="{{ entry.get_absolute_url }}">{{ entry.filename}}</a></td>
+          <td>{{entry.start}}</td> <td>{{entry.end}}</td>
+        </tr>
+    {% empty %}
+      There are no entries in the database.
+    {% endfor %}
+    </table>
+  </ul>
+  {% else %}
+    <p>There is a problem with the database.</p>
+  {% endif %}
+{% endblock %}
