@@ -1,5 +1,9 @@
 {% extends "base_generic.html" %}
 
+{% block extra_head %}
+  {{ map_html|safe }}
+{% endblock %}
+
 {% block content %}
     <h3><a href="">{{ gps.filename }}</a></h3><!-- author detail link not yet defined -->
     <div style="margin-left:20px;margin-top:20px">
