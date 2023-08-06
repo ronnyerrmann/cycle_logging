@@ -1,19 +1,29 @@
 {% extends "base_generic.html" %}
 
+{% load leaflet_tags %}
+
 {% block extra_head %}
-  {{ map_html|safe }}
+  {% leaflet_js %}
+  {% leaflet_css %}
 {% endblock %}
 
 {% block content %}
-    <h3><a href="">{{ gps.filename }}</a></h3><!-- author detail link not yet defined -->
     <div style="margin-left:20px;margin-top:20px">
-      <h4>General</h4>
-      <p><strong>Start:</strong> {{ gps.start }}</p>
-      <p><strong>End:</strong> {{ gps.end }}</p>
+      <h4>{{ gps.filename }}</h4>
+      <p><strong>Start:</strong> {{ gps.start }} &nbsp; <strong>End:</strong> {{ gps.end }}</p>
     </div>
     <div style="margin-left:20px;margin-top:20px">
-      <h4>Other stuff</h4>
+      <h4>Map:</h4>
+    </div>
+    <div id="map" style="height: 600px;"></div>
+    <script>
+        var map = L.map('map').setView({{ center | safe }}, 9);
 
-    </div>
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        L.polyline({{ gps_positions | safe }}, { color: 'blue' }).addTo(map);
+    </script>
 
 {% endblock %}

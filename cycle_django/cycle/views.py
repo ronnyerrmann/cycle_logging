@@ -1,6 +1,5 @@
 import ast
 import abc
-import folium
 import numpy
 import pandas
 from plotly.offline import plot
@@ -319,20 +318,17 @@ def gps_detail_view(request, filename=None):
     lons = ast.literal_eval(gpsThisData.longitudes)
     number_data_points = len(lats)
 
-    logger.info(f"111, {min(lats)}, {type(lats)}")
     # Create a map centered on the center
     map_center = [0.5 * (min(lats) + max(lats)), 0.5 * (min(lons) + max(lons))]
 
-    my_map = folium.Map(location=map_center, zoom_start=10)
-
     # Add markers for each GPS data point
+    positions = [[]] * number_data_points
     for ii in range(number_data_points):
-        folium.Marker([lats[ii], lons[ii]]).add_to(my_map)
+        positions[ii] = [lats[ii], lons[ii]]
 
-    # Convert the map to HTML
-    map_html = my_map._repr_html_()
+    context = {'gps': gpsThisData, 'gps_positions': positions, 'center': map_center}
 
-    return render(request, 'cycle_data/gps_detail.html', context={'gps': gpsThisData, 'map_html': map_html})
+    return render(request, 'cycle_data/gps_detail.html', context=context)
 
 
 class GPSDataListView(generic.ListView):

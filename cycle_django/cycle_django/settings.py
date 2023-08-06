@@ -99,6 +99,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'leaflet',
     # Add our new application
     'cycle.apps.CycleConfig',
 ]
