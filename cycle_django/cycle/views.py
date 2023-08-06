@@ -13,7 +13,7 @@ from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
 from django.shortcuts import get_object_or_404
 
-from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData
+from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas
 from .forms import PlotDataForm, PlotDataFormSummary
 from my_base import Logging
 
@@ -316,6 +316,44 @@ def gps_detail_view(request, filename=None):
         raise ValueError('filename is none.')
     lats = ast.literal_eval(gpsThisData.latitudes)
     lons = ast.literal_eval(gpsThisData.longitudes)
+    from math import radians, sin, cos, acos
+    earth_radius = 6371.0
+    nogos = []
+    for nogo in NoGoAreas.objects.all():
+        lat = radians(nogo.latitude)
+        lon = radians(nogo.longitude)
+        nogos.append([sin(lat), cos(lat), lon, nogo.radius/earth_radius])
+    for ii in range(len(lats)):
+        lat = radians(lats[0])
+        lon = radians(lons[0])
+        for nogo in nogos:
+            # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
+            if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
+                del lats[0]
+                del lons[0]
+                # logger.info(f"Deleted {ii} because of {nogo}")
+                break
+            # else:
+            #    logger.info(f"not del {ii} for {nogo}")
+        else:
+            # logger.info(f"stopped deleting")
+            break
+    for ii in range(len(lats))[::-1]:
+        lat = radians(lats[-1])
+        lon = radians(lons[-1])
+        for nogo in nogos:
+            # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
+            if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
+                del lats[-1]
+                del lons[-1]
+                # logger.info(f"Deleted {ii} because of {nogo}")
+                break
+            # else:
+            #    logger.info(f"not del {ii} for {nogo}")
+        else:
+            # logger.info(f"stopped deleting")
+            break
+
     number_data_points = len(lats)
 
     # Create a map centered on the center
