@@ -201,6 +201,7 @@ class DataYListView(DataSummaryView):
 
 
 class ExtraPlots(BaseDataListView):
+    """ Use the Base view to not need to worry how to grab the data"""
     context_object_name = None
     template_name = 'cycle_data/cycle_extra_plots.html'
     context_dataset = None
@@ -255,6 +256,42 @@ class ExtraPlots(BaseDataListView):
             ),
         )
 
+        # Histogram plots
+        data = self.data_frame["distance"]
+        range_dist = int(max(data)-min(data))
+        fig_hist_dist = go.Figure()
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist/2), name="Duration (4km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*2, name="Duration (1km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*10, name="Duration (200m bins)"))
+        fig_hist_dist.update_layout(
+            # Overlay both histograms
+            barmode='overlay',
+            xaxis=dict(title="Distance [km]"),
+            yaxis=dict(title="Number of occurrences of Distance values"),
+        )
+        data = self.data_frame["duration_td"].dt.total_seconds()/60
+        range_dur = int(max(data) - min(data))
+        fig_hist_dur = go.Figure()
+        fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=int(range_dur / 5), name="Duration (10 min bins)"))
+        fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=range_dur * 2, name="Duration (1min bins)"))
+        fig_hist_dur.update_layout(
+            # Overlay both histograms
+            barmode='overlay',
+            xaxis=dict(title="Duration [min]"),
+            yaxis=dict(title="Number of occurrences of Duration values"),
+        )
+        data = self.data_frame["speed"]
+        range_spd = int(max(data) - min(data))
+        fig_hist_spd = go.Figure()
+        fig_hist_spd.add_trace(go.Histogram(x=data, nbinsx=range_spd * 4, name="Speed (500 m/s bins)"))
+        fig_hist_spd.add_trace(go.Histogram(x=data, nbinsx=range_spd * 40, name="Duration (50 m/s bins)"))
+        fig_hist_spd.update_layout(
+            # Overlay both histograms
+            barmode='overlay',
+            xaxis=dict(title="Speed [km/s]"),
+            yaxis=dict(title="Number of occurrences of Speed values"),
+        )
+
         bx = "date"
         by1 = "diffkm"
         by2 = "diffsec"
@@ -285,9 +322,6 @@ class ExtraPlots(BaseDataListView):
         )
 
         # Frac of km, Seconds histogram
-        cx = "frac-km_sec"
-        cy1 = "count_frac-km"
-        cy2 = "count_sec"
         frac_km, int_km = numpy.modf(self.data_frame["distance"])
         frac_km *= 1E2
         frac_sec = ((self.data_frame["duration_td"]) % (60 * 1E9)).dt.total_seconds()
@@ -305,6 +339,9 @@ class ExtraPlots(BaseDataListView):
 
         plot_dict = {
             "plot_total_div": plot(fig_total, output_type="div"),
+            "plot_hist_dist": plot(fig_hist_dist, output_type="div"),
+            "plot_hist_dur": plot(fig_hist_dur, output_type="div"),
+            "plot_hist_speed": plot(fig_hist_spd, output_type="div"),
             "plot_diff_div": plot(fig_diff, output_type="div"),
             "plot_frac_div": plot(fig_frac, output_type="div"),
         }
