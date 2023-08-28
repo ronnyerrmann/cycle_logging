@@ -147,25 +147,6 @@ DATABASES = {
     }
 }
 
-
-"""# Read settings file
-mysqlset = Mysqlset()
-mysqlset.read_settings_file(MYSQL_SETTINGS_DIR + os.sep + 'fahrrad_mysql.params')
-mysqldata = mysqlset.get_settings()
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': mysqldata['database'],
-        'USER': mysqldata['user'],
-        'PASSWORD': mysqldata['password'],
-        'HOST': mysqldata['host'],
-        'PORT': '3306',
-        'TEST': {
-            'NAME': 'cycle_test',
-        },
-    }
-}"""
-
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
 
