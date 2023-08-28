@@ -15,21 +15,22 @@
 <body>
   <div class="container-fluid">
     <div class="row">
-      <div class="col-sm-2">
+      <div class="col-sm-1">
       {% block sidebar %}
-        <ul class="sidebar-nav">
+        <ul class="sidebar-nav" style="list-style: square";>
           <li><a href="{% url 'index' %}">Home</a></li>
           <li><a href="{% url 'cycle_data' %}">Daily cycle data</a></li>
           <li><a href="{% url 'cycle_data_w' %}">Combined week</a></li>
           <li><a href="{% url 'cycle_data_m' %}">Combined month</a></li>
           <li><a href="{% url 'cycle_data_y' %}">Combined year</a></li>
           <li><a href="{% url 'gps_data' %}">GPS Files</a></li>
+          <li><a href="https://github.com/ronnyerrmann/cycle_logging">Github page of the project</a></li>
           <li><a href="http://ronnyerrmann.ddns.net:80/">PHP and JavaScript version</a></li>
           <li><a href="{% url 'admin:index' %}">Admin</a></li>
         </ul>
      {% endblock %}
       </div>
-      <div class="col-sm-10 ">{% block content %}{% endblock %}
+      <div class="col-sm-20 ">{% block content %}{% endblock %}
         {% block pagination %}
           {% if is_paginated %}
               <div class="pagination">
