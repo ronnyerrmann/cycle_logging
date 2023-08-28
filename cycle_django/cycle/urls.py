@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
     path('cycle_data', views.DataListView.as_view(), name='cycle_data'),
+    path('cycle_extra_plots', views.ExtraPlots.as_view(), name='cycle_extra_plots'),
     path('cycle_dataw', views.DataWListView.as_view(), name='cycle_data_w'),
     path('cycle_datam', views.DataMListView.as_view(), name='cycle_data_m'),
     path('cycle_datay', views.DataYListView.as_view(), name='cycle_data_y'),

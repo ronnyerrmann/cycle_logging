@@ -154,109 +154,12 @@ class DataListView(BaseDataListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["plotdataform"] = PlotDataForm(self.request.GET)
-        context.update(self.create_extra_plots())
 
         return context
 
     def add_data_serialized_models(self, serialized_models):
         pass
 
-    def create_extra_plots(self) -> Dict:
-
-        if self.data_frame is not None:
-            ax = "date"
-            ay1 = "totalspeed"
-            ay2 = "totaldistance"
-            ay3 = "totalduration"
-            fig_total = go.Figure()
-            fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay1], name="Speed"))
-            fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay2], name="Distance", yaxis="y2"))
-            fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay3], name="Duration", yaxis="y3"))
-            fig_total.update_layout(
-                xaxis=dict(title="Date", domain=[0.0, 0.85]),
-                yaxis=dict(
-                    title="Cumulative speed [km/h]",
-                    titlefont=dict(color="#1f77b4"),
-                    tickfont=dict(color="#1f77b4")
-                ),
-                yaxis2=dict(
-                    title="Cumulative Distance [km]",
-                    titlefont=dict(color="#cc0000"),
-                    tickfont=dict(color="#cc0000"),
-                    anchor="free",
-                    overlaying="y",
-                    side="right",
-                    position=0.85
-                ),
-                yaxis3=dict(
-                    title="Cumulative Duration [hh:mm]",
-                    titlefont=dict(color="#009973"),
-                    tickfont=dict(color="#009973"),
-                    anchor="free",
-                    overlaying="y",
-                    side="right",
-                    position=0.92
-                ),
-            )
-
-
-            bx = "date"
-            by1 = "diffkm"
-            by2 = "diffsec"
-            self.data_frame[by1] = self.data_frame["totaldistance"] - self.data_frame["cumdistance"]
-            self.data_frame[by2] = pandas.to_numeric(
-                self.data_frame["totalduration"] - self.data_frame["cumduration"]
-            ) * 1E-9        # From mu sec to seconds
-
-            fig_diff = go.Figure()
-            fig_diff.add_trace(go.Scatter(x=self.data_frame[bx], y=self.data_frame[by1], name="Distance"))
-            fig_diff.add_trace(go.Scatter(x=self.data_frame[bx], y=self.data_frame[by2], name="Duration", yaxis="y2"))
-            fig_diff.update_layout(
-                xaxis=dict(title="Date", domain=[0.0, 0.9]),
-                yaxis=dict(
-                    title="Diff between Total and Cumulative Distance [km]",
-                    titlefont=dict(color="#1f77b4"),
-                    tickfont=dict(color="#1f77b4")
-                ),
-                yaxis2=dict(
-                    title="Diff between Total and Cumulative Duration [sec]",
-                    titlefont=dict(color="#cc0000"),
-                    tickfont=dict(color="#cc0000"),
-                    anchor="free",
-                    overlaying="y",
-                    side="right",
-                    position=0.9
-                ),
-            )
-
-            # Frac of km, Seconds histogram
-            cx = "frac-km_sec"
-            cy1 = "count_frac-km"
-            cy2 = "count_sec"
-            frac_km, int_km = numpy.modf(self.data_frame["distance"])
-            frac_km *= 1E2
-            frac_sec = ((self.data_frame["duration_td"]) % (60 * 1E9)).dt.total_seconds()
-            fig_frac = go.Figure()
-            fig_frac.add_trace(go.Histogram(x=frac_sec, nbinsx=60, name="Duration"))
-            fig_frac.add_trace(go.Histogram(x=frac_km, nbinsx=100, name="Distance"))
-            # Reduce opacity to see both histograms
-            # fig_frac.update_traces(opacity=0.75)
-            fig_frac.update_layout(
-                # Overlay both histograms
-                barmode='overlay',
-                xaxis=dict(title="Distance [m * 10] / Duration [s]", domain=[0.0, 0.9]),
-                yaxis=dict(title="Number of occurrences in data"),
-            )
-
-            plot_dict = {
-                "plot_total_div": plot(fig_total, output_type="div"),
-                "plot_diff_div": plot(fig_diff, output_type="div"),
-                "plot_frac_div": plot(fig_frac, output_type="div"),
-            }
-
-            return plot_dict
-
-        return {}
 
 
 class DataSummaryView(BaseDataListView):
@@ -295,6 +198,118 @@ class DataYListView(DataSummaryView):
     def get_queryset(self):
         CycleYearlySummary.update_fields()
         return CycleYearlySummary.objects.all()
+
+
+class ExtraPlots(BaseDataListView):
+    context_object_name = None
+    template_name = 'cycle_data/cycle_extra_plots.html'
+    context_dataset = None
+
+    def get_queryset(self):
+        # executed when the page is opened
+        return CycleRides.objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = self.create_extra_plots()
+
+        return context
+
+    def add_data_serialized_models(self, serialized_models):
+        pass
+
+    def create_extra_plots(self) -> Dict:
+        if self.data_frame is None:
+            return {}
+        ax = "date"
+        ay1 = "totalspeed"
+        ay2 = "totaldistance"
+        ay3 = "totalduration"
+        fig_total = go.Figure()
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay1], name="Speed"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay2], name="Distance", yaxis="y2"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay3], name="Duration", yaxis="y3"))
+        fig_total.update_layout(
+            xaxis=dict(title="Date", domain=[0.0, 0.85]),
+            yaxis=dict(
+                title="Cumulative speed [km/h]",
+                titlefont=dict(color="#1f77b4"),
+                tickfont=dict(color="#1f77b4")
+            ),
+            yaxis2=dict(
+                title="Cumulative Distance [km]",
+                titlefont=dict(color="#cc0000"),
+                tickfont=dict(color="#cc0000"),
+                anchor="free",
+                overlaying="y",
+                side="right",
+                position=0.85
+            ),
+            yaxis3=dict(
+                title="Cumulative Duration [hh:mm]",
+                titlefont=dict(color="#009973"),
+                tickfont=dict(color="#009973"),
+                anchor="free",
+                overlaying="y",
+                side="right",
+                position=0.92
+            ),
+        )
+
+        bx = "date"
+        by1 = "diffkm"
+        by2 = "diffsec"
+        self.data_frame[by1] = self.data_frame["totaldistance"] - self.data_frame["cumdistance"]
+        self.data_frame[by2] = pandas.to_numeric(
+            self.data_frame["totalduration"] - self.data_frame["cumduration"]
+        ) * 1E-9  # From mu sec to seconds
+
+        fig_diff = go.Figure()
+        fig_diff.add_trace(go.Scatter(x=self.data_frame[bx], y=self.data_frame[by1], name="Distance"))
+        fig_diff.add_trace(go.Scatter(x=self.data_frame[bx], y=self.data_frame[by2], name="Duration", yaxis="y2"))
+        fig_diff.update_layout(
+            xaxis=dict(title="Date", domain=[0.0, 0.9]),
+            yaxis=dict(
+                title="Diff between Total and Cumulative Distance [km]",
+                titlefont=dict(color="#1f77b4"),
+                tickfont=dict(color="#1f77b4")
+            ),
+            yaxis2=dict(
+                title="Diff between Total and Cumulative Duration [sec]",
+                titlefont=dict(color="#cc0000"),
+                tickfont=dict(color="#cc0000"),
+                anchor="free",
+                overlaying="y",
+                side="right",
+                position=0.9
+            ),
+        )
+
+        # Frac of km, Seconds histogram
+        cx = "frac-km_sec"
+        cy1 = "count_frac-km"
+        cy2 = "count_sec"
+        frac_km, int_km = numpy.modf(self.data_frame["distance"])
+        frac_km *= 1E2
+        frac_sec = ((self.data_frame["duration_td"]) % (60 * 1E9)).dt.total_seconds()
+        fig_frac = go.Figure()
+        fig_frac.add_trace(go.Histogram(x=frac_sec, nbinsx=60, name="Duration"))
+        fig_frac.add_trace(go.Histogram(x=frac_km, nbinsx=100, name="Distance"))
+        # Reduce opacity to see both histograms
+        # fig_frac.update_traces(opacity=0.75)
+        fig_frac.update_layout(
+            # Overlay both histograms
+            barmode='overlay',
+            xaxis=dict(title="Distance [m * 10] / Duration [s]", domain=[0.0, 0.9]),
+            yaxis=dict(title="Number of occurrences in data"),
+        )
+
+        plot_dict = {
+            "plot_total_div": plot(fig_total, output_type="div"),
+            "plot_diff_div": plot(fig_diff, output_type="div"),
+            "plot_frac_div": plot(fig_frac, output_type="div"),
+        }
+
+        return plot_dict
 
 
 def data_detail_view(request, date_wmy=None, entryid=None):

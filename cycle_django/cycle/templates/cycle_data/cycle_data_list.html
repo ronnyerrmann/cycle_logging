@@ -12,13 +12,11 @@
       <button type="submit">Replot</button>
       <p>(Unfortunately, plotly doesn't handle timedelta objects yet, hence all durations are given from 1970-01-01)</p>
     </form>
-    {% autoescape off %}
-        {{ plot_total_div }}
-        {{ plot_diff_div }}
-        {{ plot_frac_div }}
-    {% endautoescape %}
+    {% if dataset == 'day' %}
+      <a href="{% url 'cycle_extra_plots' %}">Extra plots</a>
+    {% endif %}
     <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
-    <table  class='table_inner_borders'>
+    <table class='table_inner_borders'>
       <tr>
         {% if dataset == 'day' %}
           <th> </th>
