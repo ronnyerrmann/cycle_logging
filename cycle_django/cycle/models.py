@@ -71,7 +71,7 @@ class CycleRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
-    def get_gps_url(self):
+    def get_gps_objs(self):
         """Returns the url to access a gps plot"""
         timezone = pytz.timezone('UTC')
         date = datetime.datetime(self.date.year, self.date.month, self.date.day)#, tzinfo=datetime.tzinfo('UTC'))
@@ -79,9 +79,13 @@ class CycleRides(models.Model):
         objs = GPSData.objects.filter(
             start__lt=date+datetime.timedelta(days=1)-datetime.timedelta(seconds=1), end__gt=date
         ).order_by('start')
+        return objs
+
+    def get_gps_url(self):
+        """Returns the url to access a gps plot"""
         data = []
-        for obj in objs:
-            data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0], obj])
+        for obj in self.get_gps_objs():
+            data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0]])
         return data
 
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
@@ -218,6 +222,16 @@ class CycleWeeklySummary(models.Model):
             my_filter = Q(date__gte=obj.date) & Q(date__lt=obj.date + datetime.timedelta(days=7))
             update_fields_common(my_filter, obj)
 
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+        date = timezone.localize(date)
+        objs = GPSData.objects.filter(
+            start__lt=date+datetime.timedelta(days=7)-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
+
 
 class CycleMonthlySummary(models.Model):
     date = models.DateField(primary_key=True)
@@ -241,6 +255,17 @@ class CycleMonthlySummary(models.Model):
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)
 
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+        date = timezone.localize(date)
+        end_date = date + datetime.timedelta(days=31)
+        end_date -= datetime.timedelta(days=end_date.day - 1)
+        objs = GPSData.objects.filter(
+            start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
 
 class CycleYearlySummary(models.Model):
     date = models.DateField(primary_key=True, help_text='First date of the year')
@@ -262,6 +287,17 @@ class CycleYearlySummary(models.Model):
             end_date = datetime.date(obj.date.year+1, 1, 1)
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)
+
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+        date = timezone.localize(date)
+        end_date = datetime.date(date.year + 1, 1, 1)
+        objs = GPSData.objects.filter(
+            start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
 
 
 class GPSData(models.Model):

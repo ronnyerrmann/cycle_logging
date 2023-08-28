@@ -291,14 +291,9 @@ class DataYListView(DataSummaryView):
 
 
 def data_detail_view(request, date_wmy=None, entryid=None):
-    gps_context = {}
     if entryid is not None:
         cycleThisData = get_object_or_404(CycleRides, pk=entryid)
         dataType = "d"
-        gps_url_data = cycleThisData.get_gps_url()
-        if gps_url_data:
-            gps_objs = [entry[2] for entry in gps_url_data]
-            gps_context = analyse_gps_data_sets(gps_objs)
     elif date_wmy is not None:
         dataType = "wmy"
         if date_wmy[0] == "w":
@@ -313,6 +308,8 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         raise ValueError('Both date_wmy and entryid are none.')
 
     context = {'cycle': cycleThisData, 'dataType': dataType}
+    gps_objs = cycleThisData.get_gps_objs()
+    gps_context = analyse_gps_data_sets(gps_objs)
     context.update(gps_context)
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
@@ -321,6 +318,8 @@ def data_detail_view(request, date_wmy=None, entryid=None):
 def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
     """ Be careful to apply sin/cos only on radians!
     """
+    if not objs:
+        return {}
     def check_no_go(nogos, lats, lons, index):
         for ii in range(len(lats)):
             lat = radians(lats[index])      # radians
