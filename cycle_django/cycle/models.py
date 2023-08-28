@@ -379,8 +379,10 @@ class GPSData(models.Model):
                         latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
                         altitudes=json.dumps(altitudes),
                     )
-                    obj.save(no_backup=(ii < len(gpx_files)-1))
+                    # not just -1 but -10, as otherwise empty files can be an issue
+                    obj.save(no_backup=(ii < len(gpx_files)-10))
                     logger.info(f"Loaded {len(datetimes)} points from {filename}")
+
 
 class NoGoAreas(models.Model):
     name = models.TextField(primary_key=True)

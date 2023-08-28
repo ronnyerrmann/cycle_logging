@@ -52,7 +52,7 @@ cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
 cmds = ["python manage.py makemigrations", "python manage.py migrate", "python manage.py collectstatic --noinput",
-        "gunicorn cycle_django.wsgi -b 0.0.0.0:8314"]
+        "gunicorn cycle_django.wsgi -b 0.0.0.0:8314 --timeout 120"]
 with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
     f.write("#!/bin/bash\n")
     for cmd in cmds:
