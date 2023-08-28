@@ -1,11 +1,12 @@
 import ast
 import abc
+from math import log10, radians, sin, cos, acos
 import numpy
 import pandas
 from plotly.offline import plot
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import Dict
+from typing import Dict, List
 
 from django.shortcuts import render
 from django.core import serializers
@@ -290,9 +291,14 @@ class DataYListView(DataSummaryView):
 
 
 def data_detail_view(request, date_wmy=None, entryid=None):
+    gps_context = {}
     if entryid is not None:
         cycleThisData = get_object_or_404(CycleRides, pk=entryid)
         dataType = "d"
+        gps_url_data = cycleThisData.get_gps_url()
+        if gps_url_data:
+            gps_objs = [entry[2] for entry in gps_url_data]
+            gps_context = analyse_gps_data_sets(gps_objs)
     elif date_wmy is not None:
         dataType = "wmy"
         if date_wmy[0] == "w":
@@ -306,67 +312,78 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     else:
         raise ValueError('Both date_wmy and entryid are none.')
 
-    return render(request, 'cycle_data/cycle_detail.html', context={'cycle': cycleThisData, 'dataType': dataType})
+    context = {'cycle': cycleThisData, 'dataType': dataType}
+    context.update(gps_context)
+
+    return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
-def gps_detail_view(request, filename=None):
-    if filename is not None:
-        gpsThisData = get_object_or_404(GPSData, pk=filename)
-    else:
-        raise ValueError('filename is none.')
-    lats = ast.literal_eval(gpsThisData.latitudes)
-    lons = ast.literal_eval(gpsThisData.longitudes)
-    from math import radians, sin, cos, acos
+def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
+    """ Be careful to apply sin/cos only on radians!
+    """
+    def check_no_go(nogos, lats, lons, index):
+        for ii in range(len(lats)):
+            lat = radians(lats[index])      # radians
+            lon = radians(lons[index])      # radians
+            for nogo in nogos:
+                # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
+                if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
+                    del lats[index]
+                    del lons[index]
+                    # logger.info(f"Deleted {ii} because of {nogo}")
+                    break
+                # else:
+                #    logger.info(f"not del {ii} for {nogo}")
+            else:
+                # logger.info(f"stopped deleting")
+                break
+
+    all_positions = []
+    max_lat = -90
+    min_lat = 90
+    max_lon = -180
+    min_lon = 180
     earth_radius = 6371.0
     nogos = []
     for nogo in NoGoAreas.objects.all():
         lat = radians(nogo.latitude)
         lon = radians(nogo.longitude)
-        nogos.append([sin(lat), cos(lat), lon, nogo.radius/earth_radius])
-    for ii in range(len(lats)):
-        lat = radians(lats[0])
-        lon = radians(lons[0])
-        for nogo in nogos:
-            # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
-            if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
-                del lats[0]
-                del lons[0]
-                # logger.info(f"Deleted {ii} because of {nogo}")
-                break
-            # else:
-            #    logger.info(f"not del {ii} for {nogo}")
-        else:
-            # logger.info(f"stopped deleting")
-            break
-    for ii in range(len(lats))[::-1]:
-        lat = radians(lats[-1])
-        lon = radians(lons[-1])
-        for nogo in nogos:
-            # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
-            if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
-                del lats[-1]
-                del lons[-1]
-                # logger.info(f"Deleted {ii} because of {nogo}")
-                break
-            # else:
-            #    logger.info(f"not del {ii} for {nogo}")
-        else:
-            # logger.info(f"stopped deleting")
-            break
+        nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
+    for obj in objs:
+        lats = ast.literal_eval(obj.latitudes)      # degrees
+        lons = ast.literal_eval(obj.longitudes)     # degrees
+        check_no_go(nogos, lats, lons, 0)
+        check_no_go(nogos, lats, lons, -1)
 
-    number_data_points = len(lats)
+        number_data_points = len(lats)
 
-    # Create a map centered on the center
-    map_center = [0.5 * (min(lats) + max(lats)), 0.5 * (min(lons) + max(lons))]
+        max_lat = max(max_lat, max(lats))
+        min_lat = min(min_lat, min(lats))
+        max_lon = max(max_lon, max(lons))
+        min_lon = min(min_lon, min(lons))
 
-    # Add markers for each GPS data point
-    positions = [[]] * number_data_points
-    for ii in range(number_data_points):
-        positions[ii] = [lats[ii], lons[ii]]
+        # Add markers for each GPS data point
+        positions = [[]] * number_data_points
+        for ii in range(number_data_points):
+            positions[ii] = [lats[ii], lons[ii]]
+        all_positions.append(positions)
+    map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
+    zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon-min_lon)*sin(radians(map_center[0])))) + 8.9))
+    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom}
 
-    context = {'gps': gpsThisData, 'gps_positions': positions, 'center': map_center}
+    return context
 
-    return render(request, 'cycle_data/gps_detail.html', context=context)
+
+def gps_detail_view(request, filename=None):
+    if filename == "all":
+        gpsData = GPSData.objects.all()
+    elif filename is not None:
+        gpsData = [get_object_or_404(GPSData, pk=filename)]
+    else:
+        raise ValueError('Parameter unknown.')
+    context = analyse_gps_data_sets(gpsData)
+
+    return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
 class GPSDataListView(generic.ListView):

@@ -81,7 +81,7 @@ class CycleRides(models.Model):
         ).order_by('start')
         data = []
         for obj in objs:
-            data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0]])
+            data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0], obj])
         return data
 
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
@@ -295,7 +295,7 @@ class GPSData(models.Model):
         backup = Backup()
         backup.load_dump_GPSData()
 
-        #cls.import_gpx_file_to_database(cls.GPX_FOLDERS)
+        cls.import_gpx_file_to_database(cls.GPX_FOLDERS)
 
     @staticmethod
     def import_gpx_file_to_database(gpx_folders: List[str]):
@@ -307,19 +307,27 @@ class GPSData(models.Model):
                     (foldername, filename) for filename in filenames
                     if filename.endswith(".gpx") and not GPSData.objects.filter(filename=filename).exists()
                 ]
-        gpx_files = [gpx_files[0]]    # to remove later
+        #gpx_files = [gpx_files[0]]    # to remove later
         # Read the gpx files
         for ii, (foldername, filename) in enumerate(gpx_files):
+            bad = False
             with open(os.path.join(foldername, filename), 'r') as gpx_file:
                 gpx = gpxpy.parse(gpx_file)
-
+                datetimes = []
+                latitudes = []
+                longitudes = []
+                altitudes = []
                 for track in gpx.tracks:
-                    datetimes = []
-                    latitudes = []
-                    longitudes = []
-                    altitudes = []
+                    if bad:
+                        break
                     for segment in track.segments:
+                        if bad:
+                            break
                         for point in segment.points:
+                            if not point.time:
+                                logger.warning(f"Point without timestamp in {filename}: {point} - will ignore file")
+                                bad = True
+                                break
                             if not datetimes:
                                 start = point.time
                             datetimes.append(point.time.timestamp())
@@ -327,14 +335,16 @@ class GPSData(models.Model):
                             longitudes.append(point.longitude)
                             altitudes.append(point.elevation)
                     end = point.time
-
-                obj = GPSData(
-                    filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
-                    latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
-                    altitudes=json.dumps(altitudes),
-                )
-                obj.save(no_backup=(ii < len(gpx_files)-1))
-                logger.info(f"Loaded {len(datetimes)} points from {filename}")
+                if bad or len(datetimes) < 20:
+                    logger.warning(f"Ignored {len(datetimes)} points from {filename}")
+                else:
+                    obj = GPSData(
+                        filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
+                        latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
+                        altitudes=json.dumps(altitudes),
+                    )
+                    obj.save(no_backup=(ii < len(gpx_files)-1))
+                    logger.info(f"Loaded {len(datetimes)} points from {filename}")
 
 class NoGoAreas(models.Model):
     name = models.TextField(primary_key=True)
