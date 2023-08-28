@@ -121,7 +121,7 @@ class BaseDataListView(generic.ListView):
             for col in columns_time:
                 data_frame[col+"_td"] = pandas.to_timedelta(data_frame[col])
                 data_frame[col] = data_frame[col+"_td"] + pandas.to_datetime('1970/01/01')
-            return data_frame
+            return data_frame[data_frame['distance'] > 0.01]
 
     def create_plot(self):
         x = self.request.GET.get("x_data", "date")
