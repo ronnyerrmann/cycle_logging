@@ -25,15 +25,20 @@
         {% endif %}
         <th>Date</th> <th>Distance</th> <th>Duration</th> <th>Speed</th>
         {% if dataset == 'day' %}
-          <th>Total Distance</th> <th>Total Duration</th> <th>Cumulative Speed</th>
+          <th>Total Distance</th> <th>Total Duration</th> <th>Cumulative Speed</th> <th>GPS (if available)</th>
         {% endif %}
       </tr>
       {% for entry in cycle_data_list %}
         <tr>
         {% if dataset == 'day' %}
-          <td><a href="{{ entry.get_absolute_url }}">{{ entry.entryid}}</a></td> <td>{{entry.date}}</td>
+          <td><a href="{{ entry.get_absolute_url }}">{{entry.entryid}}</a></td> <td>{{entry.date}}</td>
           <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
           <td>{{entry.totaldistance}}</td> <td>{{entry.totalduration}}</td> <td>{{entry.totalspeed}}</td>
+          <td>
+            {% for gps_info in entry.get_gps_url %}
+              <a href="{{gps_info.0}}">{{gps_info.1}}</a>,
+            {% endfor %}
+          </td>
         {% elif dataset == "week" or dataset == "month" or dataset == "year"%}
           <td><a href="{{ entry.get_absolute_url }}">{{ entry.date}}</a></td>
           <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>

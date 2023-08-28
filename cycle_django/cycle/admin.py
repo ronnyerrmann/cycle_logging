@@ -4,7 +4,10 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
-from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, convert_to_str_hours
+from .models import (
+    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas,
+    convert_to_str_hours
+)
 
 
 class AdminForm(forms.ModelForm):
@@ -94,6 +97,16 @@ class CycleMonthlySummaryAdmin(admin.ModelAdmin):
 #admin.site.register(CycleYearlySummary)
 class CycleYearlySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
+
+
+@admin.register(GPSData)
+class GPSDataAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(NoGoAreas)
+class NoGoAreasAdmin(admin.ModelAdmin):
+    pass
 
 
 # Register the admin class with the associated model instead of using a decorator

@@ -9,6 +9,8 @@
   {% load static %}
   <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  {% block extra_head %}
+  {% endblock %}
 </head>
 <body>
   <div class="container-fluid">
@@ -21,6 +23,7 @@
           <li><a href="{% url 'cycle_data_w' %}">Combined week</a></li>
           <li><a href="{% url 'cycle_data_m' %}">Combined month</a></li>
           <li><a href="{% url 'cycle_data_y' %}">Combined year</a></li>
+          <li><a href="{% url 'gps_data' %}">GPS Files</a></li>
           <li><a href="http://ronnyerrmann.ddns.net:80/">PHP and JavaScript version</a></li>
           <li><a href="{% url 'admin:index' %}">Admin</a></li>
         </ul>

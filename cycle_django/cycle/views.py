@@ -1,12 +1,13 @@
+import ast
 import abc
 import copy
-
+from math import log10, radians, sin, cos, acos
 import numpy
 import pandas
 from plotly.offline import plot
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import Dict
+from typing import Dict, List
 
 from django.shortcuts import render
 from django.core import serializers
@@ -14,7 +15,7 @@ from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
 from django.shortcuts import get_object_or_404
 
-from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary
+from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas
 from .forms import PlotDataForm, PlotDataFormSummary
 from my_base import Logging
 
@@ -50,6 +51,7 @@ def index(request):
     number_of_weeks = CycleWeeklySummary.objects.all().count()
     number_of_months = CycleMonthlySummary.objects.all().count()
     number_of_years = CycleYearlySummary.objects.all().count()
+    number_of_gps_files = GPSData.objects.all().count()
 
     context = {
         'start_date': start_date.strftime('%Y-%m-%d') if start_date is not None else None,
@@ -58,6 +60,7 @@ def index(request):
         'number_of_weeks': number_of_weeks,
         'number_of_months': number_of_months,
         'number_of_years': number_of_years,
+        'number_of_gps_files': number_of_gps_files
     }
 
     # Render the HTML template index.html with the data in the context variable
@@ -311,4 +314,88 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     else:
         raise ValueError('Both date_wmy and entryid are none.')
 
-    return render(request, 'cycle_data/cycle_detail.html', context={'cycle': cycleThisData, 'dataType': dataType})
+    context = {'cycle': cycleThisData, 'dataType': dataType}
+    gps_objs = cycleThisData.get_gps_objs()
+    gps_context = analyse_gps_data_sets(gps_objs)
+    context.update(gps_context)
+
+    return render(request, 'cycle_data/cycle_detail.html', context=context)
+
+
+def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
+    """ Be careful to apply sin/cos only on radians!
+    """
+    if not objs:
+        return {}
+    def check_no_go(nogos, lats, lons, index):
+        for ii in range(len(lats)):
+            lat = radians(lats[index])      # radians
+            lon = radians(lons[index])      # radians
+            for nogo in nogos:
+                # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
+                if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
+                    del lats[index]
+                    del lons[index]
+                    # logger.info(f"Deleted {ii} because of {nogo}")
+                    break
+                # else:
+                #    logger.info(f"not del {ii} for {nogo}")
+            else:
+                # logger.info(f"stopped deleting")
+                break
+
+    all_positions = []
+    max_lat = -90
+    min_lat = 90
+    max_lon = -180
+    min_lon = 180
+    earth_radius = 6371.0
+    nogos = []
+    for nogo in NoGoAreas.objects.all():
+        lat = radians(nogo.latitude)
+        lon = radians(nogo.longitude)
+        nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
+    for obj in objs:
+        lats = ast.literal_eval(obj.latitudes)      # degrees
+        lons = ast.literal_eval(obj.longitudes)     # degrees
+        check_no_go(nogos, lats, lons, 0)
+        check_no_go(nogos, lats, lons, -1)
+
+        number_data_points = len(lats)
+
+        max_lat = max(max_lat, max(lats))
+        min_lat = min(min_lat, min(lats))
+        max_lon = max(max_lon, max(lons))
+        min_lon = min(min_lon, min(lons))
+
+        # Add markers for each GPS data point
+        positions = [[]] * number_data_points
+        for ii in range(number_data_points):
+            positions[ii] = [lats[ii], lons[ii]]
+        all_positions.append(positions)
+    map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
+    zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon-min_lon)*sin(radians(map_center[0])))) + 8.9))
+    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom}
+
+    return context
+
+
+def gps_detail_view(request, filename=None):
+    if filename == "all":
+        gpsData = GPSData.objects.all()
+    elif filename is not None:
+        gpsData = [get_object_or_404(GPSData, pk=filename)]
+    else:
+        raise ValueError('Parameter unknown.')
+    context = analyse_gps_data_sets(gpsData)
+
+    return render(request, 'cycle_data/cycle_detail.html', context=context)
+
+
+class GPSDataListView(generic.ListView):
+    context_object_name = 'gps_data_list'     # This is used as variable in cycle_data_list.html
+    template_name = 'cycle_data/gps_data_list.html'
+
+    def get_queryset(self):
+        # executed when the page is opened
+        return GPSData.objects.all()

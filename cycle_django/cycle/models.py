@@ -1,5 +1,9 @@
 import datetime
-from typing import Union
+import gpxpy
+import json
+import os
+import pytz
+from typing import List, Union
 
 from django.db import models
 from django.db.models import Q, Sum, Count
@@ -67,6 +71,23 @@ class CycleRides(models.Model):
         """Returns the url to access a detail record for this day."""
         return reverse('cycle-detail', args=[str(self.entryid)])
 
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)#, tzinfo=datetime.tzinfo('UTC'))
+        date = timezone.localize(date)
+        objs = GPSData.objects.filter(
+            start__lt=date+datetime.timedelta(days=1)-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
+
+    def get_gps_url(self):
+        """Returns the url to access a gps plot"""
+        data = []
+        for obj in self.get_gps_objs():
+            data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0]])
+        return data
+
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
 
         if no_more_modifications:
@@ -81,7 +102,7 @@ class CycleRides(models.Model):
         super().save(*args, **kwargs)
 
         if not no_backup:
-            Backup().backup_db()
+            Backup().backup_cycle_rides()
 
         if not no_summary:
             self.mark_summary_tables(self)
@@ -158,7 +179,7 @@ class CycleRides(models.Model):
     @classmethod
     def load_data(cls):
         backup = Backup()
-        loaded_backup = backup.load_backup()
+        loaded_backup = backup.load_dump_cycle_rides()
         if CycleRides.objects.all().count() == 0:
             loaded_backup |= backup.load_backup_mysql_based()
         if loaded_backup:
@@ -201,6 +222,16 @@ class CycleWeeklySummary(models.Model):
             my_filter = Q(date__gte=obj.date) & Q(date__lt=obj.date + datetime.timedelta(days=7))
             update_fields_common(my_filter, obj)
 
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+        date = timezone.localize(date)
+        objs = GPSData.objects.filter(
+            start__lt=date+datetime.timedelta(days=7)-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
+
 
 class CycleMonthlySummary(models.Model):
     date = models.DateField(primary_key=True)
@@ -224,6 +255,17 @@ class CycleMonthlySummary(models.Model):
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)
 
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+        date = timezone.localize(date)
+        end_date = date + datetime.timedelta(days=31)
+        end_date -= datetime.timedelta(days=end_date.day - 1)
+        objs = GPSData.objects.filter(
+            start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
 
 class CycleYearlySummary(models.Model):
     date = models.DateField(primary_key=True, help_text='First date of the year')
@@ -245,3 +287,122 @@ class CycleYearlySummary(models.Model):
             end_date = datetime.date(obj.date.year+1, 1, 1)
             my_filter = Q(date__gte=obj.date) & Q(date__lt=end_date)
             update_fields_common(my_filter, obj)
+
+    def get_gps_objs(self):
+        """Returns the url to access a gps plot"""
+        timezone = pytz.timezone('UTC')
+        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
+        date = timezone.localize(date)
+        end_date = datetime.date(date.year + 1, 1, 1)
+        objs = GPSData.objects.filter(
+            start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date
+        ).order_by('start')
+        return objs
+
+
+class GPSData(models.Model):
+    filename = models.CharField(primary_key=True, max_length=100)
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+    datetimes = models.TextField()
+    latitudes = models.TextField()
+    longitudes = models.TextField()
+    altitudes = models.TextField()
+    speeds = models.TextField(null=True)
+    GPX_FOLDERS = ["/home/ronny/Documents/gps-logger/"]
+
+    class Meta:
+        ordering = ['start']
+
+    def __str__(self):
+        return f"{self.filename} - {self.datetimes.count(',')+1}"
+
+    def get_absolute_url(self):
+        """Returns the url to access a detail record for this GPS file."""
+        return reverse('gps_detail', args=[self.filename])
+
+    def save(self, *args, no_backup=False, **kwargs):
+        super().save(*args, **kwargs)
+        if not no_backup:
+            Backup().dump_gpsdata_dbs()
+
+    @classmethod
+    def load_data(cls):
+        backup = Backup()
+        backup.load_dump_GPSData()
+
+        cls.import_gpx_file_to_database(cls.GPX_FOLDERS)
+
+    @staticmethod
+    def import_gpx_file_to_database(gpx_folders: List[str]):
+        # Get all gpxfiles that are not in the database
+        for folder in gpx_folders:
+            gpx_files = []
+            for foldername, subfolders, filenames in os.walk(folder):
+                gpx_files += [
+                    (foldername, filename) for filename in filenames
+                    if filename.endswith(".gpx") and not GPSData.objects.filter(filename=filename).exists()
+                ]
+        #gpx_files = [gpx_files[0]]    # to remove later
+        # Read the gpx files
+        for ii, (foldername, filename) in enumerate(gpx_files):
+            bad = False
+            with open(os.path.join(foldername, filename), 'r') as gpx_file:
+                gpx = gpxpy.parse(gpx_file)
+                datetimes = []
+                latitudes = []
+                longitudes = []
+                altitudes = []
+                for track in gpx.tracks:
+                    if bad:
+                        break
+                    for segment in track.segments:
+                        if bad:
+                            break
+                        for point in segment.points:
+                            if not point.time:
+                                logger.warning(f"Point without timestamp in {filename}: {point} - will ignore file")
+                                bad = True
+                                break
+                            if not datetimes:
+                                start = point.time
+                            datetimes.append(point.time.timestamp())
+                            latitudes.append(point.latitude)
+                            longitudes.append(point.longitude)
+                            altitudes.append(point.elevation)
+                    end = point.time
+                if bad or len(datetimes) < 20:
+                    logger.warning(f"Ignored {len(datetimes)} points from {filename}")
+                else:
+                    obj = GPSData(
+                        filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
+                        latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
+                        altitudes=json.dumps(altitudes),
+                    )
+                    obj.save(no_backup=(ii < len(gpx_files)-1))
+                    logger.info(f"Loaded {len(datetimes)} points from {filename}")
+
+class NoGoAreas(models.Model):
+    name = models.TextField(primary_key=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    radius = models.FloatField()
+    auto_whole_world = "Auto whole world"
+
+    def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
+
+        super().save(*args, **kwargs)
+        Backup().dump_no_go_areas_dbs()
+
+    @classmethod
+    def load_data(cls):
+        try:
+            NoGoAreas.objects.filter(pk=cls.auto_whole_world).delete()
+        except NoGoAreas.DoesNotExist:
+            pass
+        backup = Backup()
+        loaded_backup = backup.load_dump_no_go_areas()
+        if NoGoAreas.objects.all().count() == 0:
+            logger.warning(f"No no-go-area defined, hence will create one for the whole world")
+            obj = NoGoAreas(name=cls.auto_whole_world, latitude=0., longitude=0, radius=40000.)
+            obj.save()
