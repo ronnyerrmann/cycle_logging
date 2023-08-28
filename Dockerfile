@@ -1,7 +1,7 @@
 FROM python:3.8-slim-buster
 
 # Install nginx - update and install in same line, as otherwise different caches
-RUN apt-get update -y && apt-get install -y nginx
+RUN apt-get update -y && apt-get install -y nginx libgdal-dev
 COPY nginx_server.conf /etc/nginx/sites-enabled
 
 # Install Django
