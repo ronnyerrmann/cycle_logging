@@ -333,7 +333,7 @@ class ExtraPlots(BaseDataListView):
         fig_frac.update_layout(
             # Overlay both histograms
             barmode='overlay',
-            xaxis=dict(title="Distance [m * 10] / Duration [s]", domain=[0.0, 0.9]),
+            xaxis=dict(title="Fraction of Distance [m * 10] / Fraction of Duration [s]", domain=[0.0, 0.9]),
             yaxis=dict(title="Number of occurrences in data"),
         )
 
