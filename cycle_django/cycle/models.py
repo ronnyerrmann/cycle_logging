@@ -310,6 +310,18 @@ class GPSData(models.Model):
     altitudes = models.TextField()
     speeds = models.TextField(null=True)
     GPX_FOLDERS = ["/home/ronny/Documents/gps-logger/"]
+    GPX_IGNORE_FILES = [
+        "tour-20101128_1551.gpx",       # Flug Madrid-Frankfurt
+        "2023-08-27_08-48_Sun.gpx",
+        "2023-08-09_13-47_Wed.gpx",
+        "2023-05-30_14-39_Tue.gpx",
+        "2021-05-16_13-05_Sun.gpx",
+        "2022-07-25_05-22_Mon.gpx",
+        "2022-01-16_08-58_Sun.gpx",
+        "2020-05-10_09-37_Sun.gpx",
+        "2019-07-14_16-30_Sun.gpx",
+        "2020-07-19_14-19_Sun.gpx",
+    ]
 
     class Meta:
         ordering = ['start']
@@ -331,19 +343,20 @@ class GPSData(models.Model):
         backup = Backup()
         backup.load_dump_GPSData()
 
-        cls.import_gpx_file_to_database(cls.GPX_FOLDERS)
+        cls.import_gpx_file_to_database(cls.GPX_FOLDERS, cls.GPX_IGNORE_FILES)
 
     @staticmethod
-    def import_gpx_file_to_database(gpx_folders: List[str]):
+    def import_gpx_file_to_database(gpx_folders: List[str], gpx_ignore_files: List[str]):
         # Get all gpxfiles that are not in the database
         for folder in gpx_folders:
             gpx_files = []
             for foldername, subfolders, filenames in os.walk(folder):
                 gpx_files += [
                     (foldername, filename) for filename in filenames
-                    if filename.endswith(".gpx") and not GPSData.objects.filter(filename=filename).exists()
+                    if filename.endswith(".gpx") and
+                       filename not in gpx_ignore_files and
+                       not GPSData.objects.filter(filename=filename).exists()
                 ]
-        #gpx_files = [gpx_files[0]]    # to remove later
         # Read the gpx files
         for ii, (foldername, filename) in enumerate(gpx_files):
             bad = False

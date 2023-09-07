@@ -260,9 +260,9 @@ class ExtraPlots(BaseDataListView):
         data = self.data_frame["distance"]
         range_dist = int(max(data)-min(data))
         fig_hist_dist = go.Figure()
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist/2), name="Duration (4km bins)"))
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*2, name="Duration (1km bins)"))
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*10, name="Duration (200m bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist/2), name="Distance (4km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*2, name="Distance (1km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*10, name="Distance (200m bins)"))
         fig_hist_dist.update_layout(
             # Overlay both histograms
             barmode='overlay',
@@ -407,9 +407,23 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
         lat = radians(nogo.latitude)
         lon = radians(nogo.longitude)
         nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
+    number_of_files = len(objs)
+    slice_ending = 'th'
+    if number_of_files > 10:
+        slice = max(2, min(10, int(number_of_files / 30) + 1))
+        if slice == 2:
+            slice_ending = 'nd'
+        elif slice == 3:
+            slice_ending = 'rd'
+    else:
+        slice = 1
+    settings = {'slice': slice, 'slice_ending': slice_ending}
     for obj in objs:
         lats = ast.literal_eval(obj.latitudes)      # degrees
         lons = ast.literal_eval(obj.longitudes)     # degrees
+        if slice > 1:
+            lats = lats[::slice]
+            lons = lons[::slice]
         check_no_go(nogos, lats, lons, 0)
         check_no_go(nogos, lats, lons, -1)
 
@@ -427,7 +441,7 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
         all_positions.append(positions)
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon-min_lon)*sin(radians(map_center[0])))) + 8.9))
-    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom}
+    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom, 'settings': settings}
 
     return context
 
