@@ -359,22 +359,29 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
     """
     if not objs:
         return {}
-    def check_no_go(nogos, lats, lons, index):
-        for ii in range(len(lats)):
-            lat = radians(lats[index])      # radians
-            lon = radians(lons[index])      # radians
+    def check_no_go(nogos, df: pandas.DataFrame, index: int):
+        steps = 10
+        if index == 0:
+            my_range = list(range(0, df.shape[0], steps))
+            my_range[-1] = df.shape[0] - steps
+        elif index == -1:
+            my_range = list(range(df.shape[0]-steps, steps, -steps))
+            if len(my_range) > 0:
+                my_range[-1] = 0
+        tokeep = numpy.ones(df.shape[0], dtype=bool)
+        for ii in my_range:
+            subset = df.iloc[ii:ii+steps]
+            lats = subset['Latitudes_rad'].to_numpy()
+            lons = subset['Longitudes_rad'].to_numpy()
             for nogo in nogos:
-                # Followed https://www.geeksforgeeks.org/program-distance-two-points-earth/
-                if acos((sin(lat) * nogo[0]) + cos(lat) * nogo[1] * cos(lon - nogo[2])) < nogo[3]:
-                    del lats[index]
-                    del lons[index]
-                    # logger.info(f"Deleted {ii} because of {nogo}")
+                temp = numpy.arccos((numpy.sin(lats) * nogo[0]) + numpy.cos(lats) * nogo[1] * numpy.cos(lons - nogo[2]))
+                if numpy.min(temp) < nogo[3]:
+                    tokeep[ii:ii+steps] = numpy.zeros(steps, dtype=bool)
                     break
-                # else:
-                #    logger.info(f"not del {ii} for {nogo}")
-            else:
-                # logger.info(f"stopped deleting")
+            else:       # Stop deleting (no break)
                 break
+
+        return df.iloc[tokeep]
 
     all_positions = []
     max_lat = -90
@@ -394,25 +401,28 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
         slice = 1
     settings = {'slice': slice}
     for obj in objs:
-        lats = ast.literal_eval(obj.latitudes)      # degrees
-        lons = ast.literal_eval(obj.longitudes)     # degrees
+        lats = numpy.array(obj.latitudes[1:-1].split(", "), dtype=numpy.float64)     # degrees
+        lons = numpy.array(obj.longitudes[1:-1].split(", "), dtype=numpy.float64)    # degrees
+        elev = numpy.array(obj.altitudes[1:-1].split(", "), dtype=numpy.float64)
+        data = {'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev}
+        df = pandas.DataFrame(data)
         if slice > 1:
-            lats = lats[::slice]
-            lons = lons[::slice]
-        check_no_go(nogos, lats, lons, 0)
-        check_no_go(nogos, lats, lons, -1)
+            df = df.iloc[::slice]
+        df['Latitudes_rad'] = numpy.radians(df['Latitudes_deg'])
+        df['Longitudes_rad'] = numpy.radians(df['Longitudes_deg'])
 
-        number_data_points = len(lats)
+        df = check_no_go(nogos, df, 0)
+        df = check_no_go(nogos, df, -1)
 
-        max_lat = max(max_lat, max(lats))
-        min_lat = min(min_lat, min(lats))
-        max_lon = max(max_lon, max(lons))
-        min_lon = min(min_lon, min(lons))
+        if df.shape[0] < 10:
+            continue
 
+        max_lat = max(max_lat, df['Latitudes_deg'].max())
+        min_lat = min(min_lat, df['Latitudes_deg'].min())
+        max_lon = max(max_lon, df['Longitudes_deg'].max())
+        min_lon = min(min_lon, df['Longitudes_deg'].min())
         # Add markers for each GPS data point
-        positions = [[]] * number_data_points
-        for ii in range(number_data_points):
-            positions[ii] = [lats[ii], lons[ii]]
+        positions = df[['Latitudes_deg', 'Longitudes_deg']].values.tolist()
         all_positions.append(positions)
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon-min_lon)*sin(radians(map_center[0])))) + 8.9))
