@@ -1,14 +1,16 @@
-from .backup import Backup
-from .models import CycleRides
-from my_base import Logging
+# from .backup import Backup
+# from .models import CycleRides
+# from my_base import Logging
 
-logger = Logging.setup_logger(__name__)
+# logger = Logging.setup_logger(__name__)
 
 
-class PreDatabaseMiddleware:
+# Moved to BackgroundThread
+"""class PreDatabaseMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    # Moved to BackgroundThread
     def __call__(self, request):
         # Code to be executed before any data is loaded from the database
         #logger.info(f"Executing code before database queries {request}")
@@ -19,4 +21,4 @@ class PreDatabaseMiddleware:
         # Continue with normal behaviour
         response = self.get_response(request)
 
-        return response
+        return response"""

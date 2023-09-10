@@ -1,6 +1,8 @@
+import atexit
 import sys
 from django.apps import AppConfig
 from django.db.utils import OperationalError
+from .background import BackgroundThread
 
 from my_base import Logging, SETTINGS_DIR
 
@@ -15,8 +17,10 @@ class CycleConfig(AppConfig):
         #super().ready()
         if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv and 'collectstatic' not in sys.argv:
             self.add_superuser()
-            self.load_data()
-        logger.info("Initialisation done")
+            background_thread = BackgroundThread()
+            background_thread.start()
+            atexit.register(background_thread.stop)
+            logger.info("Initialisation done")
 
     @staticmethod
     def add_superuser():
@@ -39,10 +43,9 @@ class CycleConfig(AppConfig):
             else:
                 raise
 
-    @staticmethod
+    """@staticmethod
     def load_data():
         from .models import CycleRides, NoGoAreas, GPSData
-        # Load Cycle rides
         for model in CycleRides, NoGoAreas, GPSData:
             try:
                 model.load_data()
@@ -50,4 +53,4 @@ class CycleConfig(AppConfig):
                 if str(e).startswith("no such table: "):
                     logger.warning(f"Missing Table for {model}")
                 else:
-                    raise
+                    raise"""

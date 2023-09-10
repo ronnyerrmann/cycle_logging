@@ -24,23 +24,6 @@ logger = Logging.setup_logger(__name__)
 FIELDS_TO_LABELS = {"date": "Date", "distance": "Distance [km]", "duration": "Duration", "speed": "Speed [km/h]", "days": "Days"}
 
 
-def update_database(func):
-    """ Unused currently, as I put the code into PreDatabaseMiddleware"""
-    def wrapper(*args, **kwargs):
-        # Code to be executed before the decorated function
-        #from .backup import Backup
-        #Backup().load_backup()
-
-        # Call the decorated function
-        result = func(*args, **kwargs)
-
-        # Code to be executed after the decorated function
-
-        return result
-
-    return wrapper
-
-
 def index(request):
     """View function for home page of site."""
 
@@ -180,7 +163,6 @@ class DataWListView(DataSummaryView):
     context_dataset = "week"
 
     def get_queryset(self):
-        CycleWeeklySummary.update_fields()
         return CycleWeeklySummary.objects.all()
 
 
@@ -188,7 +170,6 @@ class DataMListView(DataSummaryView):
     context_dataset = "month"
 
     def get_queryset(self):
-        CycleMonthlySummary.update_fields()
         return CycleMonthlySummary.objects.all()
 
 
@@ -196,7 +177,6 @@ class DataYListView(DataSummaryView):
     context_dataset = "year"
 
     def get_queryset(self):
-        CycleYearlySummary.update_fields()
         return CycleYearlySummary.objects.all()
 
 
