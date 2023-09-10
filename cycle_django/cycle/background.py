@@ -14,6 +14,7 @@ class BackgroundThread(threading.Thread):
     def __init__(self, interval=60):
         super().__init__()
         self.interval = interval
+        self.first_interval = None
         self.stopped = threading.Event()
 
     def __new__(cls):
@@ -22,15 +23,14 @@ class BackgroundThread(threading.Thread):
         return cls._instance
 
     def run(self):
-        while not self.stopped.wait(self.interval):
-            # Your background task logic goes here
-            logger.info(f"Background task is running... {threading.get_ident()}, {threading.current_thread().ident}, {os.getpid()}")
-            self.load_data()
+        while not self.stopped.wait(self.first_interval or self.interval):
+            self.load_data_if_new()
+            self.first_interval = None
 
     def stop(self):
         self.stopped.set()
 
-    def start(self):
+    def start(self, first_interval=None):
         pid = None
         try:
             with open('/tmp/cycle_background_task', 'r') as f:
@@ -43,10 +43,11 @@ class BackgroundThread(threading.Thread):
             return
         with open('/tmp/cycle_background_task', 'w') as f:
             f.write(str(os.getpid()))
+        self.first_interval = first_interval
         super().start()
 
     @staticmethod
-    def load_data():
+    def load_data_if_new():
         from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, NoGoAreas, GPSData
         for model in CycleRides, NoGoAreas, GPSData:
             try:

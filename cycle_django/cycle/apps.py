@@ -18,7 +18,7 @@ class CycleConfig(AppConfig):
         if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv and 'collectstatic' not in sys.argv:
             self.add_superuser()
             background_thread = BackgroundThread()
-            background_thread.start()
+            background_thread.start(first_interval=1)
             atexit.register(background_thread.stop)
             logger.info("Initialisation done")
 

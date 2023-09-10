@@ -175,7 +175,6 @@ class CycleRides(models.Model):
             obj.updated = True
             obj.save()
 
-
     @classmethod
     def load_data(cls):
         backup = Backup()
