@@ -99,9 +99,10 @@ class Backup:
             if file_changed <= self.file_changed_last_loaded[database_dump_file]:
                 return
             else:
-                logger.info("Load database dump as it has changed.")
+                logger.info(f"Load database dump {database_dump_file} as it has changed.")
 
         try:
+            # This will not remove data and just add data or replace data with the same primary key
             call_command("loaddata", filename)
         except DeserializationError as e:
             if str(e).find("Invalid model identifier") != -1:

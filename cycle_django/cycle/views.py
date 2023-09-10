@@ -388,16 +388,11 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
         lon = radians(nogo.longitude)
         nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
     number_of_files = len(objs)
-    slice_ending = 'th'
     if number_of_files > 10:
         slice = max(2, min(10, int(number_of_files / 30) + 1))
-        if slice == 2:
-            slice_ending = 'nd'
-        elif slice == 3:
-            slice_ending = 'rd'
     else:
         slice = 1
-    settings = {'slice': slice, 'slice_ending': slice_ending}
+    settings = {'slice': slice}
     for obj in objs:
         lats = ast.literal_eval(obj.latitudes)      # degrees
         lons = ast.literal_eval(obj.longitudes)     # degrees

@@ -109,6 +109,10 @@ class CycleRides(models.Model):
 
         self.update_cumulative_values()
 
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Backup().backup_cycle_rides()
+
     def update_cumulative_values(self):
         # Calculate cumulative values
         date_for_cum = self.date
@@ -337,6 +341,10 @@ class GPSData(models.Model):
         if not no_backup:
             Backup().dump_gpsdata_dbs()
 
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Backup().dump_gpsdata_dbs()
+
     @classmethod
     def load_data(cls):
         backup = Backup()
@@ -404,8 +412,11 @@ class NoGoAreas(models.Model):
     auto_whole_world = "Auto whole world"
 
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
-
         super().save(*args, **kwargs)
+        Backup().dump_no_go_areas_dbs()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
         Backup().dump_no_go_areas_dbs()
 
     @classmethod

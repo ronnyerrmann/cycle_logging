@@ -1,5 +1,7 @@
 {% extends "base_generic.html" %}
 
+{% load filters %}
+
 {% load leaflet_tags %}
 
 {% block extra_head %}
@@ -46,7 +48,7 @@
     {% endif %}
     <div style="margin-left:20px;margin-top:20px">
       {% if settings.slice > 1 %}
-        <p>Map: (only showing every {{ settings.slice }}{{ settings.slice_ending }} point - select fewer files for better resolution)</p>
+        <p>Map: (only showing every {{ settings.slice|number_with_suffix }} point - select fewer files for better resolution)</p>
       {% else %}
         <p>Map:</p>
       {% endif %}
