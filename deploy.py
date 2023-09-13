@@ -8,6 +8,9 @@ SETTINGS_FOLDERS = [
     "/home/ronny/Documents/Scripts/cycle_logging",                      # Test Production locally
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
 ]
+CYCLE_BASE_PATH = "cycle_logging"
+
+BASE_PATH = os.getcwd()
 
 for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
     DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDERS, "cycle_django", "backup_database")
@@ -23,6 +26,10 @@ else:
     print(f"No docker found in DOCKER_BINS: {DOCKER_BINS}, will use just 'docker'")
     docker_bin = "docker"
 
+# Using a new path for each deployment means that old data is removed from db file each time
+cycle_path = CYCLE_BASE_PATH + "_" + datetime.today().strftime("%Y_%m_%d")
+
+
 def run_with_print(cmd):
     print(" ".join(cmd))
     return subprocess.run(cmd)
@@ -32,11 +39,13 @@ parser = argparse.ArgumentParser(description="Deploy to Production")
 parser.add_argument("-b", "--branch", help="Optional branch", default="main")
 args = parser.parse_args()
 
-new = not os.path.exists("cycle_logging")
+new = not os.path.exists(cycle_path)
 if new:
-    cmd = ["git", "clone", "https://github.com/ronnyerrmann/cycle_logging.git"]
+    cmd = ["git", "clone", f"https://github.com/ronnyerrmann/{CYCLE_BASE_PATH}.git"]
     run_with_print(cmd)
-os.chdir("cycle_logging")
+    cmd = ["mv", CYCLE_BASE_PATH, cycle_path]
+    run_with_print(cmd)
+os.chdir(cycle_path)
 if not new:
     cmd = ["git", "fetch", "origin"]
     run_with_print(cmd)
@@ -51,7 +60,9 @@ docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
-cmds = ["python manage.py makemigrations", "python manage.py migrate", "python manage.py collectstatic --noinput",
+cmds = ["python manage.py makemigrations",
+        "python manage.py migrate",
+        "python manage.py collectstatic --noinput",
         "gunicorn cycle_django.wsgi -b 0.0.0.0:8314 --timeout 120"]
 with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
     f.write("#!/bin/bash\n")
@@ -67,13 +78,25 @@ run_with_print(cmd)
 # Mount . to /cycle_django in the container
 cmd = [docker_bin, "run", "--detach",
        "-e", "IS_PRODUCTION=True",
-       "-v", f"{os.path.abspath('.')}:/cycle_logging",
+       "-v", f"{os.path.abspath('.')}:/{CYCLE_BASE_PATH}",
        "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
-       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/cycle_logging/cycle_django/load_db_dump_at_startup",
+       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/{CYCLE_BASE_PATH}/cycle_django/load_db_dump_at_startup",
        "-p", "8314:8314", "-p", "8315:8315",
        "--name", "cycle_log",
        docker_tag]
 run_with_print(cmd)
+
+# Clean old install folders
+os.chdir(BASE_PATH)
+install_folders = [folder for folder in os.listdir(".") if folder.startswith(CYCLE_BASE_PATH)]
+# Delete all but the last two folders
+if len(install_folders) > 2:
+    install_folders.sort()
+    folders_to_delete = install_folders[:-2]
+    cmd = ["rm", "-rf"]
+    for folder in folders_to_delete:
+        cmd += [folder]
+    run_with_print(cmd)
 
 # Further improvement: Only kill the old container after the new has started up (and a wget was successful)
 # Start with different port and then forward port internally
