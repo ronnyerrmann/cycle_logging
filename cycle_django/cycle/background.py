@@ -1,7 +1,7 @@
-
 import os
 import psutil
 import threading
+from django.db.utils import OperationalError
 
 from my_base import Logging
 
@@ -55,6 +55,8 @@ class BackgroundThread(threading.Thread):
             except OperationalError as e:
                 if str(e).startswith("no such table: "):
                     logger.warning(f"Missing Table for {model}")
+                elif str(e).startswith("database is locked"):
+                    logger.warning(f"Database was locked when trying to load data for {model}")
                 else:
                     raise
         for summary in [CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary]:
