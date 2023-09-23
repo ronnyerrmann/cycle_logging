@@ -53,6 +53,9 @@
         <p>Map:</p>
       {% endif %}
     </div>
+    {% autoescape off %}
+        {{ plot_div }}
+    {% endautoescape %}
     <div id="map" style="height: 600px;"></div>
     <script>
         var map = L.map('map').setView({{ center | safe }}, {{ zoom }});

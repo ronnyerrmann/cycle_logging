@@ -4,7 +4,7 @@
   <h3>GPS file list</h3>
   {% if gps_data_list %}
   <ul>
-    <p>Number of (shown) entries: {{ gps_data_list.count }} - <a href="{% url 'gps_detail_all' %}">Show all on a map</a></p>
+    <p>Number of (shown) entries: {{ gps_data_list.count }} - <a href="{% url 'gps_detail_all' %}">Show all on a map (will take a moment)</a></p>
     <table  class='table_inner_borders'>
       <tr>
         <th>Filename</th> <th>Start</th> <th>End</th>

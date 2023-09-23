@@ -1,7 +1,8 @@
 import abc
 import copy
+import datetime
 from math import log10, radians, sin, cos, acos
-import numpy
+import numpy as np
 import pandas
 from plotly.offline import plot
 import plotly.express as px
@@ -20,7 +21,8 @@ from my_base import Logging
 
 logger = Logging.setup_logger(__name__)
 
-FIELDS_TO_LABELS = {"date": "Date", "distance": "Distance [km]", "duration": "Duration", "speed": "Speed [km/h]", "days": "Days"}
+FIELDS_TO_LABELS = {"date": "Date", "distance": "Distance [km]", "duration": "Duration", "speed": "Speed [km/h]",
+                    "days": "Days"}
 
 
 def index(request):
@@ -50,8 +52,8 @@ def index(request):
 
 
 class BaseDataListView(generic.ListView):
-    context_object_name = 'cycle_data_list'     # This is used as variable in cycle_data_list.html
-    template_name = 'cycle_data/cycle_data_list.html'   # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views
+    context_object_name = 'cycle_data_list'  # This is used as variable in cycle_data_list.html
+    template_name = 'cycle_data/cycle_data_list.html'  # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views
     context_dataset = None
 
     def __init__(self, *args, **kwargs):
@@ -101,8 +103,8 @@ class BaseDataListView(generic.ListView):
             # Convert the duration fields from string into timedelta fields
             columns_time = [col for col in columns if col.find("duration") != -1]
             for col in columns_time:
-                data_frame[col+"_td"] = pandas.to_timedelta(data_frame[col])
-                data_frame[col] = data_frame[col+"_td"] + pandas.to_datetime('1970/01/01')
+                data_frame[col + "_td"] = pandas.to_timedelta(data_frame[col])
+                data_frame[col] = data_frame[col + "_td"] + pandas.to_datetime('1970/01/01')
             return data_frame[data_frame['distance'] > 0.01]
 
     def create_plot(self):
@@ -125,7 +127,7 @@ class BaseDataListView(generic.ListView):
 
 class DataListView(BaseDataListView):
     # executed when server is initialised
-    #model = CycleRides
+    # model = CycleRides
     context_dataset = "day"
     paginate_by = 200
 
@@ -143,7 +145,6 @@ class DataListView(BaseDataListView):
         pass
 
 
-
 class DataSummaryView(BaseDataListView):
 
     def get_context_data(self, **kwargs):
@@ -156,6 +157,7 @@ class DataSummaryView(BaseDataListView):
         # The primary key is not included in the serialized data
         for s in serialized_models:
             s["fields"]["date"] = s['pk']
+
 
 class DataWListView(DataSummaryView):
     paginate_by = 100
@@ -237,18 +239,18 @@ class ExtraPlots(BaseDataListView):
 
         # Histogram plots
         data = self.data_frame["distance"]
-        range_dist = int(max(data)-min(data))
+        range_dist = int(max(data) - min(data))
         fig_hist_dist = go.Figure()
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist/2), name="Distance (4km bins)"))
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*2, name="Distance (1km bins)"))
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist*10, name="Distance (200m bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist / 2), name="Distance (4km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist * 2, name="Distance (1km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist * 10, name="Distance (200m bins)"))
         fig_hist_dist.update_layout(
             # Overlay both histograms
             barmode='overlay',
             xaxis=dict(title="Distance [km]"),
             yaxis=dict(title="Number of occurrences of Distance values"),
         )
-        data = self.data_frame["duration_td"].dt.total_seconds()/60
+        data = self.data_frame["duration_td"].dt.total_seconds() / 60
         range_dur = int(max(data) - min(data))
         fig_hist_dur = go.Figure()
         fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=int(range_dur / 5), name="Duration (10 min bins)"))
@@ -301,7 +303,7 @@ class ExtraPlots(BaseDataListView):
         )
 
         # Frac of km, Seconds histogram
-        frac_km, int_km = numpy.modf(self.data_frame["distance"])
+        frac_km, int_km = np.modf(self.data_frame["distance"])
         frac_km *= 1E2
         frac_sec = ((self.data_frame["duration_td"]) % (60 * 1E9)).dt.total_seconds()
         fig_frac = go.Figure()
@@ -341,7 +343,7 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         elif date_wmy[0] == "y":
             cycleThisData = get_object_or_404(CycleYearlySummary, pk=date_wmy[1:])
         else:
-            raise ValueError('date_wmy has an unknown start: '+date_wmy)
+            raise ValueError('date_wmy has an unknown start: ' + date_wmy)
     else:
         raise ValueError('Both date_wmy and entryid are none.')
 
@@ -358,36 +360,43 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
     """
     if not objs:
         return {}
-    def check_no_go(nogos, df: pandas.DataFrame, index: int):
+
+    def check_no_go(nogos, df: pandas.DataFrame, position: str):
         steps = 10
-        if index == 0:
+        if position == 'begin':
             my_range = list(range(0, df.shape[0], steps))
             my_range[-1] = df.shape[0] - steps
-        elif index == -1:
-            my_range = list(range(df.shape[0]-steps, steps, -steps))
+        elif position == 'end':
+            my_range = list(range(df.shape[0] - steps, steps, -steps))
             if len(my_range) > 0:
                 my_range[-1] = 0
-        tokeep = numpy.ones(df.shape[0], dtype=bool)
+        else:
+            raise TypeError(f"Coding error: position {position} is not know")
+        tokeep = np.ones(df.shape[0], dtype=bool)
         for ii in my_range:
-            subset = df.iloc[ii:ii+steps]
-            lats = subset['Latitudes_rad'].to_numpy()
+            subset = df.iloc[ii:ii + steps]
+            sin_lats = subset['sin_lat'].to_numpy()
+            cos_lats = subset['cos_lat'].to_numpy()
             lons = subset['Longitudes_rad'].to_numpy()
             for nogo in nogos:
-                temp = numpy.arccos((numpy.sin(lats) * nogo[0]) + numpy.cos(lats) * nogo[1] * numpy.cos(lons - nogo[2]))
-                if numpy.min(temp) < nogo[3]:
-                    tokeep[ii:ii+steps] = numpy.zeros(steps, dtype=bool)
+                temp = np.arccos(sin_lats * nogo[0] + cos_lats * nogo[1] * np.cos(lons - nogo[2]))
+                if np.min(temp) < nogo[3]:
+                    tokeep[ii:ii + steps] = np.zeros(steps, dtype=bool)
                     break
-            else:       # Stop deleting (no break)
+            else:  # Stop deleting (no break)
                 break
 
         return df.iloc[tokeep]
 
     all_positions = []
+    all_df = pandas.DataFrame({'Duration': [], 'Distance': [], 'Altitudes': [], 'Speed_5': [], 'Speed_50': []})
+    min_time = 1E99
+    max_time = 0
     max_lat = -90
     min_lat = 90
     max_lon = -180
     min_lon = 180
-    earth_radius = 6371.0
+    earth_radius = 6371.009
     nogos = []
     for nogo in NoGoAreas.objects.all():
         lat = radians(nogo.latitude)
@@ -400,32 +409,126 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
         slice = 1
     settings = {'slice': slice}
     for obj in objs:
-        lats = numpy.array(obj.latitudes[1:-1].split(", "), dtype=numpy.float64)     # degrees
-        lons = numpy.array(obj.longitudes[1:-1].split(", "), dtype=numpy.float64)    # degrees
-        elev = numpy.array(obj.altitudes[1:-1].split(", "), dtype=numpy.float64)
-        data = {'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev}
+        times = np.array(obj.datetimes[1:-1].split(", "), dtype=np.float64)  # e.g. 1269530756.0
+        lats = np.array(obj.latitudes[1:-1].split(", "), dtype=np.float64)  # degrees
+        lons = np.array(obj.longitudes[1:-1].split(", "), dtype=np.float64)  # degrees
+        elev = np.array(obj.altitudes[1:-1].split(", "), dtype=np.float64)
+        data = {'Times': times, 'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev}
         df = pandas.DataFrame(data)
         if slice > 1:
             df = df.iloc[::slice]
-        df['Latitudes_rad'] = numpy.radians(df['Latitudes_deg'])
-        df['Longitudes_rad'] = numpy.radians(df['Longitudes_deg'])
+        df['Latitudes_rad'] = np.radians(df['Latitudes_deg'])
+        df['Longitudes_rad'] = np.radians(df['Longitudes_deg'])
+        df['sin_lat'] = np.sin(df['Latitudes_rad'])
+        df['cos_lat'] = np.cos(df['Latitudes_rad'])
 
-        df = check_no_go(nogos, df, 0)
-        df = check_no_go(nogos, df, -1)
+        df = check_no_go(nogos, df, 'begin')
+        df = check_no_go(nogos, df, 'end')
 
         if df.shape[0] < 10:
             continue
+        window_med_duration = 50
+        paused_after = 30 * slice  # assume a pause if the next data point took 30s to appear
+        min_consecutive_points = 10  # exclude sections with breaks within min_consecutive_points points
+        min_periods = 3  # to calculate rolling median/sum at least these number of datapoints should not be nans
+        # Duration
+        df['Duration'] = np.zeros(df.shape[0])
+        df['Duration'][1:] = (df['Times'].shift(-1) - df['Times'])[:-1]  # in Seconds
+        ## Exclude datapoints after/during a stop
+        df['Duration'][df['Duration'] > paused_after] = np.nan
+        duration_rolling_median = df['Duration'].rolling(
+            window=window_med_duration, min_periods=int(0.1 * window_med_duration)
+        ).median().to_numpy()
+        df['Duration'][df['Duration'] > 3 * duration_rolling_median] = np.nan
+        duration_is_nan = np.where(df['Duration'].isna().to_numpy())[0]
+        if duration_is_nan.shape[0] >= 1:
+            if duration_is_nan[0] <= min_consecutive_points:
+                df['Duration'][0:duration_is_nan[0]] = np.nan
+            if duration_is_nan[-1] >= df.shape[0] - min_consecutive_points:
+                df['Duration'][duration_is_nan[-1]:] = np.nan
+            # Indexes, where gap between spaces <= min_consecutive_points:
+            space_nan = np.where(duration_is_nan[1:] - duration_is_nan[:-1] <= min_consecutive_points)[0]
+            for index in space_nan:
+                index_df_beg = duration_is_nan[index]
+                index_df_end = duration_is_nan[index + 1]
+                df['Duration'][index_df_beg:index_df_end] = np.nan
+        df['Altitudes'][df['Duration'].isna()] = np.nan
+        # Distance
+        df['Distance'] = np.zeros(df.shape[0])
+        df['Distance'][1:] = (np.arccos(
+            df['sin_lat'] * df['sin_lat'].shift(-1) +
+            df['cos_lat'] * df['cos_lat'].shift(-1) * np.cos(df['Longitudes_rad'] - df['Longitudes_rad'].shift(-1))
+        ) * earth_radius)[:-1]
+        df['Distance'][df['Duration'].isna()] = np.nan
+        # Speed
+        duration_rolling_sum = df['Duration'].rolling(window=5, min_periods=min_periods).sum().to_numpy()
+        distance_rolling_sum = df['Distance'].rolling(window=5, min_periods=min_periods).sum().to_numpy()
+        df['Speed_5'] = distance_rolling_sum / duration_rolling_sum * 3600
+        duration_rolling_sum = df['Duration'].rolling(window=50, min_periods=min_periods).sum().to_numpy()
+        distance_rolling_sum = df['Distance'].rolling(window=50, min_periods=min_periods).sum().to_numpy()
+        df['Speed_50'] = distance_rolling_sum / duration_rolling_sum * 3600
 
+        max_time = max(max_time, df['Times'].max())
+        min_time = min(min_time, df['Times'].min())
         max_lat = max(max_lat, df['Latitudes_deg'].max())
         min_lat = min(min_lat, df['Latitudes_deg'].min())
         max_lon = max(max_lon, df['Longitudes_deg'].max())
         min_lon = min(min_lon, df['Longitudes_deg'].min())
         # Add markers for each GPS data point
         positions = df[['Latitudes_deg', 'Longitudes_deg']].values.tolist()
+
         all_positions.append(positions)
+        all_df = pandas.concat(
+            [all_df, df[['Duration', 'Distance', 'Altitudes', 'Speed_5', 'Speed_50']][~df['Duration'].isna()]]
+        )
+
+    all_df['Culm_dist'] = all_df['Distance'].cumsum()
+    culm_duration = all_df['Duration'].cumsum()
+    all_df['Culm_speed'] = all_df['Culm_dist'] / culm_duration * 3600
+    alt_rolling_median = all_df['Altitudes'].rolling(window=5).median().to_numpy()
+    alt_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
+    ax = "Culm_dist"
+    ay1 = "Altitudes"
+    ay2 = "Speed_5"
+    ay3 = "Speed_50"
+    ay4 = "Culm_speed"
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1], name="Elevation [m]",
+                             mode='lines', marker=dict(color='#FF0000')))
+    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay2], name="Speed (5 points)", yaxis="y2",
+                             mode='lines', marker=dict(color='#00FF00'), opacity=0.5))
+    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay3], name="Speed (50 points)", yaxis="y2",
+                             mode='lines', marker=dict(color='#00AF00'), opacity=0.7))
+    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay4], name="Cumlative Speed", yaxis="y2",
+                             mode='lines', marker=dict(color='#005F00')))
+    # fig.data = (fig.data[1], fig.data[2], fig.data[3], fig.data[0]) # also resorts the colors
+    fig.update_layout(
+        title=(f"{datetime.datetime.fromtimestamp(min_time)} to {datetime.datetime.fromtimestamp(max_time)} : "
+               f"{all_df['Culm_dist'].iloc[-1]:.2f} km, "
+               f"{datetime.timedelta(seconds=culm_duration.iloc[-1])} moving, "
+               f"{all_df['Culm_speed'].iloc[-1]:.2f} km/h, "
+               f"{alt_diff[alt_diff > 0].sum():.0f} m up, {alt_diff[alt_diff < 0].sum():.0f} m down"),
+        xaxis=dict(title="Distance [km]", domain=[0.0, 0.92]),
+        yaxis=dict(
+            title="Elevation [m]",
+            titlefont=dict(color="#FF0000"),
+            tickfont=dict(color="#FF0000")
+        ),
+        yaxis2=dict(
+            title="Speed [km/h]",
+            titlefont=dict(color="#00AF00"),
+            tickfont=dict(color="#00AF00"),
+            anchor="free",
+            overlaying="y",
+            side="right",
+            position=0.92
+        ),
+    )
+
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
-    zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon-min_lon)*sin(radians(map_center[0])))) + 8.9))
-    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom, 'settings': settings}
+    zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon - min_lon) * sin(radians(map_center[0])))) + 8.9))
+    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom, 'settings': settings,
+               "plot_div": plot(fig, output_type="div")}
 
     return context
 
@@ -443,7 +546,7 @@ def gps_detail_view(request, filename=None):
 
 
 class GPSDataListView(generic.ListView):
-    context_object_name = 'gps_data_list'     # This is used as variable in cycle_data_list.html
+    context_object_name = 'gps_data_list'  # This is used as variable in cycle_data_list.html
     template_name = 'cycle_data/gps_data_list.html'
 
     def get_queryset(self):
