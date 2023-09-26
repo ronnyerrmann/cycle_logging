@@ -1,6 +1,32 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
+  <h3>Some statistical information</h3>
+  {% if dist_per_days %}
+    <table  class='table_inner_borders_rows'>
+      <tr>
+        <th>Time interval</th> <th>Maximum distance between dates</th>
+      </tr>
+      {% for entry in dist_per_days %}
+        <tr>
+          <td>{{ entry.days }} day{{ entry.days|pluralize:",s" }}</td>
+          <td>
+            <table  class='table_inner_borders'>
+              {% for entry2 in entry.dist_sort %}
+                {{ entry2.distance|floatformat:0 }} km : {{ entry2.start }} - {{ entry2.end }} <br>
+              {% endfor %}
+            </table>
+          </td>
+        </tr>
+      {% empty %}
+        There are no entries available.
+      {% endfor %}
+    </table>
+    <br>
+  {% else %}
+    <p>There is a problem with the database.</p><br>
+  {% endif %}
+
   <h3>Extra plots for daily data</h3>
   {% autoescape off %}
     {{ plot_total_div }}

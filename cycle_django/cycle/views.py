@@ -193,6 +193,31 @@ class ExtraPlots(BaseDataListView):
 
     def get_context_data(self, **kwargs):
         context = self.create_extra_plots()
+        dist_per_days = []
+        self.data_frame['Date_datetime'] = pandas.to_datetime(self.data_frame['date'])
+        self.data_frame.set_index('Date_datetime', inplace=True)
+        self.data_frame['Date_dt'] = pandas.to_datetime(self.data_frame['date'])
+        for days in (list(range(1, 8)) + [10, 14, 21] + list(range(30, 91, 20)) + list(range(120, 181, 30)) +
+                     [270, 365, 365 * 2, 365 * 4 + 1]):
+            dist = self.data_frame['distance'].rolling(window=f'{days}D').sum()  # this is only consecutive days
+            dist_sort = dist.sort_values(ascending=False)
+            result = []
+            diff = datetime.timedelta(days=days - 1)
+            for date, value in dist_sort.items():
+                date_start = self.data_frame['Date_dt'][(self.data_frame['Date_dt'] >= date-diff)].min()
+                for start, end, _ in result:
+                    if date >= start and date_start <= end:
+                        break
+                else:
+                    result.append([date_start, date, value])
+                    if len(result) == 5:
+                        break
+            if result:
+                result = [{'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d'), 'distance': value}
+                          for start, end, value in result]
+                dist_per_days.append({'days': days, 'dist_sort': result})
+
+        context['dist_per_days'] = dist_per_days
 
         return context
 

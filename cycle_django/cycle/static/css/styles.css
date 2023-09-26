@@ -7,9 +7,17 @@ table.table_no_borders {border-style: none;}
 table.table_no_borders th {}
 table.table_no_borders tr {}
 table.table_no_borders td {}
+
 table.table_inner_borders {border-style: none;}
 table.table_inner_borders th {padding-left: 5px; padding-right: 5px; border-right: 1px solid black; border-bottom: 1px solid black;}
 table.table_inner_borders th:last-of-type {border-right: none; border-bottom: 1px solid black;}
-table.table_inner_borders tr {}
+table.table_inner_borders tr {border: none;}
 table.table_inner_borders td {padding-left: 5px; padding-right: 5px; border-right: 1px solid black;}
 table.table_inner_borders td:last-of-type {border: none;}
+
+table.table_inner_borders_rows {border-style: none;}
+table.table_inner_borders_rows th {padding-left: 5px; padding-right: 5px; border-right: 1px solid black; border-bottom: 1px solid black;}
+table.table_inner_borders_rows th:last-of-type {border-right: none; border-bottom: 1px solid black;}
+table.table_inner_borders_rows tr {border-bottom: 1px solid black;}
+table.table_inner_borders_rows td {padding-left: 5px; padding-right: 5px; border-right: 1px solid black;}
+table.table_inner_borders_rows td:last-of-type {border: none;}
