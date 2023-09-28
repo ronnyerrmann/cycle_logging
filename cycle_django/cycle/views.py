@@ -373,8 +373,28 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         raise ValueError('Both date_wmy and entryid are none.')
 
     context = {'cycle': cycleThisData, 'dataType': dataType}
-    gps_objs = cycleThisData.get_gps_objs()
+
+    # Deal with the GPS Data: first the form
+    form = GpsDateRangeForm(request.GET)
+    if form.is_valid():
+        begin_date = form.cleaned_data['begin_date']
+        end_date = form.cleaned_data['end_date'] + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+        gps_objs = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
+    else:
+        gps_objs = cycleThisData.get_gps_objs()
+        begin_date = gps_objs[0].start
+        end_date = gps_objs[0].end
+        for obj in gps_objs:
+            if obj.start < begin_date:
+                begin_date = obj.start
+            if obj.end > end_date:
+                end_date = obj.end
+
+        initial_values = {'begin_date': begin_date, 'end_date': end_date}
+        form = GpsDateRangeForm(initial=initial_values)
+    # And then the data
     gps_context = analyse_gps_data_sets(gps_objs)
+    gps_context['gpsdatarangeform'] = form
     context.update(gps_context)
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
@@ -559,20 +579,24 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
 
 
 def gps_detail_view(request, filename=None):
-
+    # Not executed for plots for Cycle Detail View: see data_detail_view
     form = GpsDateRangeForm(request.GET)
     if form.is_valid():
         begin_date = form.cleaned_data['begin_date']
         end_date = form.cleaned_data['end_date'] + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
         gpsData = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
     else:
-        form = GpsDateRangeForm()
         if filename == "all":
             gpsData = GPSData.objects.all()
+            begin_date = GPSData.objects.all().aggregate(Min('start'))['start__min']
+            end_date = GPSData.objects.all().aggregate(Max('end'))['end__max']
+            initial_values = {'begin_date': begin_date, 'end_date': end_date}
         elif filename is not None:
             gpsData = [get_object_or_404(GPSData, pk=filename)]
+            initial_values = None
         else:
             raise ValueError('Parameter unknown.')
+        form = GpsDateRangeForm(initial=initial_values)
     context = analyse_gps_data_sets(gpsData)
     context['gpsdatarangeform'] = form
 
