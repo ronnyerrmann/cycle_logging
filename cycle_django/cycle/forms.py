@@ -19,3 +19,14 @@ class PlotDataFormSummary(forms.Form):
     x_data = forms.ChoiceField(label="Plot on x-Axis:", choices=CHOICES)
     y_data = forms.ChoiceField(label="Plot on y-Axis:", choices=CHOICES)
     z_data = forms.ChoiceField(label="Plot on z-Axis:", choices=CHOICES+(('none', 'None'),))
+
+
+class GpsDateRangeForm(forms.Form):
+    begin_date = forms.DateField(
+        label='Beginning Date',
+        widget=forms.DateInput(attrs={'type': 'date'}),
+    )
+    end_date = forms.DateField(
+        label='End Date',
+        widget=forms.DateInput(attrs={'type': 'date'}),
+    )

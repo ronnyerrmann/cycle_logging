@@ -16,7 +16,7 @@ from django.views import generic
 from django.shortcuts import get_object_or_404
 
 from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas
-from .forms import PlotDataForm, PlotDataFormSummary
+from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
 from my_base import Logging
 
 logger = Logging.setup_logger(__name__)
@@ -559,13 +559,22 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
 
 
 def gps_detail_view(request, filename=None):
-    if filename == "all":
-        gpsData = GPSData.objects.all()
-    elif filename is not None:
-        gpsData = [get_object_or_404(GPSData, pk=filename)]
+
+    form = GpsDateRangeForm(request.GET)
+    if form.is_valid():
+        begin_date = form.cleaned_data['begin_date']
+        end_date = form.cleaned_data['end_date'] + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+        gpsData = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
     else:
-        raise ValueError('Parameter unknown.')
+        form = GpsDateRangeForm()
+        if filename == "all":
+            gpsData = GPSData.objects.all()
+        elif filename is not None:
+            gpsData = [get_object_or_404(GPSData, pk=filename)]
+        else:
+            raise ValueError('Parameter unknown.')
     context = analyse_gps_data_sets(gpsData)
+    context['gpsdatarangeform'] = form
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 

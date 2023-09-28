@@ -52,6 +52,11 @@
       {% else %}
         <p>Map:</p>
       {% endif %}
+      <form method="get">
+        Select a different time period for GPS data:
+        {{ gpsdatarangeform }}
+      <button type="submit">Replot</button>
+    </form>
     </div>
     {% autoescape off %}
         {{ plot_div }}
