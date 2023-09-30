@@ -9,6 +9,10 @@ from .models import (
     convert_to_str_hours
 )
 
+from my_base import Logging
+
+logger = Logging.setup_logger(__name__)
+
 
 class AdminForm(forms.ModelForm):
 
@@ -17,9 +21,14 @@ class AdminForm(forms.ModelForm):
         # Check that the speed makes sense
         date = cleaned_data.get('date')
         distance = cleaned_data.get('distance')
-        dayseconds = int(cleaned_data.get('duration').total_seconds())
+        duration = cleaned_data.get('duration')
         totaldistance = cleaned_data.get('totaldistance')
-        totalseconds = int(cleaned_data.get('totalduration').total_seconds())
+        totalduration = cleaned_data.get('totalduration')
+        if not (date and distance and duration and totaldistance and totalduration):
+            raise ValidationError("Not all values were given")
+
+        dayseconds = int(duration.total_seconds())
+        totalseconds = int(totalduration.total_seconds())
         speed = distance / dayseconds * 3600   # in km/h
 
         if speed < 2 or speed > 30:
@@ -75,6 +84,16 @@ class CycleRidesAdmin(admin.ModelAdmin):
         }),
 
     )
+
+    def response_add(self, request, obj, post_url_continue=None):
+        self.message_user(request, f"Average is {obj.speed} km/s.")
+
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        self.message_user(request, f"Average is {obj.speed} km/s.")
+
+        return super().response_change(request, obj)
 
     """def save_model(self, request, obj, form, change: bool):
         # Perform additional validation or modifications before saving
