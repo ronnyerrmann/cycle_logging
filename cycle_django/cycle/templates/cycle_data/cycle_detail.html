@@ -61,8 +61,11 @@
     {% autoescape off %}
         {{ plot_div }}
     {% endautoescape %}
-    <div id="map" style="height: 600px;"></div>
-    <script>
+    <button id="getZoomAndCenter">Replot only data in this area</button>
+    <input type="checkbox" id="keepDate" checked="true" name="vehicle1" value="Bike">
+    <label for="keepDate">Keep the date range</label>
+    <div id="map" style="height: 600px;">
+      <script>
         var map = L.map('map').setView({{ center | safe }}, {{ zoom }});
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -71,7 +74,39 @@
         {% for position in gps_positions %}
             L.polyline({{ position | safe }}, { color: 'blue' }).addTo(map);
         {% endfor %}
-    </script>
+
+        // Function to handle the button click
+        document.getElementById('getZoomAndCenter').addEventListener('click', function() {
+            var keepDate = document.getElementById("keepDate").checked;
+            var centerCoordinates = map.getCenter(); // Get the center coordinates
+            var urlParams = window.location.search.replace(/&amp;/g, "&").replace(/\?/g, "");
+            var urlParamsPairs = urlParams.split("&");
+            var queryParams = [];
+            var mapParamsAdded = false;
+            for (var i = 0; i < urlParamsPairs.length; i++) {
+              var keyValue = urlParamsPairs[i].split("=");
+              var key = decodeURIComponent(keyValue[0]);
+              if ((key=='begin_date' || key=='end_date') && !keepDate) { continue; }
+              if (key=='zoom') { var value = map.getZoom(); mapParamsAdded = true; }
+              else if (key=='cenLat') { var value = centerCoordinates.lat.toFixed(9); }
+              else if (key=='cenLng') { var value = centerCoordinates.lng.toFixed(9); }
+              else { var value = decodeURIComponent(keyValue[1]); }
+              queryParams.push(key + '=' + value);
+            }
+            if (!mapParamsAdded) {
+              queryParams.push('zoom=' + map.getZoom());
+              queryParams.push('cenLat=' + centerCoordinates.lat.toFixed(9));
+              queryParams.push('cenLng=' + centerCoordinates.lng.toFixed(9));
+            }
+            var url = window.location.protocol + '//' + window.location.hostname
+            if (window.location.port) { url += ':' + window.location.port }
+            url += window.location.pathname + '?' + queryParams.join('&');
+            // console.log(url);
+            // window.open(url);  // opens in new tab
+            window.location.href = '{{ url }}';
+        });
+      </script>
+    </div>
   {% endif %}
 
 {% endblock %}
