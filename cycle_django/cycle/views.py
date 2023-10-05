@@ -7,7 +7,7 @@ import pandas
 from plotly.offline import plot
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from django.shortcuts import render
 from django.core import serializers
@@ -375,12 +375,8 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     context = {'cycle': cycleThisData, 'dataType': dataType}
 
     # Deal with the GPS Data: first the form
-    form = GpsDateRangeForm(request.GET)
-    if form.is_valid():
-        begin_date = form.cleaned_data['begin_date']
-        end_date = form.cleaned_data['end_date'] + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-        gps_objs = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
-    else:
+    form, gps_objs, coords, initial_values = read_GpsDateRangeForm(request)
+    if not gps_objs:
         gps_objs = cycleThisData.get_gps_objs()
         begin_date = gps_objs[0].start
         end_date = gps_objs[0].end
@@ -389,23 +385,44 @@ def data_detail_view(request, date_wmy=None, entryid=None):
                 begin_date = obj.start
             if obj.end > end_date:
                 end_date = obj.end
-
-        initial_values = {'begin_date': begin_date, 'end_date': end_date}
+        initial_values['begin_date'] = begin_date
+        initial_values['end_date'] = end_date
         form = GpsDateRangeForm(initial=initial_values)
+
     # And then the data
-    gps_context = analyse_gps_data_sets(gps_objs)
+    gps_context = analyse_gps_data_sets(gps_objs, coords)
     gps_context['gpsdatarangeform'] = form
     context.update(gps_context)
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
-def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
+def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = None) -> Dict:
     """ Be careful to apply sin/cos only on radians!
     """
-    if not objs:
+    if not objs_in:
         return {}
 
+    if coords:
+        # This won't work for +/- 180 deg longitude
+        delta_lat = 0.5 * 10**((coords['zoom'] - 9.5) / -3.2)
+        delta_lon = delta_lat / sin(radians(coords['cenLat']))
+        lat_min = coords['cenLat'] - delta_lat
+        lat_max = coords['cenLat'] + delta_lat
+        lon_min = coords['cenLng'] - delta_lon
+        lon_max = coords['cenLng'] + delta_lon
+
+    objs = []
+    for obj in objs_in:
+        lats = np.array(obj.latitudes[1:-1].split(", "), dtype=np.float64)  # degrees
+        lons = np.array(obj.longitudes[1:-1].split(", "), dtype=np.float64)  # degrees
+        # This won't work for +/- 180 deg longitude
+        if coords and not (np.max(lats) > lat_min and np.min(lats) < lat_max and
+                           np.max(lons) > lon_min and np.min(lons) < lon_max):
+            continue
+        times = np.array(obj.datetimes[1:-1].split(", "), dtype=np.float64)  # e.g. 1269530756.0
+        elev = np.array(obj.altitudes[1:-1].split(", "), dtype=np.float64)
+        objs.append({'Times': times, 'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev})
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
         steps = 10
         if position == 'begin':
@@ -448,17 +465,12 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
         lon = radians(nogo.longitude)
         nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
     number_of_files = len(objs)
-    if number_of_files > 10:
-        slice = max(2, min(10, int(number_of_files / 30) + 1))
+    if number_of_files > 20:
+        slice = max(2, min(10, int(number_of_files / 60) + 1))
     else:
         slice = 1
     settings = {'slice': slice}
-    for obj in objs:
-        times = np.array(obj.datetimes[1:-1].split(", "), dtype=np.float64)  # e.g. 1269530756.0
-        lats = np.array(obj.latitudes[1:-1].split(", "), dtype=np.float64)  # degrees
-        lons = np.array(obj.longitudes[1:-1].split(", "), dtype=np.float64)  # degrees
-        elev = np.array(obj.altitudes[1:-1].split(", "), dtype=np.float64)
-        data = {'Times': times, 'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev}
+    for data in objs:
         df = pandas.DataFrame(data)
         if slice > 1:
             df = df.iloc[::slice]
@@ -527,6 +539,9 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
             [all_df, df[['Duration', 'Distance', 'Altitudes', 'Speed_5', 'Speed_50']][~df['Duration'].isna()]]
         )
 
+    if all_df.shape[0] == 0:
+        return {'gps': None}
+
     all_df['Culm_dist'] = all_df['Distance'].cumsum()
     culm_duration = all_df['Duration'].cumsum()
     all_df['Culm_speed'] = all_df['Culm_dist'] / culm_duration * 3600
@@ -569,7 +584,7 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
             position=0.92
         ),
     )
-
+    # map_center and zoom won't work for +/- 180 deg longitude
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon - min_lon) * sin(radians(map_center[0])))) + 8.9))
     context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom, 'settings': settings,
@@ -578,26 +593,47 @@ def analyse_gps_data_sets(objs: List[GPSData]) -> Dict:
     return context
 
 
-def gps_detail_view(request, filename=None):
-    # Not executed for plots for Cycle Detail View: see data_detail_view
+def read_GpsDateRangeForm(request):
+    initial_values = {'use_date': True}
+    gpsData = None
+    coords = None
     form = GpsDateRangeForm(request.GET)
     if form.is_valid():
         begin_date = form.cleaned_data['begin_date']
-        end_date = form.cleaned_data['end_date'] + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-        gpsData = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
-    else:
+        end_date = form.cleaned_data['end_date']
+        use_date = form.cleaned_data['use_date']
+        # initial_values['use_date'] = use_date
+        zoom = form.cleaned_data['zoom']
+        cenLat = form.cleaned_data['cenLat']
+        cenLng = form.cleaned_data['cenLng']
+        if begin_date and end_date and use_date:
+            initial_values['begin_date'] = begin_date
+            initial_values['end_date'] = end_date
+            end_date += datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+            gpsData = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
+        if zoom:
+            # only if the user selects to use coordinates
+            coords = {'zoom': int(zoom), 'cenLat': float(cenLat), 'cenLng': float(cenLng)}
+    return form, gpsData, coords, initial_values
+
+
+def gps_detail_view(request, filename=None):
+    # Not executed for plots for Cycle Detail View: see data_detail_view
+    form, gpsData, coords, initial_values = read_GpsDateRangeForm(request)
+    if not gpsData:
         if filename == "all":
             gpsData = GPSData.objects.all()
             begin_date = GPSData.objects.all().aggregate(Min('start'))['start__min']
             end_date = GPSData.objects.all().aggregate(Max('end'))['end__max']
-            initial_values = {'begin_date': begin_date, 'end_date': end_date}
+            initial_values['begin_date'] = begin_date
+            initial_values['end_date'] = end_date
         elif filename is not None:
             gpsData = [get_object_or_404(GPSData, pk=filename)]
-            initial_values = None
         else:
             raise ValueError('Parameter unknown.')
         form = GpsDateRangeForm(initial=initial_values)
-    context = analyse_gps_data_sets(gpsData)
+
+    context = analyse_gps_data_sets(gpsData, coords)
     context['gpsdatarangeform'] = form
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)

@@ -23,10 +23,35 @@ class PlotDataFormSummary(forms.Form):
 
 class GpsDateRangeForm(forms.Form):
     begin_date = forms.DateField(
-        label='Beginning Date',
+        required=False,
+        label='Start',
         widget=forms.DateInput(attrs={'type': 'date'}),
     )
     end_date = forms.DateField(
-        label='End Date',
+        required=False,
+        label='End',
         widget=forms.DateInput(attrs={'type': 'date'}),
+    )
+    use_date = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'my-checkbox-class'}),
+        label='Use date'
+    )
+    use_coords = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'my-checkbox-class'}),
+        label='Only plot in shown area'
+    )
+    zoom = forms.FloatField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'class': 'hidden-input'})
+    )
+    # id will be id_zoom
+    cenLat = forms.FloatField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'class': 'hidden-input'})
+    )
+    cenLng = forms.FloatField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'class': 'hidden-input'})
     )
