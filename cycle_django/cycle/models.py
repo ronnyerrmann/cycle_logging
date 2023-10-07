@@ -2,7 +2,6 @@ import datetime
 import gpxpy
 import json
 import os
-import pytz
 from typing import List, Union
 
 from django.db import models
@@ -11,7 +10,7 @@ from django.urls import reverse
 import django.utils.duration
 # using: python manage.py inspectdb > models.py
 
-from my_base import Logging
+from my_base import Logging, create_timezone_object
 from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
@@ -73,9 +72,7 @@ class CycleRides(models.Model):
 
     def get_gps_objs(self):
         """Returns the url to access a gps plot"""
-        timezone = pytz.timezone('UTC')
-        date = datetime.datetime(self.date.year, self.date.month, self.date.day)#, tzinfo=datetime.tzinfo('UTC'))
-        date = timezone.localize(date)
+        date = create_timezone_object(self.date)
         objs = GPSData.objects.filter(
             start__lt=date+datetime.timedelta(days=1)-datetime.timedelta(seconds=1), end__gt=date
         ).order_by('start')
@@ -227,9 +224,7 @@ class CycleWeeklySummary(models.Model):
 
     def get_gps_objs(self):
         """Returns the url to access a gps plot"""
-        timezone = pytz.timezone('UTC')
-        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
-        date = timezone.localize(date)
+        date = create_timezone_object(self.date)
         objs = GPSData.objects.filter(
             start__lt=date+datetime.timedelta(days=7)-datetime.timedelta(seconds=1), end__gt=date
         ).order_by('start')
@@ -260,9 +255,7 @@ class CycleMonthlySummary(models.Model):
 
     def get_gps_objs(self):
         """Returns the url to access a gps plot"""
-        timezone = pytz.timezone('UTC')
-        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
-        date = timezone.localize(date)
+        date = create_timezone_object(self.date)
         end_date = date + datetime.timedelta(days=31)
         end_date -= datetime.timedelta(days=end_date.day - 1)
         objs = GPSData.objects.filter(
@@ -293,9 +286,7 @@ class CycleYearlySummary(models.Model):
 
     def get_gps_objs(self):
         """Returns the url to access a gps plot"""
-        timezone = pytz.timezone('UTC')
-        date = datetime.datetime(self.date.year, self.date.month, self.date.day)
-        date = timezone.localize(date)
+        date = create_timezone_object(self.date)
         end_date = datetime.date(date.year + 1, 1, 1)
         objs = GPSData.objects.filter(
             start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date

@@ -1,4 +1,6 @@
+import datetime
 import os
+import pytz
 import sys
 from pathlib import Path
 
@@ -21,9 +23,17 @@ else:
 
 logger.info(f"DEBUG={DEBUG} and SETTINGS_DIR={SETTINGS_DIR}")
 
+
 def create_folder_if_required(folder_path):
     try:
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
     except OSError as e:
         logger.error(f"Error occurred while creating folder: {e}")
+
+
+def create_timezone_object(input_date: datetime.date) -> datetime.datetime:
+    # Creates datetime object with a timezone
+    timezone = pytz.timezone('UTC')
+    date = datetime.datetime(input_date.year, input_date.month, input_date.day)  # , tzinfo=datetime.tzinfo('UTC'))
+    return timezone.localize(date)

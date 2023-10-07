@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404
 
 from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas
 from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
-from my_base import Logging
+from my_base import Logging, create_timezone_object
 
 logger = Logging.setup_logger(__name__)
 
@@ -609,8 +609,9 @@ def read_GpsDateRangeForm(request):
         if begin_date and end_date and use_date:
             initial_values['begin_date'] = begin_date
             initial_values['end_date'] = end_date
-            end_date += datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-            gpsData = GPSData.objects.filter(start__gte=begin_date, end__lte=end_date).order_by('start')
+            beg_date = create_timezone_object(begin_date)
+            end_date = create_timezone_object(end_date) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+            gpsData = GPSData.objects.filter(end__gte=beg_date, start__lte=end_date).order_by('start')
         if zoom:
             # only if the user selects to use coordinates
             coords = {'zoom': int(zoom), 'cenLat': float(cenLat), 'cenLng': float(cenLng)}
