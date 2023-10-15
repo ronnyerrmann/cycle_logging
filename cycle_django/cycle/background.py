@@ -48,8 +48,10 @@ class BackgroundThread(threading.Thread):
 
     @staticmethod
     def load_data_if_new():
-        from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, NoGoAreas, GPSData
-        for model in CycleRides, NoGoAreas, GPSData:
+        from .models import (
+            CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, NoGoAreas, GPSData, GeoLocateData
+        )
+        for model in CycleRides, NoGoAreas, GPSData, GeoLocateData:
             try:
                 model.load_data()
             except OperationalError as e:

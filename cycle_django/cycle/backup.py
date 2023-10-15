@@ -85,6 +85,10 @@ class Backup:
         # To load last changes on production instance
         call_command("dumpdata", "cycle.NoGoAreas", output=os.path.join(BACKUP_FOLDER, "NoGoAreas_dump.json.gz"))
 
+    def dump_GeoLocateData_dbs(self):
+        # To load last changes on production instance
+        call_command("dumpdata", "cycle.GeoLocateData", output=os.path.join(BACKUP_FOLDER, "GeoLocateData_dump.json.gz"))
+
     def load_database_dump(self, database_dump_file):
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", database_dump_file)
@@ -126,6 +130,9 @@ class Backup:
     def load_dump_no_go_areas(self):
         return self.load_database_dump("NoGoAreas_dump.json.gz")
 
+    def load_dump_GeoLocateData(self):
+        return self.load_database_dump("GeoLocateData_dump.json.gz")
+
     def load_backup_mysql_based(self):
         """ Import the backup from the MySQL based version into this version
         - only required once
@@ -158,4 +165,31 @@ class Backup:
             if number_of_imports:
                 logger.info(f"Imported {number_of_imports} entries from {filename}")
                 self.dump_cycle_rides_dbs()
+                return True
+
+    def load_backup_GeoLocateData_file_based(self):
+        """ Import the backup from the MySQL based version into this version
+        - only required once
+        """
+        filename = "/home/ronny/Documents/gps-logger/gaw_orte.dat"
+        if os.path.isfile(filename):
+            number_of_imports = 0
+            with open(filename, "r") as f:
+                for line in f.readlines():
+                    line = line.split('\t')     #Doebritschen	0.5	11.47738668186831	50.91977849605224
+                    name = line[0]
+                    radius = float(line[1])
+                    lon = float(line[2])
+                    lat = float(line[3])
+                    try:
+                        obj = cycle.models.GeoLocateData.objects.get(name=name, latitude=lat, longitude=lon)
+                    except cycle.models.GeoLocateData.DoesNotExist:
+                        obj = cycle.models.GeoLocateData(
+                            name=name, latitude=lat, longitude=lon, radius=radius
+                        )
+                        obj.save(no_backup=True)
+                        number_of_imports += 1
+            if number_of_imports:
+                logger.info(f"Imported {number_of_imports} entries from {filename}")
+                self.dump_GeoLocateData_dbs()
                 return True

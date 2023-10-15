@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 
 from .models import (
-    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas,
+    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData,
     convert_to_str_hours
 )
 
@@ -117,6 +117,8 @@ class CycleMonthlySummaryAdmin(admin.ModelAdmin):
 class CycleYearlySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
 
+# Register the admin class with the associated model instead of using a decorator
+admin.site.register(CycleYearlySummary, CycleYearlySummaryAdmin)
 
 @admin.register(GPSData)
 class GPSDataAdmin(admin.ModelAdmin):
@@ -127,7 +129,11 @@ class GPSDataAdmin(admin.ModelAdmin):
 class NoGoAreasAdmin(admin.ModelAdmin):
     pass
 
+@admin.register(GeoLocateData)
+class GeoLocateDataAdmin(admin.ModelAdmin):
+    form = AdminForm
+    list_display = (
+        'name', 'radius', 'latitude', 'longitude'
+    )
 
-# Register the admin class with the associated model instead of using a decorator
-admin.site.register(CycleYearlySummary, CycleYearlySummaryAdmin)
 

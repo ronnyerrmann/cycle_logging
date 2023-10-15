@@ -422,3 +422,29 @@ class NoGoAreas(models.Model):
             logger.warning(f"No no-go-area defined, hence will create one for the whole world")
             obj = NoGoAreas(name=cls.auto_whole_world, latitude=0., longitude=0, radius=40000.)
             obj.save()
+
+
+class GeoLocateData(models.Model):
+    name = models.TextField()
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    radius = models.FloatField()
+
+    class Meta:
+        unique_together = (('name', 'latitude', 'longitude'),)
+
+    def save(self, *args, no_backup=False, **kwargs):
+        super().save(*args, **kwargs)
+        if not no_backup:
+            Backup().dump_GeoLocateData_dbs()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Backup().dump_GeoLocateData_dbs()
+
+    @classmethod
+    def load_data(cls):
+        backup = Backup()
+        loaded_backup = backup.load_dump_GeoLocateData()
+        if GeoLocateData.objects.all().count() == 0:
+            loaded_backup = backup.load_backup_GeoLocateData_file_based()
