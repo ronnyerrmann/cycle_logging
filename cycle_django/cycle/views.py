@@ -15,7 +15,9 @@ from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
 from django.shortcuts import get_object_or_404
 
-from .models import CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas
+from .models import (
+    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData
+)
 from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
 from my_base import Logging, create_timezone_object
 
@@ -452,7 +454,10 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         return df.iloc[tokeep]
 
     all_positions = []
-    all_df = pandas.DataFrame({'Duration': [], 'Distance': [], 'Altitudes': [], 'Speed_5': [], 'Speed_50': []})
+    all_df = pandas.DataFrame({
+        'Duration': [], 'Distance': [], 'Altitudes': [], 'Speed_5': [], 'Speed_50': [], 'Times': [],
+        'Latitudes_deg': [], 'Longitudes_deg': [], 'Longitudes_rad': [], 'sin_lat': [], 'cos_lat': []
+    })
     min_time = 1E99
     max_time = 0
     max_lat = -90
@@ -465,6 +470,20 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         lat = radians(nogo.latitude)
         lon = radians(nogo.longitude)
         nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
+
+    df_geoloc = pandas.DataFrame.from_records(list(GeoLocateData.objects.all().values()))
+    radius_deg = df_geoloc['radius'] / (earth_radius * radians(1))
+    radius_deg_lat = radius_deg / np.cos(np.radians(df_geoloc['latitude']))
+    # Doesn't work for longitudes at +- 180 and poles
+    df_geoloc['lat_min'] = df_geoloc['latitude'] - radius_deg
+    df_geoloc['lat_max'] = df_geoloc['latitude'] + radius_deg
+    df_geoloc['lon_min'] = df_geoloc['longitude'] - radius_deg_lat
+    df_geoloc['lon_max'] = df_geoloc['longitude'] + radius_deg_lat
+    df_geoloc['Latitudes_rad'] = np.radians(df_geoloc['latitude'])
+    df_geoloc['Longitudes_rad'] = np.radians(df_geoloc['longitude'])
+    df_geoloc['sin_lat'] = np.sin(df_geoloc['Latitudes_rad'])
+    df_geoloc['cos_lat'] = np.cos(df_geoloc['Latitudes_rad'])
+
     number_of_files = len(objs)
     if number_of_files > 20:
         slice = max(2, min(10, int(number_of_files / 60) + 1))
@@ -537,7 +556,10 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
 
         all_positions.append(positions)
         all_df = pandas.concat(
-            [all_df, df[['Duration', 'Distance', 'Altitudes', 'Speed_5', 'Speed_50']][~df['Duration'].isna()]]
+            [all_df, df[[
+                'Duration', 'Distance', 'Altitudes', 'Speed_5', 'Speed_50', 'Times',
+                'Latitudes_deg', 'Longitudes_deg', 'Longitudes_rad', 'sin_lat', 'cos_lat'
+            ]][~df['Duration'].isna()]], ignore_index=True
         )
 
     if all_df.shape[0] == 0:
@@ -556,6 +578,69 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1], name="Elevation [m]",
                              mode='lines', marker=dict(color='#FF0000')))
+
+    covered_time_d = (all_df['Times'].max() - all_df['Times'].min()) / 3600 / 24
+    if all_df.shape[0] < 30000:
+        prev_time = 0
+        min_alt = all_df['Altitudes'].min()
+        max_alt = all_df['Altitudes'].max()
+
+        diff_dist = all_df['Culm_dist'].max() / 200.
+        diff_sec = all_df.shape[0] / 15
+        # make dependent on number of datapoints
+        if covered_time_d < 1:
+            time_str = '%H:%M'
+        elif covered_time_d < 30:
+            time_str = '%d %H:%M'
+        elif covered_time_d < 365:
+            time_str = '%Y-%m-%d'
+        else:
+            time_str = '%Y-%m-%d'
+        for index, row in all_df.iterrows():
+            if row['Times'] > prev_time:
+                prev_time = row['Times'] + diff_sec
+                fig.add_annotation(go.layout.Annotation(
+                    x=row[ax], y=min_alt,
+                    text=datetime.datetime.utcfromtimestamp(row['Times']).strftime(time_str),
+                    align='center', showarrow=False, yanchor='bottom', textangle=90, clicktoshow=False,
+                    font=dict(color='rgb(125,125,125)', size=10)
+                ))
+        font_places = dict(color='rgb(125,125,125)', size=10)
+        df10th = all_df.iloc[::10].copy()
+        df10th['place_sep'] = np.zeros(df10th.shape[0]) + earth_radius
+        df10th['places'] = np.zeros(df10th.shape[0]) * np.nan
+        for index_geo, geoloc in df_geoloc.iterrows():
+            sub_sec = ((geoloc['lat_min'] < df10th['Latitudes_deg']) & (df10th['Latitudes_deg'] < geoloc['lat_max']) &
+                       (geoloc['lon_min'] < df10th['Longitudes_deg']) & (df10th['Longitudes_deg'] < geoloc['lon_max'])).to_numpy()
+            if not sub_sec.any():
+                # All false
+                continue
+            separation = np.arccos(
+                df10th.loc[sub_sec, 'sin_lat'] * geoloc['sin_lat'] +
+                df10th.loc[sub_sec, 'cos_lat'] * geoloc['cos_lat'] * np.cos(df10th.loc[sub_sec, 'Longitudes_rad'] - geoloc['Longitudes_rad'])
+            ).to_numpy()
+            sub_sub_sec = (separation < df10th.loc[sub_sec, 'place_sep']) & (separation < geoloc['radius'] / earth_radius)
+            if not sub_sub_sec.all():
+                index_to_false = np.where(sub_sec)[0][~sub_sub_sec]
+                sub_sec[index_to_false] = False
+            df10th.loc[sub_sec, 'place_sep'] = separation[sub_sub_sec]
+            df10th.loc[sub_sec, 'places'] = geoloc['name']
+        df10th.loc[df10th['Distance'].isna(), 'place_sep'] = np.nan
+        while df10th['place_sep'].min() < earth_radius:
+            index = df10th['place_sep'].idxmin()
+            culm_dist = df10th['Culm_dist'][index]
+            name = df10th['places'][index]
+            if isinstance(culm_dist, pandas.core.series.Series):
+                culm_dist = culm_dist.to_numpy()[0]
+                name = name.to_numpy()[0]
+            df10th.loc[((culm_dist - diff_dist) < df10th['Culm_dist']) &
+                       (df10th['Culm_dist'] < (culm_dist + diff_dist)), 'place_sep'] = earth_radius
+            fig.add_annotation(go.layout.Annotation(
+                x=culm_dist, y=max_alt, text=name,
+                align='center', showarrow=False, yanchor='top', textangle=90, clicktoshow=False,
+                font=font_places
+            ))
+
     fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay2], name="Speed (5 points)", yaxis="y2",
                              mode='lines', marker=dict(color='#00FF00'), opacity=0.5))
     fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay3], name="Speed (50 points)", yaxis="y2",

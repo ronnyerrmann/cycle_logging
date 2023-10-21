@@ -49,8 +49,6 @@
     <div style="margin-left:20px;margin-top:20px">
       {% if settings.slice > 1 %}
         <p>Map: (only showing every {{ settings.slice|number_with_suffix }} point - select fewer files for better resolution)</p>
-      {% else %}
-        <p>Map:</p>
       {% endif %}
       <form method="get">
         Select a different time period for GPS data:
