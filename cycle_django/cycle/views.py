@@ -378,15 +378,16 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     form, gps_objs, coords, initial_values = read_GpsDateRangeForm(request)
     if not gps_objs:
         gps_objs = cycleThisData.get_gps_objs()
-        begin_date = gps_objs[0].start
-        end_date = gps_objs[0].end
-        for obj in gps_objs:
-            if obj.start < begin_date:
-                begin_date = obj.start
-            if obj.end > end_date:
-                end_date = obj.end
-        initial_values['begin_date'] = begin_date
-        initial_values['end_date'] = end_date
+        if gps_objs:
+            begin_date = gps_objs[0].start
+            end_date = gps_objs[0].end
+            for obj in gps_objs:
+                if obj.start < begin_date:
+                    begin_date = obj.start
+                if obj.end > end_date:
+                    end_date = obj.end
+            initial_values['begin_date'] = begin_date
+            initial_values['end_date'] = end_date
         form = GpsDateRangeForm(initial=initial_values)
 
     # And then the data
