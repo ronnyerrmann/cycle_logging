@@ -426,6 +426,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         times = np.array(obj.datetimes[1:-1].split(", "), dtype=np.float64)  # e.g. 1269530756.0
         elev = np.array(obj.altitudes[1:-1].split(", "), dtype=np.float64)
         objs.append({'Times': times, 'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev})
+
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
         steps = 10
         if position == 'begin':
@@ -458,12 +459,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         'Duration': [], 'Distance': [], 'Altitudes': [], 'Speed_5': [], 'Speed_50': [], 'Times': [],
         'Latitudes_deg': [], 'Longitudes_deg': [], 'Longitudes_rad': [], 'sin_lat': [], 'cos_lat': []
     })
-    min_time = 1E99
-    max_time = 0
-    max_lat = -90
-    min_lat = 90
-    max_lon = -180
-    min_lon = 180
+
     earth_radius = 6371.009
     nogos = []
     for nogo in NoGoAreas.objects.all():
@@ -545,12 +541,6 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         distance_rolling_sum = df['Distance'].rolling(window=50, min_periods=min_periods).sum().to_numpy()
         df['Speed_50'] = distance_rolling_sum / duration_rolling_sum * 3600
 
-        max_time = max(max_time, df['Times'].max())
-        min_time = min(min_time, df['Times'].min())
-        max_lat = max(max_lat, df['Latitudes_deg'].max())
-        min_lat = min(min_lat, df['Latitudes_deg'].min())
-        max_lon = max(max_lon, df['Longitudes_deg'].max())
-        min_lon = min(min_lon, df['Longitudes_deg'].min())
         # Add markers for each GPS data point
         positions = df[['Latitudes_deg', 'Longitudes_deg']].values.tolist()
 
@@ -649,7 +639,8 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
                              mode='lines', marker=dict(color='#005F00')))
     # fig.data = (fig.data[1], fig.data[2], fig.data[3], fig.data[0]) # also resorts the colors
     fig.update_layout(
-        title=(f"{datetime.datetime.fromtimestamp(min_time)} to {datetime.datetime.fromtimestamp(max_time)} : "
+        title=(f"{datetime.datetime.fromtimestamp(all_df['Times'].min())} to "
+               f"{datetime.datetime.fromtimestamp(all_df['Times'].max())} : "
                f"{all_df['Culm_dist'].iloc[-1]:.2f} km, "
                f"{datetime.timedelta(seconds=culm_duration.iloc[-1])} moving, "
                f"{all_df['Culm_speed'].iloc[-1]:.2f} km/h, "
@@ -671,6 +662,10 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         ),
     )
     # map_center and zoom won't work for +/- 180 deg longitude
+    max_lat = all_df['Latitudes_deg'].max()
+    min_lat = all_df['Latitudes_deg'].min()
+    max_lon = all_df['Longitudes_deg'].max()
+    min_lon = all_df['Longitudes_deg'].min()
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon - min_lon) * sin(radians(map_center[0])))) + 8.9))
     context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom, 'settings': settings,
