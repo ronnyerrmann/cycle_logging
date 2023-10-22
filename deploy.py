@@ -63,7 +63,8 @@ run_with_print(cmd)
 cmds = ["python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
-        "gunicorn cycle_django.wsgi -b 0.0.0.0:8314 --timeout 120"]
+        "gunicorn cycle_django.wsgi -b 0.0.0.0:8315 --timeout 120"
+        ]
 with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
     f.write("#!/bin/bash\n")
     for cmd in cmds:
@@ -81,7 +82,7 @@ cmd = [docker_bin, "run", "--detach",
        "-v", f"{os.path.abspath('.')}:/{CYCLE_BASE_PATH}",
        "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
        "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/{CYCLE_BASE_PATH}/cycle_django/load_db_dump_at_startup",
-       "-p", "8314:8314", "-p", "8315:8315",
+       "-p", "8314:8314",
        "--name", "cycle_log",
        docker_tag]
 run_with_print(cmd)
