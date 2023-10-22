@@ -196,28 +196,34 @@ class ExtraPlots(BaseDataListView):
     def get_context_data(self, **kwargs):
         context = self.create_extra_plots()
         dist_per_days = []
-        self.data_frame['Date_datetime'] = pandas.to_datetime(self.data_frame['date'])
-        self.data_frame.set_index('Date_datetime', inplace=True)
-        self.data_frame['Date_dt'] = pandas.to_datetime(self.data_frame['date'])
+        data_frame = self.data_frame[['distance', 'duration_td', 'date']].copy()
+        data_frame['duration'] = data_frame['duration_td'].dt.total_seconds()
+        data_frame['Date_datetime'] = pandas.to_datetime(data_frame['date'])
+        data_frame.set_index('Date_datetime', inplace=True)
+        data_frame['Date_dt'] = pandas.to_datetime(data_frame['date'])
         for days in (list(range(1, 8)) + [10, 14, 21] + list(range(30, 91, 20)) + list(range(120, 181, 30)) +
                      [270, 365, 365 * 2, 365 * 4 + 1]):
-            dist = self.data_frame['distance'].rolling(window=f'{days}D').sum()  # this is only consecutive days
-            dist_sort = dist.sort_values(ascending=False)
-            result = []
-            diff = datetime.timedelta(days=days - 1)
-            for date, value in dist_sort.items():
-                date_start = self.data_frame['Date_dt'][(self.data_frame['Date_dt'] >= date-diff)].min()
-                for start, end, _ in result:
-                    if date >= start and date_start <= end:
-                        break
-                else:
-                    result.append([date_start, date, value])
-                    if len(result) == 5:
-                        break
-            if result:
-                result = [{'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d'), 'distance': value}
-                          for start, end, value in result]
-                dist_per_days.append({'days': days, 'dist_sort': result})
+            result_all = {'days': days}
+            for data_source in ['distance', 'duration']:
+                dist = data_frame[data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
+                dist_sort = dist.sort_values(ascending=False)
+                result = []
+                diff = datetime.timedelta(days=days - 1)
+                for date, value in dist_sort.items():
+                    date_start = data_frame['Date_dt'][(data_frame['Date_dt'] >= date-diff)].min()
+                    for start, end, _ in result:
+                        if date >= start and date_start <= end:
+                            break
+                    else:
+                        result.append([date_start, date, value])
+                        if len(result) == 5:
+                            break
+                if result:
+                    result = [{'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d'), data_source: value}
+                              for start, end, value in result]
+                    result_all[data_source] = result
+            if len(result_all.keys()) > 1:
+                dist_per_days.append(result_all)
 
         context['dist_per_days'] = dist_per_days
 

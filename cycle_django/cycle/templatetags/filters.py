@@ -1,3 +1,4 @@
+import datetime
 from django import template
 
 register = template.Library()
@@ -25,3 +26,8 @@ def number_with_suffix(value):
     else:
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(value % 10, "th")
     return f"{value}{suffix}"
+
+
+@register.filter
+def seconds_to_datetime(seconds):
+    return str(datetime.timedelta(seconds=seconds))

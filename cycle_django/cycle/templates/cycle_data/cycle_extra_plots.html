@@ -1,19 +1,28 @@
 {% extends "base_generic.html" %}
 
+{% load filters %}
+
 {% block content %}
   <h3>Some statistical information</h3>
   {% if dist_per_days %}
     <table  class='table_inner_borders_rows'>
       <tr>
-        <th>Time interval</th> <th>Maximum distance between dates</th>
+        <th>Time interval</th> <th>Maximum distance between dates</th> <th>Maximum duration between dates</th>
       </tr>
       {% for entry in dist_per_days %}
         <tr>
           <td>{{ entry.days }} day{{ entry.days|pluralize:",s" }}</td>
           <td>
             <table  class='table_inner_borders'>
-              {% for entry2 in entry.dist_sort %}
+              {% for entry2 in entry.distance %}
                 {{ entry2.distance|floatformat:0 }} km : {{ entry2.start }} - {{ entry2.end }} <br>
+              {% endfor %}
+            </table>
+          </td>
+          <td>
+            <table  class='table_inner_borders'>
+              {% for entry2 in entry.duration %}
+                {{ entry2.duration|seconds_to_datetime }} : {{ entry2.start }} - {{ entry2.end }} <br>
               {% endfor %}
             </table>
           </td>
