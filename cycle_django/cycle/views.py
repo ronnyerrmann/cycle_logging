@@ -24,7 +24,7 @@ from my_base import Logging, create_timezone_object
 logger = Logging.setup_logger(__name__)
 
 FIELDS_TO_LABELS = {"date": "Date", "distance": "Distance [km]", "duration": "Duration", "speed": "Speed [km/h]",
-                    "days": "Days"}
+                    "days": "Days", "numberofdays": "Number of Days"}
 
 
 def index(request):
