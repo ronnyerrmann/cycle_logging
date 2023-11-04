@@ -79,9 +79,9 @@ class CycleRidesAdmin(admin.ModelAdmin):
         ('Total', {
             'fields': ('totaldistance', 'totalduration')
         }),
-        ('For database automatic process', {
-            'fields': ('cumdistance', 'cumduration')
-        }),
+        # ('For database automatic process', {
+        #     'fields': ('cumdistance', 'cumduration')
+        # }),
 
     )
 

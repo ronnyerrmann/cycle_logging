@@ -50,10 +50,12 @@
       {% if settings.slice > 1 %}
         <p>Map: (only showing every {{ settings.slice|number_with_suffix }} point - select fewer files for better resolution)</p>
       {% endif %}
-      <form method="get">
-        Select a different time period for GPS data:
-        {{ gpsdatarangeform }}
-      <button type="submit" onclick="copyCoords()";>Replot</button>
+      {% if gpsdatarangeform %}
+        <form method="get">
+          Select a different time period for GPS data:
+          {{ gpsdatarangeform }}
+        <button type="submit" onclick="copyCoords()";>Replot</button>
+      {% endif %}
     </form>
     </div>
     {% autoescape off %}
@@ -69,6 +71,12 @@
         {% for position in gps_positions %}
             L.polyline({{ position | safe }}, { color: 'blue' }).addTo(map);
         {% endfor %}
+
+        {% if markers %}
+          {% for marker in markers %}
+            L.marker([{{ marker.latitude }}, {{ marker.longitude }}]).addTo(map).bindPopup('{{ marker.name }} - {{ marker.radius }}km');
+          {% endfor %}
+        {% endif %}
 
         function copyCoords() {
           if (document.getElementById("id_use_coords").checked) {

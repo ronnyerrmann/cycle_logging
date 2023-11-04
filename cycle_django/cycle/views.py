@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from typing import Dict, List, Union
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.core import serializers
 from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
@@ -406,7 +406,7 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
-def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = None) -> Dict:
+def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = None, plot_graphs: bool = True) -> Dict:
     """ Be careful to apply sin/cos only on radians!
     """
     if not objs_in:
@@ -561,112 +561,116 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
     if all_df.shape[0] == 0:
         return {'gps': None}
 
-    all_df['Culm_dist'] = all_df['Distance'].cumsum()
-    culm_duration = all_df['Duration'].cumsum()
-    all_df['Culm_speed'] = all_df['Culm_dist'] / culm_duration * 3600
-    alt_rolling_median = all_df['Altitudes'].rolling(window=5).median().to_numpy()
-    alt_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
-    ax = "Culm_dist"
-    ay1 = "Altitudes"
-    ay2 = "Speed_5"
-    ay3 = "Speed_50"
-    ay4 = "Culm_speed"
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1], name="Elevation [m]",
-                             mode='lines', marker=dict(color='#FF0000')))
+    context = {'gps': None, 'gps_positions': all_positions}
 
-    covered_time_d = (all_df['Times'].max() - all_df['Times'].min()) / 3600 / 24
-    if all_df.shape[0] < 30000:
-        prev_time = 0
-        min_alt = all_df['Altitudes'].min()
-        max_alt = all_df['Altitudes'].max()
+    if plot_graphs:
+        all_df['Culm_dist'] = all_df['Distance'].cumsum()
+        culm_duration = all_df['Duration'].cumsum()
+        all_df['Culm_speed'] = all_df['Culm_dist'] / culm_duration * 3600
+        alt_rolling_median = all_df['Altitudes'].rolling(window=5).median().to_numpy()
+        alt_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
+        ax = "Culm_dist"
+        ay1 = "Altitudes"
+        ay2 = "Speed_5"
+        ay3 = "Speed_50"
+        ay4 = "Culm_speed"
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1], name="Elevation [m]",
+                                 mode='lines', marker=dict(color='#FF0000')))
 
-        diff_dist = all_df['Culm_dist'].max() / 200.
-        diff_sec = all_df.shape[0] / 15
-        # make dependent on number of datapoints
-        if covered_time_d < 1:
-            time_str = '%H:%M'
-        elif covered_time_d < 30:
-            time_str = '%d %H:%M'
-        elif covered_time_d < 365:
-            time_str = '%Y-%m-%d'
-        else:
-            time_str = '%Y-%m-%d'
-        for index, row in all_df.iterrows():
-            if row['Times'] > prev_time:
-                prev_time = row['Times'] + diff_sec
+        covered_time_d = (all_df['Times'].max() - all_df['Times'].min()) / 3600 / 24
+        if all_df.shape[0] < 30000:
+            prev_time = 0
+            min_alt = all_df['Altitudes'].min()
+            max_alt = all_df['Altitudes'].max()
+
+            diff_dist = all_df['Culm_dist'].max() / 200.
+            diff_sec = all_df.shape[0] / 15
+            # make dependent on number of datapoints
+            if covered_time_d < 1:
+                time_str = '%H:%M'
+            elif covered_time_d < 30:
+                time_str = '%d %H:%M'
+            elif covered_time_d < 365:
+                time_str = '%Y-%m-%d'
+            else:
+                time_str = '%Y-%m-%d'
+            for index, row in all_df.iterrows():
+                if row['Times'] > prev_time:
+                    prev_time = row['Times'] + diff_sec
+                    fig.add_annotation(go.layout.Annotation(
+                        x=row[ax], y=min_alt,
+                        text=datetime.datetime.utcfromtimestamp(row['Times']).strftime(time_str),
+                        align='center', showarrow=False, yanchor='bottom', textangle=90, clicktoshow=False,
+                        font=dict(color='rgb(125,125,125)', size=10)
+                    ))
+            font_places = dict(color='rgb(125,125,125)', size=10)
+            df10th = all_df.iloc[::10].copy()
+            df10th['place_sep'] = np.zeros(df10th.shape[0]) + earth_radius
+            df10th['places'] = np.zeros(df10th.shape[0]) * np.nan
+            for index_geo, geoloc in df_geoloc.iterrows():
+                sub_sec = ((geoloc['lat_min'] < df10th['Latitudes_deg']) & (df10th['Latitudes_deg'] < geoloc['lat_max']) &
+                           (geoloc['lon_min'] < df10th['Longitudes_deg']) & (df10th['Longitudes_deg'] < geoloc['lon_max'])).to_numpy()
+                if not sub_sec.any():
+                    # All false
+                    continue
+                separation = np.arccos(
+                    df10th.loc[sub_sec, 'sin_lat'] * geoloc['sin_lat'] +
+                    df10th.loc[sub_sec, 'cos_lat'] * geoloc['cos_lat'] * np.cos(df10th.loc[sub_sec, 'Longitudes_rad'] - geoloc['Longitudes_rad'])
+                ).to_numpy()
+                sub_sub_sec = (separation < df10th.loc[sub_sec, 'place_sep']) & (separation < geoloc['radius'] / earth_radius)
+                if not sub_sub_sec.all():
+                    index_to_false = np.where(sub_sec)[0][~sub_sub_sec]
+                    sub_sec[index_to_false] = False
+                df10th.loc[sub_sec, 'place_sep'] = separation[sub_sub_sec]
+                df10th.loc[sub_sec, 'places'] = geoloc['name']
+            df10th.loc[df10th['Distance'].isna(), 'place_sep'] = np.nan
+            while df10th['place_sep'].min() < earth_radius:
+                index = df10th['place_sep'].idxmin()
+                culm_dist = df10th['Culm_dist'][index]
+                name = df10th['places'][index]
+                if isinstance(culm_dist, pandas.core.series.Series):
+                    culm_dist = culm_dist.to_numpy()[0]
+                    name = name.to_numpy()[0]
+                df10th.loc[((culm_dist - diff_dist) < df10th['Culm_dist']) &
+                           (df10th['Culm_dist'] < (culm_dist + diff_dist)), 'place_sep'] = earth_radius
                 fig.add_annotation(go.layout.Annotation(
-                    x=row[ax], y=min_alt,
-                    text=datetime.datetime.utcfromtimestamp(row['Times']).strftime(time_str),
-                    align='center', showarrow=False, yanchor='bottom', textangle=90, clicktoshow=False,
-                    font=dict(color='rgb(125,125,125)', size=10)
+                    x=culm_dist, y=max_alt, text=name,
+                    align='center', showarrow=False, yanchor='top', textangle=90, clicktoshow=False,
+                    font=font_places
                 ))
-        font_places = dict(color='rgb(125,125,125)', size=10)
-        df10th = all_df.iloc[::10].copy()
-        df10th['place_sep'] = np.zeros(df10th.shape[0]) + earth_radius
-        df10th['places'] = np.zeros(df10th.shape[0]) * np.nan
-        for index_geo, geoloc in df_geoloc.iterrows():
-            sub_sec = ((geoloc['lat_min'] < df10th['Latitudes_deg']) & (df10th['Latitudes_deg'] < geoloc['lat_max']) &
-                       (geoloc['lon_min'] < df10th['Longitudes_deg']) & (df10th['Longitudes_deg'] < geoloc['lon_max'])).to_numpy()
-            if not sub_sec.any():
-                # All false
-                continue
-            separation = np.arccos(
-                df10th.loc[sub_sec, 'sin_lat'] * geoloc['sin_lat'] +
-                df10th.loc[sub_sec, 'cos_lat'] * geoloc['cos_lat'] * np.cos(df10th.loc[sub_sec, 'Longitudes_rad'] - geoloc['Longitudes_rad'])
-            ).to_numpy()
-            sub_sub_sec = (separation < df10th.loc[sub_sec, 'place_sep']) & (separation < geoloc['radius'] / earth_radius)
-            if not sub_sub_sec.all():
-                index_to_false = np.where(sub_sec)[0][~sub_sub_sec]
-                sub_sec[index_to_false] = False
-            df10th.loc[sub_sec, 'place_sep'] = separation[sub_sub_sec]
-            df10th.loc[sub_sec, 'places'] = geoloc['name']
-        df10th.loc[df10th['Distance'].isna(), 'place_sep'] = np.nan
-        while df10th['place_sep'].min() < earth_radius:
-            index = df10th['place_sep'].idxmin()
-            culm_dist = df10th['Culm_dist'][index]
-            name = df10th['places'][index]
-            if isinstance(culm_dist, pandas.core.series.Series):
-                culm_dist = culm_dist.to_numpy()[0]
-                name = name.to_numpy()[0]
-            df10th.loc[((culm_dist - diff_dist) < df10th['Culm_dist']) &
-                       (df10th['Culm_dist'] < (culm_dist + diff_dist)), 'place_sep'] = earth_radius
-            fig.add_annotation(go.layout.Annotation(
-                x=culm_dist, y=max_alt, text=name,
-                align='center', showarrow=False, yanchor='top', textangle=90, clicktoshow=False,
-                font=font_places
-            ))
 
-    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay2], name="Speed (5 points)", yaxis="y2",
-                             mode='lines', marker=dict(color='#00FF00'), opacity=0.5))
-    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay3], name="Speed (50 points)", yaxis="y2",
-                             mode='lines', marker=dict(color='#00AF00'), opacity=0.7))
-    fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay4], name="Cumlative Speed", yaxis="y2",
-                             mode='lines', marker=dict(color='#005F00')))
-    # fig.data = (fig.data[1], fig.data[2], fig.data[3], fig.data[0]) # also resorts the colors
-    fig.update_layout(
-        title=(f"{datetime.datetime.fromtimestamp(all_df['Times'].min())} to "
-               f"{datetime.datetime.fromtimestamp(all_df['Times'].max())} : "
-               f"{all_df['Culm_dist'].iloc[-1]:.2f} km, "
-               f"{datetime.timedelta(seconds=culm_duration.iloc[-1])} moving, "
-               f"{all_df['Culm_speed'].iloc[-1]:.2f} km/h, "
-               f"{alt_diff[alt_diff > 0].sum():.0f} m up, {alt_diff[alt_diff < 0].sum():.0f} m down"),
-        xaxis=dict(title="Distance [km]", domain=[0.0, 0.92]),
-        yaxis=dict(
-            title="Elevation [m]",
-            titlefont=dict(color="#FF0000"),
-            tickfont=dict(color="#FF0000")
-        ),
-        yaxis2=dict(
-            title="Speed [km/h]",
-            titlefont=dict(color="#00AF00"),
-            tickfont=dict(color="#00AF00"),
-            anchor="free",
-            overlaying="y",
-            side="right",
-            position=0.92
-        ),
-    )
+        fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay2], name="Speed (5 points)", yaxis="y2",
+                                 mode='lines', marker=dict(color='#00FF00'), opacity=0.5))
+        fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay3], name="Speed (50 points)", yaxis="y2",
+                                 mode='lines', marker=dict(color='#00AF00'), opacity=0.7))
+        fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay4], name="Cumlative Speed", yaxis="y2",
+                                 mode='lines', marker=dict(color='#005F00')))
+        # fig.data = (fig.data[1], fig.data[2], fig.data[3], fig.data[0]) # also resorts the colors
+        fig.update_layout(
+            title=(f"{datetime.datetime.fromtimestamp(all_df['Times'].min())} to "
+                   f"{datetime.datetime.fromtimestamp(all_df['Times'].max())} : "
+                   f"{all_df['Culm_dist'].iloc[-1]:.2f} km, "
+                   f"{datetime.timedelta(seconds=culm_duration.iloc[-1])} moving, "
+                   f"{all_df['Culm_speed'].iloc[-1]:.2f} km/h, "
+                   f"{alt_diff[alt_diff > 0].sum():.0f} m up, {alt_diff[alt_diff < 0].sum():.0f} m down"),
+            xaxis=dict(title="Distance [km]", domain=[0.0, 0.92]),
+            yaxis=dict(
+                title="Elevation [m]",
+                titlefont=dict(color="#FF0000"),
+                tickfont=dict(color="#FF0000")
+            ),
+            yaxis2=dict(
+                title="Speed [km/h]",
+                titlefont=dict(color="#00AF00"),
+                tickfont=dict(color="#00AF00"),
+                anchor="free",
+                overlaying="y",
+                side="right",
+                position=0.92
+            ),
+        )
+        context["plot_div"] = plot(fig, output_type="div")
     # map_center and zoom won't work for +/- 180 deg longitude
     max_lat = all_df['Latitudes_deg'].max()
     min_lat = all_df['Latitudes_deg'].min()
@@ -674,8 +678,9 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
     min_lon = all_df['Longitudes_deg'].min()
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon - min_lon) * sin(radians(map_center[0])))) + 8.9))
-    context = {'gps': None, 'gps_positions': all_positions, 'center': map_center, 'zoom': zoom, 'settings': settings,
-               "plot_div": plot(fig, output_type="div")}
+    context['center'] = map_center
+    context['zoom'] = zoom
+    context['settings'] = settings
 
     return context
 
@@ -734,3 +739,16 @@ class GPSDataListView(generic.ListView):
     def get_queryset(self):
         # executed when the page is opened
         return GPSData.objects.all()
+
+
+def add_places_admin_view(request):
+    if not request.user.is_superuser:
+        return redirect("index")
+
+    gpsData = GPSData.objects.all()
+    context = analyse_gps_data_sets(gpsData, coords=None, plot_graphs=False)
+
+    places = GeoLocateData.objects.all()
+    context['markers'] = places
+
+    return render(request, 'cycle_data/cycle_detail.html', context=context)
