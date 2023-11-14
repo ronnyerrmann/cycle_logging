@@ -745,6 +745,22 @@ def add_places_admin_view(request):
     if not request.user.is_superuser:
         return redirect("index")
 
+    if request.GET.items():
+        places = GeoLocateData.objects.all()
+        for key, value in request.GET.items():
+            [name, lat, lon, radius] = value.split(',')
+            for obj in places:
+                if key == obj.identifier:
+                    obj.name = name
+                    obj.latitude = lat
+                    obj.longitude = lon
+                    obj.radius = radius
+                    obj.save()
+                    break
+            else:
+                obj = GeoLocateData(name=name, latitude=lat, longitude=lon, radius=radius)
+                obj.save()
+
     gpsData = GPSData.objects.all()
     context = analyse_gps_data_sets(gpsData, coords=None, plot_graphs=False)
 

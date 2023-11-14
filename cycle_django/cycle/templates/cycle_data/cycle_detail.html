@@ -61,9 +61,26 @@
     {% autoescape off %}
         {{ plot_div }}
     {% endautoescape %}
+    {% if markers %}
+      <button id="addNewMarker">Add new place</button>
+      <div id="markerForm" style="display: none;">
+        <form id="placeForm">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="radius">Radius:</label>
+            <input type="number" id="radius" name="radius" size="5" min="0.1" max="100" step="0.1" required onchange="handleRadiusChange()">
+
+            <button type="button" id="addUpdateButton">Add</button>
+            <button type="button" id="cancelButton">Cancel</button>
+            <input type="text" id="identifierInput" name="identifier" disabled size="0">
+        </form>
+      </div>
+      <button id="saveUpdate">Save changes to database</button>
+    {% endif %}
     <div id="map" style="height: 600px;">
       <script>
-        var map = L.map('map').setView({{ center | safe }}, {{ zoom }});
+        const map = L.map('map').setView({{ center | safe }}, {{ zoom }});
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -73,9 +90,144 @@
         {% endfor %}
 
         {% if markers %}
+          const updatedMarkers = {};
+          const markersMap = {};
+          const origMarkers = {};
+
+          function RemoveMarker(identifier) {
+            try {
+              map.removeLayer(markersMap[identifier].circle);
+              map.removeLayer(markersMap[identifier].marker);
+              delete markersMap[identifier];
+            } catch (error) {
+              //console.log('marker does not exist', identifier);
+            }
+          }
+
+          function AddNewMarker(name, lat, lon, radius, identifier='New') {
+            RemoveMarker(identifier);
+            markersMap[identifier] = {name: name, radius, radius};
+            markersMap[identifier].marker = new L.marker(L.latLng(lat, lon), {draggable:'true'});
+            markersMap[identifier].marker.addTo(map).bindPopup(name + ' - ' + radius + 'km');
+            markersMap[identifier].circle = new L.circle(markersMap[identifier].marker.getLatLng(), {
+                    color: 'red', // Circle color
+                    fillColor: '#f03', // Fill color
+                    fillOpacity: 0.3, // Fill opacity
+                    radius: radius * 1000
+            });
+            markersMap[identifier].circle.addTo(map);
+
+            markersMap[identifier].marker.on('dragend', function (e) {
+              const latlng = e.target.getLatLng();
+              AddNewMarker(markersMap[identifier].name, latlng.lat, latlng.lng, markersMap[identifier].radius, identifier);
+              if(identifier != 'New') {
+                updatedMarkers[identifier] = [markersMap[identifier].name, latlng.lat, latlng.lng, markersMap[identifier].radius]
+              }
+            });
+
+            markersMap[identifier].marker.on('click', function (e) {
+              var identifierOld = document.getElementById('identifierInput').value;
+              if(identifierOld.length >= 3) {
+                console.log('Add/Update or Cancel first before selecting the next item');
+                return;
+              }
+              document.getElementById('addNewMarker').disabled = true;
+              document.getElementById('addUpdateButton').textContent = 'Update';
+              document.getElementById('markerForm').style.display = 'block';
+              const name = markersMap[identifier].name;
+              const radius = markersMap[identifier].radius;
+              document.getElementById('name').value = name;
+              document.getElementById('radius').value = radius;
+              document.getElementById('identifierInput').value = identifier;
+              const latLon = markersMap[identifier].marker.getLatLng();
+              origMarkers[identifier] = [name, latLon.lat, latLon.lng, radius];
+            });
+          }
+
+          function RestoreMarker(identifier) {
+            [name, lat, lon, radius] = origMarkers[identifier];
+            AddNewMarker(name, lat, lon, radius, identifier);
+          }
+
           {% for marker in markers %}
-            L.marker([{{ marker.latitude }}, {{ marker.longitude }}]).addTo(map).bindPopup('{{ marker.name }} - {{ marker.radius }}km');
+            AddNewMarker(
+              '{{ marker.name }}', {{ marker.latitude | safe }}, {{ marker.longitude | safe }},
+              {{ marker.radius | safe }}, '{{ marker.identifier }}'
+            );
           {% endfor %}
+
+          document.getElementById('addNewMarker').addEventListener('click', function () {
+            document.getElementById('addNewMarker').disabled = true;
+            document.getElementById('addUpdateButton').textContent = 'Add';
+            document.getElementById('markerForm').style.display = 'block';
+            document.getElementById('radius').value = 0.1;
+            document.getElementById('identifierInput').value = 'New';
+            AddNewMarker('New', map.getCenter().lat, map.getCenter().lng, 0.1);
+          });
+
+          function handleRadiusChange() {
+            const name = document.getElementById('name').value;
+            const radius = document.getElementById('radius').value;
+            const identifier = document.getElementById('identifierInput').value;
+            const latLon = markersMap[identifier].marker.getLatLng();
+            AddNewMarker(name, latLon.lat, latLon.lng, radius, identifier);
+          }
+
+          var radiusInput = document.getElementById('radius');
+          radiusInput.addEventListener('input', function () {
+            handleRadiusChange();
+          });
+
+          document.getElementById('cancelButton').addEventListener('click', function () {
+            var identifier = document.getElementById('identifierInput').value;
+            if(identifier != 'New') {
+              RestoreMarker(identifier);
+            } else {
+              RemoveMarker(identifier);
+            }
+            document.getElementById('addNewMarker').disabled = false;
+            document.getElementById('markerForm').style.display = 'none';
+            document.getElementById('placeForm').reset();
+          });
+
+          document.getElementById('addUpdateButton').addEventListener('click', function () {
+              var name = document.getElementById('name').value;
+              var radius = document.getElementById('radius').value;
+              var identifier = document.getElementById('identifierInput').value;
+              if(name.replace(/ /g, "").length > 3 && radius >= 0.1) {
+                var latLon = markersMap[identifier].marker.getLatLng();
+                if(identifier === 'New') {
+                  var identifier = name + '_' + latLon.lat + '_' + latLon.lng;
+                  identifier = identifier.replace(/\./g, "_"); // same as GeoLocateData.identifier
+                  map.removeLayer(markersMap['New'].circle);
+                  map.removeLayer(markersMap['New'].marker);
+                }
+                AddNewMarker(name, latLon.lat, latLon.lng, radius, identifier)
+                updatedMarkers[identifier] = [name, latLon.lat, latLon.lng, radius];
+                // After adding, reset and hide the form
+                document.getElementById('addNewMarker').disabled = false;
+                document.getElementById('markerForm').style.display = 'none';
+                document.getElementById('placeForm').reset();
+              } else {
+                console.log('name must contain at least 3 characters and radius must be greater 0.1, got',  name.replace(/ /g, "").length, radius);
+              }
+          });
+
+          document.getElementById('saveUpdate').addEventListener('click', function() {
+            var queryParams = [];
+            if (Object.keys(updatedMarkers).length > 0) {
+              var url = window.location.protocol + '//' + window.location.hostname
+              if (window.location.port) { url += ':' + window.location.port }
+              url += window.location.pathname
+              url += '?' + Object.keys(updatedMarkers).map(function (key) {
+                  return key + '=' + updatedMarkers[key].join(',');
+              }).join('&');
+              window.location.href = url;
+            } else {
+              console.log('No changes made');
+            }
+          });
+
         {% endif %}
 
         function copyCoords() {

@@ -433,6 +433,10 @@ class GeoLocateData(models.Model):
     class Meta:
         unique_together = (('name', 'latitude', 'longitude'),)
 
+    @property
+    def identifier(self):
+        return f"{self.name}_{self.latitude}_{self.longitude}".replace('.', '_').replace(' ', '')
+
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)
         if not no_backup:
