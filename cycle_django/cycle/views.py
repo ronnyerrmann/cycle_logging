@@ -399,14 +399,14 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         form = GpsDateRangeForm(initial=initial_values)
 
     # And then the data
-    gps_context = analyse_gps_data_sets(gps_objs, coords)
+    gps_context = analyse_gps_data_sets(gps_objs, coords, admin=request.user.is_superuser)
     gps_context['gpsdatarangeform'] = form
     context.update(gps_context)
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
-def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = None, plot_graphs: bool = True) -> Dict:
+def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = None, plot_graphs: bool = True, admin: bool = False) -> Dict:
     """ Be careful to apply sin/cos only on radians!
     """
     if not objs_in:
@@ -468,10 +468,11 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
 
     earth_radius = 6371.009
     nogos = []
-    for nogo in NoGoAreas.objects.all():
-        lat = radians(nogo.latitude)
-        lon = radians(nogo.longitude)
-        nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
+    if not admin:
+        for nogo in NoGoAreas.objects.all():
+            lat = radians(nogo.latitude)
+            lon = radians(nogo.longitude)
+            nogos.append([sin(lat), cos(lat), lon, nogo.radius / earth_radius])
 
     df_geoloc = pandas.DataFrame.from_records(list(GeoLocateData.objects.all().values()))
     radius_deg = df_geoloc['radius'] / (earth_radius * radians(1))
@@ -500,9 +501,9 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         df['Longitudes_rad'] = np.radians(df['Longitudes_deg'])
         df['sin_lat'] = np.sin(df['Latitudes_rad'])
         df['cos_lat'] = np.cos(df['Latitudes_rad'])
-
-        df = check_no_go(nogos, df, 'begin')
-        df = check_no_go(nogos, df, 'end')
+        if not admin:
+            df = check_no_go(nogos, df, 'begin')
+            df = check_no_go(nogos, df, 'end')
 
         if df.shape[0] < 10:
             continue
@@ -726,7 +727,7 @@ def gps_detail_view(request, filename=None):
             raise ValueError('Parameter unknown.')
         form = GpsDateRangeForm(initial=initial_values)
 
-    context = analyse_gps_data_sets(gpsData, coords)
+    context = analyse_gps_data_sets(gpsData, coords, admin=request.user.is_superuser)
     context['gpsdatarangeform'] = form
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
@@ -762,7 +763,7 @@ def add_places_admin_view(request):
                 obj.save()
 
     gpsData = GPSData.objects.all()
-    context = analyse_gps_data_sets(gpsData, coords=None, plot_graphs=False)
+    context = analyse_gps_data_sets(gpsData, coords=None, plot_graphs=False, admin=request.user.is_superuser)
 
     places = GeoLocateData.objects.all()
     context['markers'] = places
