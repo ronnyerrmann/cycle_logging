@@ -131,7 +131,6 @@ class NoGoAreasAdmin(admin.ModelAdmin):
 
 @admin.register(GeoLocateData)
 class GeoLocateDataAdmin(admin.ModelAdmin):
-    form = AdminForm
     list_display = (
         'name', 'radius', 'latitude', 'longitude'
     )
