@@ -162,7 +162,22 @@
             document.getElementById('markerForm').style.display = 'block';
             document.getElementById('radius').value = 0.1;
             document.getElementById('identifierInput').value = 'New';
-            AddNewMarker('New', map.getCenter().lat, map.getCenter().lng, 0.1);
+            const latitude = map.getCenter().lat;
+            const longitude = map.getCenter().lng;
+            // https://nominatim.org/release-docs/develop/api/Reverse/
+            const apiEndpoint = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=13&addressdetails=0`;
+            fetch(apiEndpoint)
+              .then(response => response.json())
+              .then(data => {
+                // Display the address information in the console
+                var nameElement = document.getElementById('name');
+                if(!nameElement.value) {
+                  // nameElement.value = data.display_name; // including the larger places
+                  nameElement.value = data.name;  // place name
+                }
+              })
+              .catch(error => console.error('Error:', error));
+            AddNewMarker('New', latitude, longitude, 0.1);
           });
 
           function handleRadiusChange() {
