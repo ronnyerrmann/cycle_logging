@@ -17,4 +17,4 @@ WORKDIR /cycle_django_int
 # Only last CMD will be executed
 
 # Without /bin/bash the script wouldn't be executed locally;
-CMD service nginx restart & /bin/sh -c "sh docker_startup.sh >> docker_run.log 2>&1"
+CMD service nginx restart & /bin/sh -c "sh /cycle_logging/cycle_django/docker_startup.sh >> docker_run.log 2>&1"

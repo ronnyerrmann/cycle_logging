@@ -60,8 +60,8 @@ docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
-cmds = ["mv /cycle_logging/cycle_django/* ."    # work in /cycle_django_int
-        "rm -fr /cycle_logging/cycle_django/"
+cmds = ["mv /cycle_logging/cycle_django/ ."    # work in /cycle_django_int
+        "cd cycle_django/"
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
