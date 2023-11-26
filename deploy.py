@@ -61,7 +61,7 @@ cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
 cmds = ["cp -rp /cycle_logging/* .",    # work in /cycle_django_int
-        #"cd cycle_django/",
+        "cd cycle_django/",
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
