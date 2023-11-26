@@ -60,8 +60,8 @@ docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
-cmds = ["mv /cycle_logging/cycle_django/ .",    # work in /cycle_django_int
-        "cd cycle_django/",
+cmds = ["cp -rp /cycle_logging/cycle_django/ .",    # work in /cycle_django_int
+        #"cd cycle_django/",
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
@@ -89,18 +89,17 @@ cmd = [docker_bin, "run", "--detach",
        docker_tag]
 run_with_print(cmd)
 
-# Not necessary as all files are taken into the filesystem inside docker and deleted there, except the logs
-# # Clean old install folders
-# os.chdir(BASE_PATH)
-# install_folders = [folder for folder in os.listdir(".") if folder.startswith(CYCLE_BASE_PATH)]
-# # Delete all but the last two folders
-# if len(install_folders) > 2:
-#     install_folders.sort()
-#     folders_to_delete = install_folders[:-2]
-#     cmd = ["rm", "-rf"]
-#     for folder in folders_to_delete:
-#         cmd += [folder]
-#     run_with_print(cmd)
+# Clean old install folders
+os.chdir(BASE_PATH)
+install_folders = [folder for folder in os.listdir(".") if folder.startswith(CYCLE_BASE_PATH)]
+# Delete all but the last two folders
+if len(install_folders) > 2:
+    install_folders.sort()
+    folders_to_delete = install_folders[:-2]
+    cmd = ["rm", "-rf"]
+    for folder in folders_to_delete:
+        cmd += [folder]
+    run_with_print(cmd)
 
 # Further improvement: Only kill the old container after the new has started up (and a wget was successful)
 # Start with different port and then forward port internally
