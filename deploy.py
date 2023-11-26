@@ -61,6 +61,7 @@ cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
 cmds = ["cp -rp /cycle_logging/* .",    # work in /cycle_django_int
+        # don't use mv or rm in the original folder, as DATABASE_BACKUP_FOLDER is linked inside
         "cd cycle_django/",
         "python manage.py makemigrations",
         "python manage.py migrate",
