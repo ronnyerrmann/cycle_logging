@@ -1,7 +1,10 @@
 import datetime
 from django import template
 
+from my_base import Logging
+
 register = template.Library()
+logger = Logging.setup_logger(__name__)
 
 
 @register.filter
@@ -30,4 +33,6 @@ def number_with_suffix(value):
 
 @register.filter
 def seconds_to_datetime(seconds):
+    if isinstance(seconds, str):
+        return seconds
     return str(datetime.timedelta(seconds=seconds))

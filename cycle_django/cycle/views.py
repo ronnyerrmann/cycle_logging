@@ -422,6 +422,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         lon_max = coords['cenLng'] + delta_lon
 
     objs = []
+    individual_gps_list = []
     for obj in objs_in:
         lats = np.array(obj.latitudes[1:-1].split(", "), dtype=np.float64)  # degrees
         lons = np.array(obj.longitudes[1:-1].split(", "), dtype=np.float64)  # degrees
@@ -432,6 +433,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         times = np.array(obj.datetimes[1:-1].split(", "), dtype=np.float64)  # e.g. 1269530756.0
         elev = np.array(obj.altitudes[1:-1].split(", "), dtype=np.float64)
         objs.append({'Times': times, 'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev})
+        individual_gps_list.append({'url': obj.get_absolute_url(), 'start': obj.start, 'end': obj.end})
 
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
         steps = 10
@@ -493,7 +495,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
     else:
         slice = 1
     settings = {'slice': slice}
-    for data in objs:
+    for obj_index, data in enumerate(objs):
         df = pandas.DataFrame(data)
         if slice > 1:
             df = df.iloc[::slice]
@@ -551,6 +553,12 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         # Add markers for each GPS data point
         positions = df[['Latitudes_deg', 'Longitudes_deg']].values.tolist()
 
+        distance = df['Distance'].sum()
+        duration = df['Duration'].sum()
+        individual_gps_list[obj_index]['Distance'] = distance
+        individual_gps_list[obj_index]['Duration'] = duration
+        individual_gps_list[obj_index]['Speed'] = distance / duration * 3600
+
         all_positions.append(positions)
         all_df = pandas.concat(
             [all_df, df[[
@@ -562,7 +570,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
     if all_df.shape[0] == 0:
         return {'gps': None}
 
-    context = {'gps': None, 'gps_positions': all_positions}
+    context = {'gps': None, 'gps_positions': all_positions, 'individual_gps_list': individual_gps_list}
 
     if plot_graphs:
         all_df['Culm_dist'] = all_df['Distance'].cumsum()

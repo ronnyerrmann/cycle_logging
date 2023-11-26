@@ -259,4 +259,22 @@
     </div>
   {% endif %}
 
+  {% if individual_gps_list %}
+  <ul>
+    <table  class='table_inner_borders'>
+      <tr>
+        <th>Distanc - Duration - Speed</th> <th>Start</th> <th>End</th>
+      </tr>
+      {% for entry in individual_gps_list %}
+        <tr>
+          <td><a href="{{ entry.url }}">{{ entry.Distance|floatformat:2 }} km - {{ entry.Duration|seconds_to_datetime }} - {{ entry.Speed|floatformat:2 }} km/h</a></td>
+          <td>{{entry.start}}</td> <td>{{entry.end}}</td>
+        </tr>
+    {% empty %}
+      There are no entries in the database.
+    {% endfor %}
+    </table>
+  </ul>
+  {% endif %}
+
 {% endblock %}
