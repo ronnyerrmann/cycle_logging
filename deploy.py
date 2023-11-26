@@ -12,12 +12,12 @@ CYCLE_BASE_PATH = "cycle_logging"
 
 BASE_PATH = os.getcwd()
 
-for SETTINGS_FOLDERS in SETTINGS_FOLDERS:
-    DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDERS, "cycle_django", "backup_database")
+for SETTINGS_FOLDER in SETTINGS_FOLDERS:
+    DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDER, "cycle_django", "backup_database")
     if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "CycleRides_dump.json.gz")):
         break
 else:
-    print(f"No database dump found in SETTINGS_FOLDERS, will use {SETTINGS_FOLDERS} for settings")
+    print(f"No database dump found in SETTINGS_FOLDERS, will use {SETTINGS_FOLDER} for settings")
 
 for docker_bin in DOCKER_BINS:
     if os.path.isfile(docker_bin):
@@ -60,7 +60,9 @@ docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 
-cmds = ["python manage.py makemigrations",
+cmds = ["mv /cycle_logging/cycle_django/* ."    # work in /cycle_django_int
+        "rm -fr /cycle_logging/cycle_django/"
+        "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
         "gunicorn cycle_django.wsgi -b 0.0.0.0:8315 --timeout 120"
@@ -80,24 +82,25 @@ run_with_print(cmd)
 cmd = [docker_bin, "run", "--detach",
        "-e", "IS_PRODUCTION=True",
        "-v", f"{os.path.abspath('.')}:/{CYCLE_BASE_PATH}",
-       "-v", f"{os.path.abspath(SETTINGS_FOLDERS)}:/cycle_setup",
+       "-v", f"{os.path.abspath(SETTINGS_FOLDER)}:/cycle_setup",        # listen to changes in this folder
        "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/{CYCLE_BASE_PATH}/cycle_django/load_db_dump_at_startup",
        "-p", "8314:8314",
        "--name", "cycle_log",
        docker_tag]
 run_with_print(cmd)
 
-# Clean old install folders
-os.chdir(BASE_PATH)
-install_folders = [folder for folder in os.listdir(".") if folder.startswith(CYCLE_BASE_PATH)]
-# Delete all but the last two folders
-if len(install_folders) > 2:
-    install_folders.sort()
-    folders_to_delete = install_folders[:-2]
-    cmd = ["rm", "-rf"]
-    for folder in folders_to_delete:
-        cmd += [folder]
-    run_with_print(cmd)
+# Not necessary as all files are taken into the filesystem inside docker and deleted there, except the logs
+# # Clean old install folders
+# os.chdir(BASE_PATH)
+# install_folders = [folder for folder in os.listdir(".") if folder.startswith(CYCLE_BASE_PATH)]
+# # Delete all but the last two folders
+# if len(install_folders) > 2:
+#     install_folders.sort()
+#     folders_to_delete = install_folders[:-2]
+#     cmd = ["rm", "-rf"]
+#     for folder in folders_to_delete:
+#         cmd += [folder]
+#     run_with_print(cmd)
 
 # Further improvement: Only kill the old container after the new has started up (and a wget was successful)
 # Start with different port and then forward port internally
