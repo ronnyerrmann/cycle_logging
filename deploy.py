@@ -63,6 +63,7 @@ run_with_print(cmd)
 cmds = ["cp -rp /cycle_logging/* .",    # work in /cycle_django_int
         # don't use mv or rm in the original folder, as DATABASE_BACKUP_FOLDER is linked inside
         "cd cycle_django/",
+        "ln -s /load_db_dump_at_startup"
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
@@ -84,7 +85,7 @@ cmd = [docker_bin, "run", "--detach",
        "-e", "IS_PRODUCTION=True",
        "-v", f"{os.path.abspath('.')}:/{CYCLE_BASE_PATH}",
        "-v", f"{os.path.abspath(SETTINGS_FOLDER)}:/cycle_setup",        # listen to changes in this folder
-       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/{CYCLE_BASE_PATH}/cycle_django/load_db_dump_at_startup",
+       "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/load_db_dump_at_startup",
        "-p", "8314:8314",
        "--name", "cycle_log",
        docker_tag]
