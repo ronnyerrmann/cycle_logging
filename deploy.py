@@ -63,7 +63,7 @@ run_with_print(cmd)
 cmds = ["cp -rp /cycle_logging/* .",    # work in /cycle_django_int
         # don't use mv or rm in the original folder, as DATABASE_BACKUP_FOLDER is linked inside
         "cd cycle_django/",
-        "ln -s /load_db_dump_at_startup"
+        "ln -s /load_db_dump_at_startup",
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
