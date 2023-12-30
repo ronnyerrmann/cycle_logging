@@ -306,6 +306,8 @@ class GPSData(models.Model):
     GPX_FOLDERS = ["/home/ronny/Documents/gps-logger/"]
     GPX_IGNORE_FILES = [
         "tour-20101128_1551.gpx",       # Flug Madrid-Frankfurt
+        "tourges-20140707_0836.gpx",    # Jena-Bern
+        "tourges-20140820_0858.gpx",    # Norway
         "2023-08-27_08-48_Sun.gpx",
         "2023-08-09_13-47_Wed.gpx",
         "2023-05-30_14-39_Tue.gpx",
@@ -320,8 +322,12 @@ class GPSData(models.Model):
     class Meta:
         ordering = ['start']
 
+    @property
+    def number_entries(self) -> int:
+        return self.datetimes.count(',') + 1
+
     def __str__(self):
-        return f"{self.filename} - {self.datetimes.count(',')+1}"
+        return f"{self.filename} - {self.number_entries}"
 
     def get_absolute_url(self):
         """Returns the url to access a detail record for this GPS file."""

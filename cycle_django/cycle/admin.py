@@ -113,26 +113,29 @@ class CycleMonthlySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
 
 
-#admin.site.register(CycleYearlySummary)
+# admin.site.register(CycleYearlySummary)
 class CycleYearlySummaryAdmin(admin.ModelAdmin):
     list_display = ('date', 'distance', 'duration', 'speed', 'numberofdays')
+
 
 # Register the admin class with the associated model instead of using a decorator
 admin.site.register(CycleYearlySummary, CycleYearlySummaryAdmin)
 
+
 @admin.register(GPSData)
 class GPSDataAdmin(admin.ModelAdmin):
-    pass
+    list_display = (
+        'filename', 'start', 'end', 'number_entries'
+    )
 
 
 @admin.register(NoGoAreas)
 class NoGoAreasAdmin(admin.ModelAdmin):
     pass
 
+
 @admin.register(GeoLocateData)
 class GeoLocateDataAdmin(admin.ModelAdmin):
     list_display = (
         'name', 'radius', 'latitude', 'longitude'
     )
-
-
