@@ -274,7 +274,7 @@ class ExtraPlots(BaseDataListView):
         data = self.data_frame["distance"]
         range_dist = int(max(data) - min(data))
         fig_hist_dist = go.Figure()
-        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist / 2), name="Distance (4km bins)"))
+        fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=int(range_dist / 2), name="Distance (5km bins)"))
         fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist * 2, name="Distance (1km bins)"))
         fig_hist_dist.add_trace(go.Histogram(x=data, nbinsx=range_dist * 10, name="Distance (200m bins)"))
         fig_hist_dist.update_layout(
@@ -287,7 +287,8 @@ class ExtraPlots(BaseDataListView):
         range_dur = int(max(data) - min(data))
         fig_hist_dur = go.Figure()
         fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=int(range_dur / 5), name="Duration (10 min bins)"))
-        fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=range_dur * 2, name="Duration (1min bins)"))
+        fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=range_dur * 1, name="Duration (2 min bins)"))
+        fig_hist_dur.add_trace(go.Histogram(x=data, nbinsx=range_dur * 4, name="Duration (30 second bins)"))
         fig_hist_dur.update_layout(
             # Overlay both histograms
             barmode='overlay',
