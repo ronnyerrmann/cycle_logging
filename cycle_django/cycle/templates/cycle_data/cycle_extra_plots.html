@@ -36,6 +36,53 @@
     <p>There is a problem with the database.</p><br>
   {% endif %}
 
+  {% if same_numbers %}
+    <table  class='table_inner_borders_rows'>
+      <tr>
+        <th>Occurrences</th> <th>Value</th> <th>Dates</th>
+      </tr>
+      {% for entry in same_numbers.distance %}
+        <tr>
+          <td>{{ entry.count }}</td> <td>{{ entry.value }}&nbsp;km</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry.cycle_obj %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+      <tr>
+        <th>Occurrences</th> <th>Value</th> <th>Dates</th>
+      </tr>
+      {% for entry in same_numbers.duration_td %}
+        <tr>
+          <td>{{ entry.count }}</td> <td>{{ entry.value }}</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry.cycle_obj %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+      <tr>
+        <th>Occurrences</th> <th>Value</th> <th>Dates</th>
+      </tr>
+      {% for entry in same_numbers.speed %}
+        <tr>
+          <td>{{ entry.count }}</td> <td>{{ entry.value }}&nbsp;km/h</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry.cycle_obj %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+    </table>
+    <br>
+  {% else %}
+    <p>There is a problem with the database.</p><br>
+  {% endif %}
+
   <h3>Extra plots for daily data</h3>
   {% autoescape off %}
     {{ plot_total_div }}

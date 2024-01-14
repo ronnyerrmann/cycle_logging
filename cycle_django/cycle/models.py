@@ -317,6 +317,7 @@ class GPSData(models.Model):
         "2020-05-10_09-37_Sun.gpx",
         "2019-07-14_16-30_Sun.gpx",
         "2020-07-19_14-19_Sun.gpx",
+        "2024-01-11_06-51_Thu.gpx",     # Commute by public transport
     ]
 
     class Meta:

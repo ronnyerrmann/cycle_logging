@@ -194,13 +194,22 @@ class ExtraPlots(BaseDataListView):
         return CycleRides.objects.all()
 
     def get_context_data(self, **kwargs):
+        if self.data_frame is None:
+            return {}
         context = self.create_extra_plots()
-        dist_per_days = []
         data_frame = self.data_frame[['distance', 'duration_td', 'date']].copy()
         data_frame['duration'] = data_frame['duration_td'].dt.total_seconds()
         data_frame['Date_datetime'] = pandas.to_datetime(data_frame['date'])
         data_frame.set_index('Date_datetime', inplace=True)
         data_frame['Date_dt'] = pandas.to_datetime(data_frame['date'])
+
+        context['dist_per_days'] = self.get_dist_time_per_days(data_frame)
+        context['same_numbers'] = self.get_same_numbers()
+
+        return context
+
+    def get_dist_time_per_days(self, data_frame):
+        dist_per_days = []
         for days in (list(range(1, 8)) + [10, 14, 21] + list(range(30, 91, 20)) + list(range(120, 181, 30)) +
                      [270, 365, 365 * 2, 365 * 4 + 1]):
             result_all = {'days': days}
@@ -225,16 +234,33 @@ class ExtraPlots(BaseDataListView):
             if len(result_all.keys()) > 1:
                 dist_per_days.append(result_all)
 
-        context['dist_per_days'] = dist_per_days
+        return dist_per_days
 
-        return context
+    def get_same_numbers(self):
+        same_numbers = dict()
+        for column in ['distance', 'duration_td', 'speed']:
+            if column in ['distance', 'speed']:
+                count_entries = self.data_frame[column].round(2).value_counts()
+            else:
+                count_entries = self.data_frame[column].value_counts()
+            threshold = count_entries.iloc[min(10, count_entries.count())]
+            count_filtered = count_entries[count_entries > threshold]
+            result = []
+            for value, count in count_filtered.items():
+                if column in ['distance', 'speed']:
+                    dates = self.data_frame.loc[self.data_frame[column].round(2) == value, 'date'].sort_values().tolist()
+                else:
+                    dates = self.data_frame.loc[self.data_frame[column] == value, 'date'].sort_values().tolist()
+                result. append({'count': count, 'value': value, 'cycle_obj': [CycleRides.objects.filter(date=date)[0] for date in dates]})
+            same_numbers[column] = result
+            logger.info(f"112 {same_numbers}")
+
+        return same_numbers
 
     def add_data_serialized_models(self, serialized_models):
         pass
 
     def create_extra_plots(self) -> Dict:
-        if self.data_frame is None:
-            return {}
         ax = "date"
         ay1 = "totalspeed"
         ay2 = "totaldistance"
