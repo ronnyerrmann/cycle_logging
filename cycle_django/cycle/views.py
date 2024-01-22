@@ -205,6 +205,7 @@ class ExtraPlots(BaseDataListView):
 
         context['dist_per_days'] = self.get_dist_time_per_days(data_frame)
         context['same_numbers'] = self.get_same_numbers()
+        context['same_digits'] = self.get_same_digits()
 
         return context
 
@@ -253,9 +254,57 @@ class ExtraPlots(BaseDataListView):
                     dates = self.data_frame.loc[self.data_frame[column] == value, 'date'].sort_values().tolist()
                 result. append({'count': count, 'value': value, 'cycle_obj': [CycleRides.objects.filter(date=date)[0] for date in dates]})
             same_numbers[column] = result
-            logger.info(f"112 {same_numbers}")
 
         return same_numbers
+
+    def get_same_digits(self):
+        same_digits = dict()
+        possible_numbers = {31415, 314159, 27182, 271828, 2468, 8642, 1357, 7531, 13579, 97531}
+        """ Add all the numbers with the same digit for 4 to 7 digits: 1111 to 9999999 """
+        for i in range(1, 10):
+            number = 0
+            for repeat in range(7):
+                number += int(i * 10**repeat)
+                if repeat >= 4:
+                    possible_numbers.add(number)
+        """ All the number with increasing digits 3210, 9876543, 9876 and the reverses"""
+        for i in range(7):
+            number = 0
+            for repeat in range(min(8 if i == 0 else 7, 11-i)):     # for i == 0 create a 8 digit number, as the inverse would start with a 0
+                number += int((i + repeat) * 10**repeat)
+                if repeat < 4:
+                    continue
+                if number != 76543210:
+                    possible_numbers.add(number)
+                if i == 0 and repeat < 5:
+                    continue
+                possible_numbers.add(int(str(number)[::-1]))    # reverse number
+        possible_numbers.update(
+            {round(0.1 * number, 1) for number in possible_numbers} |
+            {round(0.01 * number, 2) for number in possible_numbers}
+        )
+
+        distances = dict()
+        totaldistances = dict()
+        times = dict()
+        speeds = dict()
+        for obj in CycleRides.objects.all():
+            if obj.distance in possible_numbers:
+                if obj.distance not in distances.keys():
+                    distances[obj.distance] = []
+                distances[obj.distance].append(obj)
+            if obj.totaldistance in possible_numbers:
+                if obj.totaldistance not in totaldistances.keys():
+                    totaldistances[obj.totaldistance] = []
+                totaldistances[obj.totaldistance].append(obj)
+            obj_speed = round(obj.speed, 2)
+            if obj_speed in possible_numbers:
+                if obj_speed not in speeds.keys():
+                    speeds[obj_speed] = []
+                speeds[obj_speed].append(obj)
+        same_digits = {'distances': distances, 'totaldistances': totaldistances, 'times': times, 'speeds': speeds}
+        logger.info(f"111, {possible_numbers}, {same_digits}")
+        return same_digits
 
     def add_data_serialized_models(self, serialized_models):
         pass

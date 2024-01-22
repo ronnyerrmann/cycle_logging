@@ -31,7 +31,7 @@
         There are no entries available.
       {% endfor %}
     </table>
-    <br>
+  <br>
   {% else %}
     <p>There is a problem with the database.</p><br>
   {% endif %}
@@ -78,7 +78,48 @@
         </tr>
       {% endfor %}
     </table>
-    <br>
+  <br>
+  {% else %}
+    <p>There is a problem with the database.</p><br>
+  {% endif %}
+
+  {% if same_digits %}
+    <table  class='table_inner_borders_rows'>
+      <tr>
+        <th>Number</th> <th>Dates</th>
+      </tr>
+      {% for key, entry in same_digits.distances.items %}
+        <tr>
+          <td>{{ key }} km</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+      {% for key, entry in same_digits.speeds.items %}
+        <tr>
+          <td>{{ key }} km/h</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+      {% for key, entry in same_digits.totaldistances.items %}
+        <tr>
+          <td>{{ key }} km</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+    </table>
+  <br>
   {% else %}
     <p>There is a problem with the database.</p><br>
   {% endif %}
