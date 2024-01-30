@@ -130,7 +130,7 @@
       {% endfor %}
       {% for key, entry in same_digits.totaltimes.items %}
         <tr>
-          <td>{{ key }} </td>
+          <td>{{ key }} - {{ key|convert_duration_hms }} </td>
           <td><span style="font-size: smaller;">
             {% for entry2 in entry %}
               {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>

@@ -278,21 +278,32 @@ class ExtraPlots(BaseDataListView):
                 return (d * 24 + h) * 3600 + m * 60
             return None
 
+        def convert_number_to_hm(number):
+            h, m = divmod(number, 100)
+            if m < 60:
+                return h * 3600 + m * 60
+            return None
+
         def add_results(key, this_table):
             if key not in this_table.keys():
                 this_table[key] = []
             this_table[key].append(obj)
 
-        possible_numbers = {31415, 314159, 27182, 271828, 2468, 8642, 86420, 1357, 7531, 13579, 97531}
+        possible_numbers = {
+            31415, 314159, 3141592, 31415926, 314159265, 27182, 271828, 2718281, 27182818, 271828182,
+            2468, 8642, 86420, 1357, 7531, 13579, 97531
+        }
         possible_times_s = {convert_number_to_hms(i) for i in possible_numbers}
         possible_times_s_total = {convert_number_to_dhm(i) for i in possible_numbers}
+        possible_times_s_total.update({convert_number_to_hm(i) for i in possible_numbers})
         """ Add all the numbers with the same digit for 4 to 7 digits: 1111 to 9999999 """
         for i in range(1, 10):
             number = 0
             for repeat in range(7):
                 number += int(i * 10**repeat)
-                if repeat >= 4:
+                if repeat >= 3:
                     possible_numbers.add(number)
+                    possible_times_s_total.add(convert_number_to_hm(number))
         for i in range(1, 6):
             possible_times_s.add(671 * i)        # (11 * i) * (60 + 1), e.g. 22:22
             possible_times_s.add(4271 * i)       # (11 * i) * (60 + 1) + 3600 * i, e.g 5:55:55
@@ -312,12 +323,14 @@ class ExtraPlots(BaseDataListView):
                 possible_numbers.add(number)
                 possible_times_s.add(convert_number_to_hms(number))
                 possible_times_s_total.add(convert_number_to_dhm(number))
+                possible_times_s_total.add(convert_number_to_hm(number))
                 if i == 0 and repeat < 4:   # don't use 0123
                     continue
                 number_r = int(str(number)[::-1])   # reverse number
                 possible_numbers.add(number_r)
                 possible_times_s.add(convert_number_to_hms(number_r))
                 possible_times_s_total.add(convert_number_to_dhm(number_r))
+                possible_times_s_total.add(convert_number_to_hm(number_r))
         possible_numbers.update(
             {round(0.1 * number, 1) for number in possible_numbers} |
             {round(0.01 * number, 2) for number in possible_numbers}

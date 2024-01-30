@@ -36,3 +36,15 @@ def seconds_to_datetime(seconds):
     if isinstance(seconds, str):
         return seconds
     return str(datetime.timedelta(seconds=seconds))
+
+
+@register.filter
+def convert_duration_hms(duration):
+    """ Convert a timedelta from a models.DurationField to hours:mm:ss"""
+    if duration is None:
+        return ''
+    hours, remainder = divmod(duration.seconds, 3600)
+    hours += duration.days * 24
+    minutes, seconds = divmod(remainder, 60)
+
+    return f'{hours}:{minutes:02}:{seconds:02}'
