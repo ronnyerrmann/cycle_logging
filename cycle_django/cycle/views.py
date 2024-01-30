@@ -258,8 +258,34 @@ class ExtraPlots(BaseDataListView):
         return same_numbers
 
     def get_same_digits(self):
-        same_digits = dict()
-        possible_numbers = {31415, 314159, 27182, 271828, 2468, 8642, 1357, 7531, 13579, 97531}
+        def convert_number_to_hms(number):
+            m, s = divmod(number, 100)
+            if m > 100:
+                h, m = divmod(m, 100)
+            else:
+                h = 0
+            if s < 60 and m < 60 and h < 24:
+                return h * 3600 + m * 60 + s
+            return None
+
+        def convert_number_to_dhm(number):
+            h, m = divmod(number, 100)
+            if h > 100:
+                d, h = divmod(h, 100)
+            else:
+                d = 0
+            if m < 60 and h < 24:
+                return (d * 24 + h) * 3600 + m * 60
+            return None
+
+        def add_results(key, this_table):
+            if key not in this_table.keys():
+                this_table[key] = []
+            this_table[key].append(obj)
+
+        possible_numbers = {31415, 314159, 27182, 271828, 2468, 8642, 86420, 1357, 7531, 13579, 97531}
+        possible_times_s = {convert_number_to_hms(i) for i in possible_numbers}
+        possible_times_s_total = {convert_number_to_dhm(i) for i in possible_numbers}
         """ Add all the numbers with the same digit for 4 to 7 digits: 1111 to 9999999 """
         for i in range(1, 10):
             number = 0
@@ -267,18 +293,31 @@ class ExtraPlots(BaseDataListView):
                 number += int(i * 10**repeat)
                 if repeat >= 4:
                     possible_numbers.add(number)
+        for i in range(1, 6):
+            possible_times_s.add(671 * i)        # (11 * i) * (60 + 1), e.g. 22:22
+            possible_times_s.add(4271 * i)       # (11 * i) * (60 + 1) + 3600 * i, e.g 5:55:55
+            if i <= 2:
+                possible_times_s.add(40271 * i)  # (11 * i) * (3600 + 60 + 1), e.g. 11:11:11
+                days = 0
+                for j in range(5):
+                    days += int(i * 10**j)
+                    possible_times_s_total.add(40260 * i + 86400 * days)  # (11 * i) * (60 + 3600) + 24 * 3600 * days
         """ All the number with increasing digits 3210, 9876543, 9876 and the reverses"""
         for i in range(7):
             number = 0
-            for repeat in range(min(8 if i == 0 else 7, 11-i)):     # for i == 0 create a 8 digit number, as the inverse would start with a 0
+            for repeat in range(min(10 if i == 0 else 9, 10-i)):     # for i == 0 create a 10 digit number, as the inverse would start with a 0
                 number += int((i + repeat) * 10**repeat)
-                if repeat < 4:
+                if repeat < 3:
                     continue
-                if number != 76543210:
-                    possible_numbers.add(number)
-                if i == 0 and repeat < 5:
+                possible_numbers.add(number)
+                possible_times_s.add(convert_number_to_hms(number))
+                possible_times_s_total.add(convert_number_to_dhm(number))
+                if i == 0 and repeat < 4:   # don't use 0123
                     continue
-                possible_numbers.add(int(str(number)[::-1]))    # reverse number
+                number_r = int(str(number)[::-1])   # reverse number
+                possible_numbers.add(number_r)
+                possible_times_s.add(convert_number_to_hms(number_r))
+                possible_times_s_total.add(convert_number_to_dhm(number_r))
         possible_numbers.update(
             {round(0.1 * number, 1) for number in possible_numbers} |
             {round(0.01 * number, 2) for number in possible_numbers}
@@ -287,23 +326,25 @@ class ExtraPlots(BaseDataListView):
         distances = dict()
         totaldistances = dict()
         times = dict()
+        totaltimes = dict()
         speeds = dict()
         for obj in CycleRides.objects.all():
             if obj.distance in possible_numbers:
-                if obj.distance not in distances.keys():
-                    distances[obj.distance] = []
-                distances[obj.distance].append(obj)
+                add_results(obj.distance, distances)
+            if obj.duration.total_seconds() in possible_times_s:
+                add_results(obj.duration, times)
             if obj.totaldistance in possible_numbers:
-                if obj.totaldistance not in totaldistances.keys():
-                    totaldistances[obj.totaldistance] = []
-                totaldistances[obj.totaldistance].append(obj)
+                add_results(obj.totaldistance, totaldistances)
+            if obj.totalduration.total_seconds() in possible_times_s_total:
+                add_results(obj.totalduration, totaltimes)
             obj_speed = round(obj.speed, 2)
             if obj_speed in possible_numbers:
-                if obj_speed not in speeds.keys():
-                    speeds[obj_speed] = []
-                speeds[obj_speed].append(obj)
-        same_digits = {'distances': distances, 'totaldistances': totaldistances, 'times': times, 'speeds': speeds}
-        logger.info(f"111, {possible_numbers}, {same_digits}")
+                add_results(obj_speed, speeds)
+
+        same_digits = {
+            'distances': distances, 'totaldistances': totaldistances, 'times': times, 'totaltimes': totaltimes,
+            'speeds': speeds
+        }
         return same_digits
 
     def add_data_serialized_models(self, serialized_models):

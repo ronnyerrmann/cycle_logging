@@ -98,6 +98,16 @@
           </span></td>
         </tr>
       {% endfor %}
+      {% for key, entry in same_digits.times.items %}
+        <tr>
+          <td>{{ key }} </td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
       {% for key, entry in same_digits.speeds.items %}
         <tr>
           <td>{{ key }} km/h</td>
@@ -111,6 +121,16 @@
       {% for key, entry in same_digits.totaldistances.items %}
         <tr>
           <td>{{ key }} km</td>
+          <td><span style="font-size: smaller;">
+            {% for entry2 in entry %}
+              {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
+            {% endfor %}
+          </span></td>
+        </tr>
+      {% endfor %}
+      {% for key, entry in same_digits.totaltimes.items %}
+        <tr>
+          <td>{{ key }} </td>
           <td><span style="font-size: smaller;">
             {% for entry2 in entry %}
               {{ sn_date }}<a href="{{ entry2.get_absolute_url }}">{{ entry2.date|date:"Y-m-d" }}</a>
