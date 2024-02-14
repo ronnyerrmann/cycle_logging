@@ -241,10 +241,13 @@ class ExtraPlots(BaseDataListView):
         same_numbers = dict()
         for column in ['distance', 'duration_td', 'speed']:
             if column in ['distance', 'speed']:
+                # Round to 2 digits and then count same values
                 count_entries = self.data_frame[column].round(2).value_counts()
             else:
                 count_entries = self.data_frame[column].value_counts()
-            threshold = count_entries.iloc[min(10, count_entries.count())]
+            # counted values are sorted from highest down
+            # keep the counted values that are one higher than the 20th highest
+            threshold = count_entries.iloc[min(20, count_entries.count())]
             count_filtered = count_entries[count_entries > threshold]
             result = []
             for value, count in count_filtered.items():
@@ -252,7 +255,10 @@ class ExtraPlots(BaseDataListView):
                     dates = self.data_frame.loc[self.data_frame[column].round(2) == value, 'date'].sort_values().tolist()
                 else:
                     dates = self.data_frame.loc[self.data_frame[column] == value, 'date'].sort_values().tolist()
-                result. append({'count': count, 'value': value, 'cycle_obj': [CycleRides.objects.filter(date=date)[0] for date in dates]})
+                result. append({
+                    'count': count, 'value': value,
+                    'cycle_obj': [CycleRides.objects.filter(date=date)[0] for date in dates]
+                })
             same_numbers[column] = result
 
         return same_numbers
