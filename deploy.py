@@ -68,7 +68,8 @@ cmds = ["cp -rp /cycle_logging/* .",    # work in /cycle_django_int
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
-        "gunicorn cycle_django.wsgi -b 0.0.0.0:8315 --timeout 120"
+        "gunicorn cycle_django.wsgi -b 0.0.0.0:8315 --timeout 120",
+        "sleep 3600",       # allow debugging if something else crashes
         ]
 with open(os.path.join("cycle_django", "docker_startup.sh"), "w") as f:
     f.write("#!/bin/bash\n")
