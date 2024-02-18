@@ -7,6 +7,7 @@ DOCKER_BINS = ["/usr/bin/docker", "/snap/bin/docker"]
 SETTINGS_FOLDERS = [
     "/home/ronny/Documents/Scripts/cycle_logging",                      # Test Production locally
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
+    "/home/roghurt/cycle_logging_tmp/",     # Test production
 ]
 CYCLE_BASE_PATH = "cycle_logging"
 
