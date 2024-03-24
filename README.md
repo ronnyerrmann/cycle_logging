@@ -45,7 +45,7 @@ The backup of the database will be stored in the folder from which the deploy sc
 The log of the migrations and the gunicorn server are stored under `cycle_logging/cycle_django/docker_run.log`.
 
 ### Live version
-The website runs on a test server: [Cycle Results](http://173.212.217.18:8314).
+The website runs on a test server: [Cycle Results](http://109.123.245.13:8314).
 
 ### Learnings
 * Django makes the development easier only if it can manage tables
