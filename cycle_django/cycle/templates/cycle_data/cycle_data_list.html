@@ -10,7 +10,10 @@
         {{ plot_div }}
     {% endautoescape %}
     <form method="get">
-      {{ plotdataform }}
+      {% for field in plotdataform %}
+        {{ field.errors }}
+        {{ field.label_tag }} {{ field }} &nbsp;&nbsp;
+      {% endfor %}
       <button type="submit">Replot</button>
       <p>(Unfortunately, plotly doesn't handle timedelta objects yet, hence all durations are given from 1970-01-01)</p>
     </form>

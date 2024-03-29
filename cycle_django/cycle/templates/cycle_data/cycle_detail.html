@@ -11,31 +11,31 @@
 
 {% block content %}
   {% if dataType == 'd' %}
-    <h3><a href="">{{ cycle.entryid }}: {{ cycle.date }}</a></h3><!-- author detail link not yet defined -->
+    <h4><a href="">{{ cycle.entryid }}: {{ cycle.date }}</a></h4><!-- author detail link not yet defined -->
     <div style="margin-left:20px;margin-top:20px">
-      <h4>Day/Trip</h4>
-      <p><strong>Distance:</strong> {{ cycle.distance }}</p>
-      <p><strong>Time:</strong> {{ cycle.duration }}</p>
-      <p><strong>Speed:</strong> {{ cycle.speed }}</p>
+      <h5>Day/Trip</h5>
+      <p><strong>Distance:</strong> {{ cycle.distance }} &nbsp;
+        <strong>Time:</strong> {{ cycle.duration }} &nbsp;
+        <strong>Speed:</strong> {{ cycle.speed }}</p>
     </div>
     <div style="margin-left:20px;margin-top:20px">
-      <h4>Total (from bicycle computer)</h4>
-      <p><strong>Distance:</strong> {{ cycle.totaldistance }}</p>
-      <p><strong>Time:</strong> {{ cycle.totalduration }}</p>
-      <p><strong>Speed:</strong> {{ cycle.totalspeed }}</p>
+      <h5>Total (from bicycle computer)</h5>
+      <p><strong>Distance:</strong> {{ cycle.totaldistance }} &nbsp;
+        <strong>Time:</strong> {{ cycle.totalduration }} &nbsp;
+        <strong>Speed:</strong> {{ cycle.totalspeed }}</p>
     </div>
     <div style="margin-left:20px;margin-top:20px">
-      <h4>Culmulative values</h4>
-      <p><strong>Distance:</strong> {{ cycle.cumdistance }}</p>
-      <p><strong>Time:</strong> {{ cycle.cumduration }}</p>
+      <h5>Culmulative values</h5>
+      <p><strong>Distance:</strong> {{ cycle.cumdistance }} &nbsp;
+        <strong>Time:</strong> {{ cycle.cumduration }}</p>
     </div>
   {% elif dataType == 'wmy' %}
-    <h3><a href="">{{ cycle.date }}</a></h3>
+    <h4><a href="">{{ cycle.date }}</a></h4>
     <div style="margin-left:20px;margin-top:20px">
-      <p><strong>Number of Days/Trips:</strong> {{ cycle.numberofdays }}</p>
-      <p><strong>Distance:</strong> {{ cycle.distance }}</p>
-      <p><strong>Time:</strong> {{ cycle.duration }}</p>
-      <p><strong>Speed:</strong> {{ cycle.speed }}</p>
+      <p><strong>Number of Days/Trips:</strong> {{ cycle.numberofdays }} &nbsp;
+        <strong>Distance:</strong> {{ cycle.distance }} &nbsp;
+        <strong>Time:</strong> {{ cycle.duration }} &nbsp;
+        <strong>Speed:</strong> {{ cycle.speed }}</p>
     </div>
   {% endif %}
 
@@ -53,7 +53,16 @@
       {% if gpsdatarangeform %}
         <form method="get">
           Select a different time period for GPS data:
-          {{ gpsdatarangeform }}
+          {% for field in gpsdatarangeform.visible_fields %}
+            {{ field.errors }}
+            {{ field.label_tag }} {{ field }} &nbsp;&nbsp;
+          {% endfor %}
+          <div style="display:none">
+          {% for field in gpsdatarangeform.hidden_fields %}
+            {{ field.errors }}
+            {{ field.label_tag }} {{ field }}
+          {% endfor %}
+          </div>
         <button type="submit" onclick="copyCoords()";>Replot</button>
       {% endif %}
     </form>
