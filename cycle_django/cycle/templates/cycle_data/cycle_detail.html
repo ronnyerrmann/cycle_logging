@@ -260,6 +260,10 @@
             document.getElementById('id_zoom').value = map.getZoom();
             document.getElementById('id_cenLat').value = centerCoordinates.lat.toFixed(9);
             document.getElementById('id_cenLng').value = centerCoordinates.lng.toFixed(9);
+          } else {
+            document.getElementById('id_zoom').value = null;
+            document.getElementById('id_cenLat').value = null;
+            document.getElementById('id_cenLng').value = null;
           }
           // Continue with the form submission
           event.target.form.submit();
