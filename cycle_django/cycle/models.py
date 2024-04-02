@@ -2,6 +2,7 @@ import datetime
 import gpxpy
 import json
 import os
+import numpy as np
 from typing import List, Union
 
 from django.db import models
@@ -15,6 +16,13 @@ from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
 
+# Make SRTM availale
+if os.environ.get('SRTM1_DIR'):
+    import srtm
+    elevation_data_30m = srtm.Srtm1HeightMapCollection()
+    elevation_data_90m = srtm.Srtm3HeightMapCollection()
+else:
+    logger.warning('Not using SRTM!')
 
 def convert_to_str_hours(value: Union[int, datetime.timedelta]) -> str:
     if isinstance(value, datetime.timedelta):
@@ -302,6 +310,7 @@ class GPSData(models.Model):
     latitudes = models.TextField()
     longitudes = models.TextField()
     altitudes = models.TextField()
+    alt_srtm = models.TextField()
     speeds = models.TextField(null=True)
     GPX_FOLDERS = ["/home/ronny/Documents/gps-logger/"]
     GPX_IGNORE_FILES = [
@@ -371,6 +380,8 @@ class GPSData(models.Model):
                 latitudes = []
                 longitudes = []
                 altitudes = []
+                alt_srtm = []
+                alt_diff = []
                 for track in gpx.tracks:
                     if bad:
                         break
@@ -382,24 +393,63 @@ class GPSData(models.Model):
                                 logger.warning(f"Point without timestamp in {filename}: {point} - will ignore file")
                                 bad = True
                                 break
+                            if abs(point.latitude) == 90:   # ignore dummy values
+                                continue
                             if not datetimes:
                                 start = point.time
-                            datetimes.append(point.time.timestamp())
-                            latitudes.append(point.latitude)
-                            longitudes.append(point.longitude)
+                            datetimes.append(int(point.time.timestamp()))
+                            latitudes.append(round(point.latitude, 5))
+                            longitudes.append(round(point.longitude, 5))
                             altitudes.append(point.elevation)
+                            if os.environ.get('SRTM1_DIR'):
+                                for i, elevation_data_source in enumerate({elevation_data_30m, elevation_data_90m}):
+                                    try:
+                                        elevation_srtm = elevation_data_source.get_altitude(
+                                            latitude=point.latitude, longitude=point.longitude
+                                        )
+                                    # except KeyError:  # That exception is only internally to srtm
+                                    #     logger.warning(f'No SRTM data for {point.latitude}, {point.longitude}')
+                                    #     elevation_srtm = -1E6
+                                    except srtm.exceptions.NoHeightMapDataException:
+                                        if i == 1:
+                                            logger.warning(f'Cannot read srtm data, will not read the file')
+                                            bad = True
+                                    except AssertionError as e:
+                                        if str(e).startswith('Unexpected number of bytes found in'):
+                                            logger.warning(f'Problem with (zipped) htg file: {e}')
+                                            bad = True
+                                            break
+                                        else:
+                                            raise
+                                    else:   # no exceptions, don't try second elevation_data_source
+                                        break
+                                if bad:
+                                    break
+                                alt_srtm.append(elevation_srtm)
+                                diff = elevation_srtm - point.elevation
+                                if abs(diff) < 200:
+                                    alt_diff.append(diff)
+
                     end = point.time
                 if bad or len(datetimes) < 20:
                     logger.warning(f"Ignored {len(datetimes)} points from {filename}")
                 else:
+                    alt_adjust_text = ''
+                    if len(alt_diff) > 50:
+                        alt_adjust = np.median(alt_diff)
+                        if abs(alt_adjust) >= 10:   # Some devices don't record the correct gps elevation
+                            for i in range(len(altitudes)):
+                                altitudes[i] = int(round(altitudes[i] + alt_adjust))
+                            alt_adjust_text = f', moved altitudes by {alt_adjust:.2f}m to match SRTM'
+
                     obj = GPSData(
                         filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
                         latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
-                        altitudes=json.dumps(altitudes),
+                        altitudes=json.dumps(altitudes), alt_srtm=json.dumps(alt_srtm)
                     )
                     # not just -1 but -10, as otherwise empty files can be an issue
                     obj.save(no_backup=(ii < len(gpx_files)-10))
-                    logger.info(f"Loaded {len(datetimes)} points from {filename}")
+                    logger.info(f"Loaded {len(datetimes)} points from {filename}{alt_adjust_text}")
 
 
 class NoGoAreas(models.Model):

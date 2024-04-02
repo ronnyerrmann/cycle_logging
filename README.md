@@ -10,7 +10,13 @@ To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Lear
 
 The following packages are required
 ```
-pip install requests urllib3 django pandas plotly gpxpy django-leaflet psutil
+pip install requests urllib3 django pandas plotly gpxpy django-leaflet psutil python-srtm
+```
+
+To create the environment:
+```commandline
+python manage.py makemigrations
+python manage.py migrate
 ```
 
 The tests can be executed by running in folder `cycle_logging/cycle_django`:
@@ -46,6 +52,13 @@ The log of the migrations and the gunicorn server are stored under `cycle_loggin
 
 ### Live version
 The website runs on a test server: [Cycle Results](http://109.123.245.13:8314).
+
+### Using SRTM:
+* There was a time, when the SRTM data could be accessed from a US government server through an API. That option is long gone.
+* The implemented solution uses https://pypi.org/project/python-srtm/ and requires the path to the SRTM data being set: `export SRTM1_DIR=/path/to/srtm1/` and `export SRTM3_DIR=/path/to/srtm3/` .
+* The SRTM data needs to be stored as htg or htg.zip files. I used `get_srtm_hgt_files.py` to download the files.
+* Finally, the SRTM htg files can be zipped using `for file in *.htg; do zip "${file}.zip" "$file" && rm "$file" && echo "$file has been zipped into ${file}.zip"; done` .
+* GPS files that were loaded without SRTM data won't get SRTM data automatically. They need to be removed, so they will be loaded again.
 
 ### Learnings
 * Django makes the development easier only if it can manage tables

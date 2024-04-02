@@ -88,6 +88,7 @@ cmd = [docker_bin, "run", "--detach",
        "-v", f"{os.path.abspath('.')}:/{CYCLE_BASE_PATH}",
        "-v", f"{os.path.abspath(SETTINGS_FOLDER)}:/cycle_setup",        # listen to changes in this folder
        "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/load_db_dump_at_startup",
+       # need to mount SRTM data and set the environment variable to it
        "-p", "8314:8314",
        "--name", "cycle_log",
        docker_tag]
