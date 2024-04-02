@@ -35,7 +35,7 @@ class BackgroundThread(threading.Thread):
         try:
             with open('/tmp/cycle_background_task', 'r') as f:
                 pid = int(f.readline().strip())
-        except OSError as e:
+        except (OSError, ValueError) as e:
             pass
         if pid and psutil.pid_exists(pid):
             # A background process is already running
