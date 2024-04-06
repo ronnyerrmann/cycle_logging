@@ -439,9 +439,10 @@ class GPSData(models.Model):
                         alt_adjust = np.median(alt_diff)
                         if abs(alt_adjust) >= 10:   # Some devices don't record the correct gps elevation
                             for i in range(len(altitudes)):
-                                altitudes[i] = int(round(altitudes[i] + alt_adjust))
-                            alt_adjust_text = f', moved altitudes by {alt_adjust:.2f}m to match SRTM'
-
+                                altitudes[i] = altitudes[i] + alt_adjust
+                            alt_adjust_text = f', moved altitudes by {alt_adjust:.1f}m to match SRTM'
+                    for i in range(len(altitudes)):
+                        altitudes[i] = int(round(altitudes[i]))
                     obj = GPSData(
                         filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
                         latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),

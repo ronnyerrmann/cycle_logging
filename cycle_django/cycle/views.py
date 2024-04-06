@@ -566,9 +566,13 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         if coords and not (np.max(lats) > lat_min and np.min(lats) < lat_max and
                            np.max(lons) > lon_min and np.min(lons) < lon_max):
             continue
-        times = np.array(obj.datetimes[1:-1].split(", "), dtype=np.float64)  # e.g. 1269530756.0
-        elev = np.array(obj.altitudes[1:-1].split(", "), dtype=np.float64)
-        objs.append({'Times': times, 'Latitudes_deg': lats, 'Longitudes_deg': lons, 'Altitudes': elev})
+        objs.append({
+            'Times': np.array(obj.datetimes[1:-1].split(", "), dtype=int),  # e.g. 1269530756
+            'Latitudes_deg': lats,
+            'Longitudes_deg': lons,
+            'Altitudes': np.array(obj.altitudes[1:-1].split(", "), dtype=int),
+            'Altitudes_srtm': np.array(obj.alt_srtm[1:-1].split(", "), dtype=int),
+        })
         individual_gps_list.append({'url': obj.get_absolute_url(), 'start': obj.start, 'end': obj.end})
 
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
@@ -600,8 +604,8 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
 
     all_positions = []
     all_df = pandas.DataFrame({
-        'Duration': [], 'Distance': [], 'Altitudes': [], 'Speed_5': [], 'Speed_50': [], 'Times': [],
-        'Latitudes_deg': [], 'Longitudes_deg': [], 'Longitudes_rad': [], 'sin_lat': [], 'cos_lat': []
+        'Duration': [], 'Distance': [], 'Altitudes': [], 'Altitudes_srtm': [], 'Speed_5': [], 'Speed_50': [],
+        'Times': [], 'Latitudes_deg': [], 'Longitudes_deg': [], 'Longitudes_rad': [], 'sin_lat': [], 'cos_lat': []
     })
 
     earth_radius = 6371.009
@@ -698,7 +702,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         all_positions.append(positions)
         all_df = pandas.concat(
             [all_df, df[[
-                'Duration', 'Distance', 'Altitudes', 'Speed_5', 'Speed_50', 'Times',
+                'Duration', 'Distance', 'Altitudes', 'Altitudes_srtm', 'Speed_5', 'Speed_50', 'Times',
                 'Latitudes_deg', 'Longitudes_deg', 'Longitudes_rad', 'sin_lat', 'cos_lat'
             ]][~df['Duration'].isna()]], ignore_index=True
         )
@@ -714,12 +718,17 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         all_df['Culm_speed'] = all_df['Culm_dist'] / culm_duration * 3600
         alt_rolling_median = all_df['Altitudes'].rolling(window=5).median().to_numpy()
         alt_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
+        alt_rolling_median = all_df['Altitudes_srtm'].rolling(window=5).median().to_numpy()
+        alt_srtm_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
         ax = "Culm_dist"
         ay1 = "Altitudes"
+        ay1s = "Altitudes_srtm"
         ay2 = "Speed_5"
         ay3 = "Speed_50"
         ay4 = "Culm_speed"
         fig = go.Figure()
+        fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1s], name="SRTM Elevation [m]",
+                                 mode='lines', marker=dict(color='#FF9999')))
         fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1], name="Elevation [m]",
                                  mode='lines', marker=dict(color='#FF0000')))
 
@@ -798,7 +807,10 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
                    f"{all_df['Culm_dist'].iloc[-1]:.2f} km, "
                    f"{datetime.timedelta(seconds=culm_duration.iloc[-1])} moving, "
                    f"{all_df['Culm_speed'].iloc[-1]:.2f} km/h, "
-                   f"{alt_diff[alt_diff > 0].sum():.0f} m up, {alt_diff[alt_diff < 0].sum():.0f} m down"),
+                   f"{alt_diff[alt_diff > 0].sum():.0f} m up, {alt_diff[alt_diff < 0].sum():.0f} m down, "
+                   f" SRTM: {alt_srtm_diff[alt_srtm_diff > 0].sum():.0f} m up, "
+                   f"{alt_srtm_diff[alt_srtm_diff < 0].sum():.0f} m down"
+                   ),
             xaxis=dict(title="Distance [km]", domain=[0.0, 0.92]),
             yaxis=dict(
                 title="Elevation [m]",
