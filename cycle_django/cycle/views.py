@@ -9,11 +9,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from typing import Dict, List, Union
 
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.core import serializers
 from django.db.models import Avg, Max, Min, Sum
 from django.views import generic
-from django.shortcuts import get_object_or_404
 
 from .models import (
     CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData
@@ -654,14 +653,15 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
         min_consecutive_points = 10  # exclude sections with breaks within min_consecutive_points points
         min_periods = 3  # to calculate rolling median/sum at least these number of datapoints should not be nans
         # Duration
-        df['Duration'] = np.zeros(df.shape[0])
-        df['Duration'][1:] = (df['Times'].shift(-1) - df['Times'])[:-1]  # in Seconds
+        duration = np.zeros(df.shape[0])
+        duration[1:] = (df['Times'].shift(-1) - df['Times'])[:-1]  # in Seconds
+        df['Duration'] = duration
         ## Exclude datapoints after/during a stop
-        df['Duration'][df['Duration'] > paused_after] = np.nan
+        df.loc[df['Duration'] > paused_after, 'Duration'] = np.nan
         duration_rolling_median = df['Duration'].rolling(
             window=window_med_duration, min_periods=int(0.1 * window_med_duration)
         ).median().to_numpy()
-        df['Duration'][df['Duration'] > 3 * duration_rolling_median] = np.nan
+        df.loc[df['Duration'] > 3 * duration_rolling_median, 'Duration'] = np.nan
         duration_is_nan = np.where(df['Duration'].isna().to_numpy())[0]
         if duration_is_nan.shape[0] >= 1:
             if duration_is_nan[0] <= min_consecutive_points:
@@ -674,14 +674,15 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
                 index_df_beg = duration_is_nan[index]
                 index_df_end = duration_is_nan[index + 1]
                 df['Duration'][index_df_beg:index_df_end] = np.nan
-        df['Altitudes'][df['Duration'].isna()] = np.nan
+        df.loc[df['Duration'].isna(), 'Altitudes'] = np.nan
         # Distance
-        df['Distance'] = np.zeros(df.shape[0])
-        df['Distance'][1:] = (np.arccos(
+        distance = np.zeros(df.shape[0])
+        distance[1:] = (np.arccos(
             df['sin_lat'] * df['sin_lat'].shift(-1) +
             df['cos_lat'] * df['cos_lat'].shift(-1) * np.cos(df['Longitudes_rad'] - df['Longitudes_rad'].shift(-1))
         ) * earth_radius)[:-1]
-        df['Distance'][df['Duration'].isna()] = np.nan
+        df['Distance'] = distance
+        df.loc[df['Duration'].isna(), 'Distance'] = np.nan
         # Speed
         duration_rolling_sum = df['Duration'].rolling(window=5, min_periods=min_periods).sum().to_numpy()
         distance_rolling_sum = df['Distance'].rolling(window=5, min_periods=min_periods).sum().to_numpy()
