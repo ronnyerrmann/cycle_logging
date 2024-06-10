@@ -2,6 +2,8 @@
 
 {% load filters %}
 
+{% load static %}
+
 {% load leaflet_tags %}
 
 {% block extra_head %}
@@ -70,8 +72,9 @@
     {% autoescape off %}
         {{ plot_div }}
     {% endautoescape %}
-    {% if markers %}
+    {% if adminView %}
       <button id="addNewMarker">Add new place</button>
+      <button id="addNewPhoto">Add new photo</button>
       <div id="markerForm" style="display: none;">
         <form id="placeForm">
             <label for="name">Name:</label>
@@ -83,6 +86,17 @@
             <button type="button" id="addUpdateButton">Add</button>
             <button type="button" id="cancelButton">Cancel</button>
             <input type="text" id="identifierInput" name="identifier" disabled size="0">
+        </form>
+      </div>
+      <div id="photoFormDiv" style="display: none;">
+        <form id="photoForm">
+            <label for="filename">Name:</label>
+            <input type="text" id="filename" name="photofilename" required>
+            <label for="description">Description:</label>
+            <input type="text" id="description" name="photoDescription" required>
+            <button type="button" id="addUpdatePhotoButton">Add</button>
+            <button type="button" id="cancelPhotoButton">Cancel</button>
+            <input type="text" id="identifierInputPhoto" name="identifierPhoto" disabled size="0">
         </form>
       </div>
       <button id="saveUpdate">Save changes to database</button>
@@ -98,7 +112,7 @@
             L.polyline({{ position | safe }}, { color: 'blue' }).addTo(map);
         {% endfor %}
 
-        {% if markers %}
+        {% if adminView %}
           const updatedMarkers = {};
           const markersMap = {};
           const origMarkers = {};
@@ -115,7 +129,7 @@
 
           function AddNewMarker(name, lat, lon, radius, identifier='New') {
             RemoveMarker(identifier);
-            markersMap[identifier] = {name: name, radius, radius};
+            markersMap[identifier] = {name: name, radius: radius};
             markersMap[identifier].marker = new L.marker(L.latLng(lat, lon), {draggable:'true'});
             markersMap[identifier].marker.addTo(map).bindPopup(name + ' - ' + radius + 'km');
             markersMap[identifier].circle = new L.circle(markersMap[identifier].marker.getLatLng(), {
@@ -239,17 +253,127 @@
 
           document.getElementById('saveUpdate').addEventListener('click', function() {
             var queryParams = [];
-            if (Object.keys(updatedMarkers).length > 0) {
+            if (Object.keys(updatedMarkers).length > 0 || Object.keys(updatedMarkersPhotos).length > 0) {
               var url = window.location.protocol + '//' + window.location.hostname
               if (window.location.port) { url += ':' + window.location.port }
               url += window.location.pathname
-              url += '?' + Object.keys(updatedMarkers).map(function (key) {
-                  return key + '=' + updatedMarkers[key].join(',');
+              url += '?'
+              url += Object.keys(updatedMarkers).map(function (key) {
+                  return 'geolocate' + key + '=' + updatedMarkers[key].join(',');
+              }).join('&');
+              url += '&' + Object.keys(updatedMarkersPhotos).map(function (key) {
+                  return 'photo' + key + '=' + updatedMarkersPhotos[key].join(',');
               }).join('&');
               window.location.href = url;
             } else {
               console.log('No changes made');
             }
+          });
+
+          const updatedMarkersPhotos = {};
+          const markersMapPhotos = {};
+          const origMarkersPhotos = {};
+
+          function RemoveMarkerPhoto(identifier) {
+            try {
+              // on first draw it can't be removed
+              map.removeLayer(markersMapPhotos[identifier].marker);
+              delete markersMapPhotos[identifier];
+            } catch (error) {
+              // console.log('photo does not exist', identifier);
+            }
+          }
+
+          function AddNewMarkerPhoto(filename, description, lat, lon, identifier='New') {
+            RemoveMarkerPhoto(identifier);
+            markersMapPhotos[identifier] = {filename: filename, description: description};
+            markersMapPhotos[identifier].marker = new L.marker(L.latLng(lat, lon), {draggable:'true'});
+            markersMapPhotos[identifier].marker.addTo(map).bindPopup(filename + ' - ' + description);
+
+            markersMapPhotos[identifier].marker.on('dragend', function (e) {
+              const latlng = e.target.getLatLng();
+              AddNewMarkerPhoto(
+                markersMapPhotos[identifier].filename, markersMapPhotos[identifier].description, latlng.lat, latlng.lng,
+                identifier
+              );
+              if(identifier != 'New') {
+                updatedMarkersPhotos[identifier] = [markersMapPhotos[identifier].filename, markersMapPhotos[identifier].description, latlng.lat, latlng.lng]
+              }
+            });
+
+            markersMapPhotos[identifier].marker.on('click', function (e) {
+              var identifierOld = document.getElementById('identifierInput').value;
+              if(identifierOld.length >= 3) {
+                console.log('Add/Update or Cancel first before selecting the next item');
+                return;
+              }
+              document.getElementById('addNewPhoto').disabled = true;
+              document.getElementById('addUpdatePhotoButton').textContent = 'Update';
+              document.getElementById('photoFormDiv').style.display = 'block';
+              const filename = markersMapPhotos[identifier].filename;
+              const description = markersMapPhotos[identifier].description;
+              document.getElementById('filename').value = filename;
+              document.getElementById('description').value = description;
+              document.getElementById('identifierInputPhoto').value = identifier;
+              const latLon = markersMapPhotos[identifier].marker.getLatLng();
+              origMarkersPhotos[identifier] = [filename, description, latLon.lat, latLon.lng];
+            });
+          }
+
+          function RestoreMarkerPhoto(identifier) {
+            [filename, description, lat, lon] = origMarkersPhotos[identifier];
+            AddNewMarkerPhoto(filename, description, lat, lon, identifier);
+          }
+
+          {% for marker in photos %}
+            AddNewMarkerPhoto(
+              '{{ marker.filename }}', '{{ marker.description }}', {{ marker.latitude | safe }}, {{ marker.longitude | safe }},
+              '{{ marker.identifier }}'
+            );
+          {% endfor %}
+
+          document.getElementById('addNewPhoto').addEventListener('click', function () {
+            document.getElementById('addNewPhoto').disabled = true;
+            document.getElementById('addUpdatePhotoButton').textContent = 'Add';
+            document.getElementById('photoFormDiv').style.display = 'block';
+            document.getElementById('identifierInputPhoto').value = 'New';
+            const latitude = map.getCenter().lat;
+            const longitude = map.getCenter().lng;
+            AddNewMarkerPhoto('New', '', latitude, longitude);
+          });
+
+          document.getElementById('cancelPhotoButton').addEventListener('click', function () {
+            var identifier = document.getElementById('identifierInputPhoto').value;
+            if(identifier != 'New') {
+              RestoreMarkerPhoto(identifier);
+            } else {
+              RemoveMarkerPhoto(identifier);
+            }
+            document.getElementById('addNewPhoto').disabled = false;
+            document.getElementById('photoFormDiv').style.display = 'none';
+            document.getElementById('photoForm').reset();
+          });
+
+          document.getElementById('addUpdatePhotoButton').addEventListener('click', function () {
+              var filename = document.getElementById('filename').value;
+              var desc = document.getElementById('description').value;
+              var identifier = document.getElementById('identifierInputPhoto').value;
+              if(filename.replace(/ /g, "").length > 6) {
+                var latLon = markersMapPhotos[identifier].marker.getLatLng();
+                if(identifier === 'New') {
+                  var identifier = filename + '_' + latLon.lat + '_' + latLon.lng;
+                  identifier = identifier.replace(/\./g, "_"); // same as PhotoData.identifier
+                  map.removeLayer(markersMapPhotos['New'].marker);
+                }
+                AddNewMarkerPhoto(filename, desc, latLon.lat, latLon.lng, identifier)
+                updatedMarkersPhotos[identifier] = [filename, desc, latLon.lat, latLon.lng];
+                // After adding, reset and hide the form
+                document.getElementById('addNewPhoto').disabled = false;
+                document.getElementById('photoFormDiv').style.display = 'none';
+                document.getElementById('photoForm').reset();
+              } else {
+                console.log('name must contain at least 6 characters, got',  filename.replace(/ /g, "").length);
+              }
           });
 
         {% endif %}
@@ -282,6 +406,24 @@
         <tr>
           <td><a href="{{ entry.url }}">{{ entry.Distance|floatformat:2 }} km - {{ entry.Duration|seconds_to_datetime }} - {{ entry.Speed|floatformat:2 }} km/h</a></td>
           <td>{{entry.start}}</td> <td>{{entry.end}}</td>
+        </tr>
+    {% empty %}
+      There are no entries in the database.
+    {% endfor %}
+    </table>
+  </ul>
+  {% endif %}
+
+  {% if photo_data %}
+  <ul>
+    <table  class='table_inner_borders'>
+      <tr>
+        <th>Name</th> <th>Description</th> <th>Thumbnail</th>
+      </tr>
+      {% for entry in photo_data %}
+        <tr>
+          <td><a href="{% static 'images/'%}{{ entry.filename }}">{{ entry.filename }}</a></td> <td>{{entry.description}}</td>
+          <td><a href="{% static 'images/'%}{{ entry.filename }}"><img src="{% url 'thumbnail' entry.filename %}" alt="Thumbnail for {{ entry.filename }}"></a></td>
         </tr>
     {% empty %}
       There are no entries in the database.

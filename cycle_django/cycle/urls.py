@@ -13,5 +13,6 @@ urlpatterns = [
     path('gps_data/<str:filename>', views.gps_detail_view, name='gps_detail'),
     path('gps_data/all', views.gps_detail_view, name='gps_detail_all'),  # show all gps tracks
     path('add_new_places', views.add_places_admin_view, name='add_places_admin'),
+    path('thumbnail/<str:filename>/', views.thumbnail_view, name='thumbnail'),
     re_path(r'^cycle_data/(?P<date_wmy>[w,m,y]\d{4}-\d{2}-\d{2})/$', views.data_detail_view, name='cycle-detail'),
 ]

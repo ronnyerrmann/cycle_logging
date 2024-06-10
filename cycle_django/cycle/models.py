@@ -3,7 +3,7 @@ import gpxpy
 import json
 import os
 import numpy as np
-from typing import List, Union
+from typing import Iterable, List, Union
 
 from django.db import models
 from django.db.models import Q, Sum, Count
@@ -11,7 +11,7 @@ from django.urls import reverse
 import django.utils.duration
 # using: python manage.py inspectdb > models.py
 
-from my_base import Logging, create_timezone_object
+from my_base import Logging, create_timezone_object, photoStorage, GPX_FOLDERS, PHOTO_FOLDERS
 from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
@@ -312,7 +312,6 @@ class GPSData(models.Model):
     altitudes = models.TextField()
     alt_srtm = models.TextField()
     speeds = models.TextField(null=True)
-    GPX_FOLDERS = ["/home/ronny/Documents/gps-logger/"]
     GPX_IGNORE_FILES = [
         "tour-20101128_1551.gpx",       # Flug Madrid-Frankfurt
         "tourges-20140707_0836.gpx",    # Jena-Bern
@@ -357,10 +356,10 @@ class GPSData(models.Model):
         backup = Backup()
         backup.load_dump_GPSData()
 
-        cls.import_gpx_file_to_database(cls.GPX_FOLDERS, cls.GPX_IGNORE_FILES)
+        cls.import_gpx_file_to_database(GPX_FOLDERS, cls.GPX_IGNORE_FILES)
 
     @staticmethod
-    def import_gpx_file_to_database(gpx_folders: List[str], gpx_ignore_files: List[str]):
+    def import_gpx_file_to_database(gpx_folders: Iterable[str], gpx_ignore_files: List[str]):
         # Get all gpxfiles that are not in the database
         for folder in gpx_folders:
             gpx_files = []
@@ -425,7 +424,7 @@ class GPSData(models.Model):
                                         break
                                 if bad:
                                     break
-                                alt_srtm.append(elevation_srtm)
+                                alt_srtm.append(elevation_srtm if elevation_srtm < 65000 else -1)
                                 diff = elevation_srtm - point.elevation
                                 if abs(diff) < 200:
                                     alt_diff.append(diff)
@@ -498,6 +497,7 @@ class GeoLocateData(models.Model):
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)
         if not no_backup:
+            # would be good to also save as text file
             Backup().dump_GeoLocateData_dbs()
 
     def delete(self, *args, **kwargs):
@@ -510,3 +510,37 @@ class GeoLocateData(models.Model):
         loaded_backup = backup.load_dump_GeoLocateData()
         if GeoLocateData.objects.all().count() == 0:
             loaded_backup = backup.load_backup_GeoLocateData_file_based()
+
+
+class PhotoData(models.Model):
+    filename = models.TextField(primary_key=True)
+    description = models.TextField()
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    thumbnail = models.BinaryField()
+
+    def __str__(self):
+        return self.filename
+
+    @property
+    def identifier(self):
+        return f"{self.filename}_{self.latitude}_{self.longitude}".replace('.', '_').replace(' ', '')
+
+    @property
+    def full_filename(self):
+        return photoStorage.full_fillname_or_false(self.filename)
+
+    def save(self, *args, no_backup=False, **kwargs):
+        super().save(*args, **kwargs)
+        if not no_backup:
+            # would be good to also save as text file
+            Backup().dump_PhotoData_dbs()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Backup().dump_PhotoData_dbs()
+
+    @classmethod
+    def load_data(cls):
+        backup = Backup()
+        loaded_backup = backup.load_dump_PhotoData()

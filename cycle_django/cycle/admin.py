@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 
 from .models import (
     CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData,
-    convert_to_str_hours
+    PhotoData, convert_to_str_hours
 )
 
 from my_base import Logging
@@ -138,4 +138,11 @@ class NoGoAreasAdmin(admin.ModelAdmin):
 class GeoLocateDataAdmin(admin.ModelAdmin):
     list_display = (
         'name', 'radius', 'latitude', 'longitude'
+    )
+
+
+@admin.register(PhotoData)
+class GPhotoDataAdmin(admin.ModelAdmin):
+    list_display = (
+        'filename', 'description', 'latitude', 'longitude', 'thumbnail'
     )

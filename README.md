@@ -10,7 +10,7 @@ To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Lear
 
 The following packages are required
 ```
-pip install requests urllib3 django pandas plotly gpxpy django-leaflet psutil python-srtm
+pip install requests urllib3 django pandas plotly gpxpy django-leaflet psutil python-srtm Pillow
 ```
 
 To create the environment:

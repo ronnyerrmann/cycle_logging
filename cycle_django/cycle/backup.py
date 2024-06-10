@@ -89,6 +89,10 @@ class Backup:
         # To load last changes on production instance
         call_command("dumpdata", "cycle.GeoLocateData", output=os.path.join(BACKUP_FOLDER, "GeoLocateData_dump.json.gz"))
 
+    def dump_PhotoData_dbs(self):
+        # To load last changes on production instance
+        call_command("dumpdata", "cycle.PhotoData", output=os.path.join(BACKUP_FOLDER, "PhotoData_dump.json.gz"))
+
     def load_database_dump(self, database_dump_file):
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", database_dump_file)
@@ -132,6 +136,9 @@ class Backup:
 
     def load_dump_GeoLocateData(self):
         return self.load_database_dump("GeoLocateData_dump.json.gz")
+
+    def load_dump_PhotoData(self):
+        return self.load_database_dump("PhotoData_dump.json.gz")
 
     def load_backup_mysql_based(self):
         """ Import the backup from the MySQL based version into this version

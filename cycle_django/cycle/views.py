@@ -12,13 +12,15 @@ from typing import Dict, List, Union
 from django.shortcuts import get_object_or_404, render, redirect
 from django.core import serializers
 from django.db.models import Avg, Max, Min, Sum
+from django.http import HttpResponse
 from django.views import generic
 
 from .models import (
-    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData
+    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData,
+    PhotoData
 )
 from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
-from my_base import Logging, create_timezone_object
+from my_base import Logging, create_timezone_object, photoStorage
 
 logger = Logging.setup_logger(__name__)
 
@@ -538,10 +540,20 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     gps_context['gpsdatarangeform'] = form
     context.update(gps_context)
 
+    # Add the images
+    coords = gps_context['min_max_coords']
+    context['photo_data'] = PhotoData.objects.filter(
+        latitude__gte=coords[0], latitude__lte=coords[1], longitude__gte=coords[2], longitude__lte=coords[3])
+
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
-def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = None, plot_graphs: bool = True, admin: bool = False) -> Dict:
+def analyse_gps_data_sets(
+        objs_in: List[GPSData],
+        coords: Union[None, Dict] = None,
+        plot_graphs: bool = True,
+        admin: bool = False
+) -> Dict:
     """ Be careful to apply sin/cos only on radians!
     """
     if not objs_in:
@@ -762,7 +774,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
             font_places = dict(color='rgb(125,125,125)', size=10)
             df10th = all_df.iloc[::10].copy()
             df10th['place_sep'] = np.zeros(df10th.shape[0]) + earth_radius
-            df10th['places'] = np.zeros(df10th.shape[0]) * np.nan
+            df10th['places'] = df10th.apply(lambda _: '', axis=1)
             for index_geo, geoloc in df_geoloc.iterrows():
                 sub_sec = ((geoloc['lat_min'] < df10th['Latitudes_deg']) & (df10th['Latitudes_deg'] < geoloc['lat_max']) &
                            (geoloc['lon_min'] < df10th['Longitudes_deg']) & (df10th['Longitudes_deg'] < geoloc['lon_max'])).to_numpy()
@@ -838,6 +850,7 @@ def analyse_gps_data_sets(objs_in: List[GPSData], coords: Union[None, Dict] = No
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon - min_lon) * sin(radians(map_center[0])))) + 8.9))
     context['center'] = map_center
     context['zoom'] = zoom
+    context['min_max_coords'] = [min_lat, max_lat, min_lon, max_lon]
     context['settings'] = settings
 
     return context
@@ -890,6 +903,11 @@ def gps_detail_view(request, filename=None):
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
+def thumbnail_view(request, filename=None):
+    photo = get_object_or_404(PhotoData, filename=filename)
+    return HttpResponse(photo.thumbnail, content_type='image/jpeg')
+
+
 class GPSDataListView(generic.ListView):
     context_object_name = 'gps_data_list'  # This is used as variable in cycle_data_list.html
     template_name = 'cycle_data/gps_data_list.html'
@@ -905,24 +923,50 @@ def add_places_admin_view(request):
 
     if request.GET.items():
         places = GeoLocateData.objects.all()
+        photos = PhotoData.objects.all()
         for key, value in request.GET.items():
-            [name, lat, lon, radius] = value.split(',')
-            for obj in places:
-                if key == obj.identifier:
-                    obj.name = name
-                    obj.latitude = lat
-                    obj.longitude = lon
-                    obj.radius = radius
+            if key.startswith('geolocate'):
+                key = key[9:]
+                [name, lat, lon, radius] = value.split(',')
+                for obj in places:
+                    if key == obj.identifier:
+                        obj.name = name
+                        obj.latitude = lat
+                        obj.longitude = lon
+                        obj.radius = radius
+                        obj.save()
+                        break
+                else:
+                    obj = GeoLocateData(name=name, latitude=lat, longitude=lon, radius=radius)
                     obj.save()
-                    break
-            else:
-                obj = GeoLocateData(name=name, latitude=lat, longitude=lon, radius=radius)
-                obj.save()
+            elif key.startswith('photo'):
+                key = key[5:]
+                [filename, desc, lat, lon] = value.split(',')
+                for obj in photos:
+                    if key == obj.identifier:
+                        obj.filename = filename
+                        obj.description = desc
+                        obj.latitude = lat
+                        obj.longitude = lon
+                        obj.save()
+                        break
+                else:
+                    if photoStorage.full_fillname_or_false(filename):
+                        obj = PhotoData(
+                            filename=filename, description=desc, latitude=lat, longitude=lon,
+                            thumbnail=photoStorage.create_thumbnail(filename)
+                        )
+                        obj.save()
+                    else:
+                        logger.warning(
+                            f"No file found for {filename}, description was: {desc}, lat/lon: {lat:.7f}/{lon:.7f}"
+                        )
 
     gpsData = GPSData.objects.all()
     context = analyse_gps_data_sets(gpsData, coords=None, plot_graphs=False, admin=request.user.is_superuser)
 
-    places = GeoLocateData.objects.all()
-    context['markers'] = places
+    context['markers'] = GeoLocateData.objects.all()
+    context['photos'] = PhotoData.objects.all()
+    context['adminView'] = True
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
