@@ -16,6 +16,7 @@ class BackgroundThread(threading.Thread):
         self.interval = interval
         self.first_interval = None
         self.stopped = threading.Event()
+        self.do_first_startup_tasks()
 
     def __new__(cls):
         if cls._instance is None:
@@ -64,3 +65,8 @@ class BackgroundThread(threading.Thread):
                     raise
         for summary in [CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary]:
             summary.update_fields()
+
+    def do_first_startup_tasks(self):
+        from .models import PhotoData
+        PhotoData.store_files_in_static()
+        logger.info("Finished first startup tasks")

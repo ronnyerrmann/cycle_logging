@@ -5,6 +5,7 @@ import os
 import numpy as np
 from typing import Iterable, List, Union
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q, Sum, Count
 from django.urls import reverse
@@ -544,3 +545,14 @@ class PhotoData(models.Model):
     def load_data(cls):
         backup = Backup()
         loaded_backup = backup.load_dump_PhotoData()
+        cls.store_files_in_static()
+
+    @classmethod
+    def store_files_in_static(self):
+        for obj in PhotoData.objects.all():
+            if settings.DEBUG:
+                static_link = os.path.join(settings.STATICFILES_DIRS[0], 'images', obj.filename)
+            else:
+                static_link = os.path.join(settings.STATIC_ROOT, obj.filename)
+            if not os.path.isfile(static_link) and obj.full_filename:
+                os.symlink(obj.full_filename, static_link)
