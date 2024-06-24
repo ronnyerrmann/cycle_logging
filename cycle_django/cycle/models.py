@@ -425,7 +425,12 @@ class GPSData(models.Model):
                                         break
                                 if bad:
                                     break
-                                alt_srtm.append(elevation_srtm if elevation_srtm < 65000 else -1)
+                                # SRTM data below 0 m has an underflow of the uint to values above 65000
+                                # SRTM data that could not be determined because of too steep landscape is set to 32768
+                                alt_srtm.append(
+                                    -1 if elevation_srtm > 65000 else
+                                    elevation_srtm if elevation_srtm < 30000 else np.nan
+                                )
                                 diff = elevation_srtm - point.elevation
                                 if abs(diff) < 200:
                                     alt_diff.append(diff)
