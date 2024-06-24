@@ -56,6 +56,8 @@ class BackgroundThread(threading.Thread):
         for model in CycleRides, NoGoAreas, GPSData, GeoLocateData, PhotoData:
             try:
                 model.load_data()
+            except EOFError as e:
+                logger.warning(f"File was not fully transferred?: {e}")
             except OperationalError as e:
                 if str(e).startswith("no such table: "):
                     logger.warning(f"Missing Table for {model}")
