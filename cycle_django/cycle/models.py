@@ -449,7 +449,7 @@ class GPSData(models.Model):
                         altitudes=json.dumps(altitudes), alt_srtm=json.dumps(alt_srtm)
                     )
                     # not just -1 but -10, as otherwise empty files can be an issue
-                    obj.save(no_backup=(ii < len(gpx_files)-10))
+                    obj.save(no_backup=(ii < len(gpx_files)-(min(10, len(gpx_files)))))
                     logger.info(f"Loaded {len(datetimes)} points from {filename}{alt_adjust_text}")
 
 
