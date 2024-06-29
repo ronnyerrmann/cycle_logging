@@ -15,7 +15,7 @@ sys.path.append(parent_dir)
 DEBUG = os.environ.get("IS_PRODUCTION", "False").lower() != "true"
 
 GPX_FOLDERS = {"/home/ronny/Documents/gps-logger/", }
-PHOTO_FOLDERS = {"/home/ronny/Pictures/", }
+PHOTO_FOLDERS = {"/home/ronny/Pictures/", "/Pictures"}      # local laptop; docker container
 
 from my_proc import Logging
 

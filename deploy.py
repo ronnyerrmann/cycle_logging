@@ -9,6 +9,10 @@ SETTINGS_FOLDERS = [
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
     "/home/roghurt/cycle_logging_tmp/",     # Test production
 ]
+PHOTO_FOLDERS = [
+    "/home/ronny/Pictures/",                        # Test Production locally
+    "/home/roghurt/Ronny_IP330S_home/Pictures",     # Production
+]
 CYCLE_BASE_PATH = "cycle_logging"
 
 BASE_PATH = os.getcwd()
@@ -19,6 +23,12 @@ for SETTINGS_FOLDER in SETTINGS_FOLDERS:
         break
 else:
     print(f"No database dump found in SETTINGS_FOLDERS, will use {SETTINGS_FOLDER} for settings")
+
+for PHOTO_FOLDER in PHOTO_FOLDERS:
+    if os.path.isdir(PHOTO_FOLDER):
+        break
+else:
+    print(f"No Folder for Photos, will use {PHOTO_FOLDER} for settings")
 
 for docker_bin in DOCKER_BINS:
     if os.path.isfile(docker_bin):
@@ -88,6 +98,7 @@ cmd = [docker_bin, "run", "--detach",
        "-v", f"{os.path.abspath('.')}:/{CYCLE_BASE_PATH}",
        "-v", f"{os.path.abspath(SETTINGS_FOLDER)}:/cycle_setup",        # listen to changes in this folder
        "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/load_db_dump_at_startup",
+       "-v", f"{os.path.abspath(PHOTO_FOLDER)}:/Pictures:ro",           # Readonly photo folder
        # need to mount SRTM data and set the environment variable to it
        "-p", "8314:8314",
        "--name", "cycle_log",
