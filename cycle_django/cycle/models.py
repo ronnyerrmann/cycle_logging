@@ -553,11 +553,15 @@ class PhotoData(models.Model):
         cls.store_files_in_static()
 
     @classmethod
-    def store_files_in_static(self):
+    def store_files_in_static(cls):
+        if settings.DEBUG:
+            image_folder = os.path.join(settings.STATICFILES_DIRS[0], 'images')
+        else:
+            image_folder = os.path.join(settings.STATIC_ROOT, 'images')
+        if not settings.DEBUG and not os.path.isdir(image_folder):
+            # Create folder, if necessary
+            os.mkdir(image_folder)
         for obj in PhotoData.objects.all():
-            if settings.DEBUG:
-                static_link = os.path.join(settings.STATICFILES_DIRS[0], 'images', obj.filename)
-            else:
-                static_link = os.path.join(settings.STATIC_ROOT, obj.filename)
+            static_link = os.path.join(image_folder, obj.filename)
             if not os.path.isfile(static_link) and obj.full_filename:
                 os.symlink(obj.full_filename, static_link)
