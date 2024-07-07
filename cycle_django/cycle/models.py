@@ -381,7 +381,7 @@ class GPSData(models.Model):
     altitudes = models.TextField()
     alt_srtm = models.TextField()
     speeds = models.TextField(null=True)
-    GPX_IGNORE_FILES = [
+    GPX_IGNORE_FILES = [    # Todo: store these in a table
         "tour-20101128_1551.gpx",       # Flug Madrid-Frankfurt
         "tourges-20140707_0836.gpx",    # Jena-Bern
         "tourges-20140820_0858.gpx",    # Norway
@@ -395,6 +395,7 @@ class GPSData(models.Model):
         "2019-07-14_16-30_Sun.gpx",
         "2020-07-19_14-19_Sun.gpx",
         "2024-01-11_06-51_Thu.gpx",     # Commute by public transport
+        "2024-02-25_09-02_Sun.gpx",     # Logging failed early on
     ]
 
     class Meta:
@@ -618,10 +619,10 @@ class PhotoData(models.Model):
     def load_data(cls):
         backup = Backup()
         loaded_backup = backup.load_dump_PhotoData()
-        cls.store_files_in_static()
+        cls.store_files_in_static_folder()
 
     @classmethod
-    def store_files_in_static(cls):
+    def store_files_in_static_folder(cls):
         if settings.DEBUG:
             image_folder = os.path.join(settings.STATICFILES_DIRS[0], 'images')
         else:

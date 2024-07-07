@@ -70,5 +70,5 @@ class BackgroundThread(threading.Thread):
 
     def do_first_startup_tasks(self):
         from .models import PhotoData
-        PhotoData.store_files_in_static()
+        PhotoData.store_files_in_static_folder()
         logger.info("Finished first startup tasks")
