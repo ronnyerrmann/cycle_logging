@@ -74,6 +74,10 @@ class Backup:
 
         self.dump_cycle_rides_dbs()
 
+    def dump_Bicycles_dbs(self):
+        # To load last changes on production instance
+        call_command("dumpdata", "cycle.Bicycles", output=os.path.join(BACKUP_FOLDER, "Bicycles_dump.json.gz"))
+
     def dump_cycle_rides_dbs(self):
         # To load last changes on production instance
         call_command("dumpdata", "cycle.CycleRides", output=os.path.join(BACKUP_FOLDER, "CycleRides_dump.json.gz"))
@@ -124,6 +128,9 @@ class Backup:
 
         self.__class__.file_changed_last_loaded[database_dump_file] = file_changed
         return True
+
+    def load_dump_Bicycles(self):
+        return self.load_database_dump("Bicycles_dump.json.gz")
 
     def load_dump_cycle_rides(self):
         return self.load_database_dump("CycleRides_dump.json.gz")

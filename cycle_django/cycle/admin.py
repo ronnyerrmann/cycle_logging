@@ -5,8 +5,8 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 
 from .models import (
-    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData,
-    PhotoData, convert_to_str_hours
+    Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas,
+    GeoLocateData, PhotoData, convert_to_str_hours
 )
 
 from my_base import Logging
@@ -24,7 +24,8 @@ class AdminForm(forms.ModelForm):
         duration = cleaned_data.get('duration')
         totaldistance = cleaned_data.get('totaldistance')
         totalduration = cleaned_data.get('totalduration')
-        if not (date and distance and duration and totaldistance and totalduration):
+        bicycle = cleaned_data.get('bicycle')
+        if not (date and distance and duration and totaldistance and totalduration and bicycle):
             raise ValidationError("Not all values were given")
 
         dayseconds = int(duration.total_seconds())
@@ -34,7 +35,7 @@ class AdminForm(forms.ModelForm):
         if speed < 2 or speed > 30:
             raise ValidationError(f"A speed of {speed:4.2f} km/h is outside the sensible range")
 
-        previous = CycleRides.objects.filter(date__lt=date).order_by('-date').first()
+        previous = CycleRides.objects.filter(date__lt=date, bicycle=bicycle).order_by('-date').first()
 
         if previous:
             if abs(previous.totaldistance + distance - totaldistance) >= 1:
@@ -65,13 +66,19 @@ class AdminForm(forms.ModelForm):
         return cleaned_data
 
 
+@admin.register(Bicycles)
+class BicyclesAdmin(admin.ModelAdmin):
+    list_display = ('id', 'is_default', 'description', 'notes')
+
+
 @admin.register(CycleRides)
 class CycleRidesAdmin(admin.ModelAdmin):
     form = AdminForm
     list_display = (
-        'date', 'distance', 'duration', 'speed', 'totaldistance', 'totalduration', 'totalspeed', 'cumdistance', 'cumduration'
-    )    # make it into a nice list
-    readonly_fields = ('cumdistance', 'cumduration')
+        'date', 'distance', 'duration', 'speed', 'totaldistance', 'totalduration', 'totalspeed', 'cumdistance',
+        'cumduration', 'cumspeed', 'bicycle'
+    )
+    readonly_fields = ('totalspeed', 'cumbicycledistance', 'cumbicycleduration', 'cumdistance', 'cumduration', 'cumspeed')
     fieldsets = (
         (None, {
             'fields': ('date', 'distance', 'duration')
@@ -79,8 +86,9 @@ class CycleRidesAdmin(admin.ModelAdmin):
         ('Total', {
             'fields': ('totaldistance', 'totalduration')
         }),
+        ('Bicycle', {'fields': ('bicycle',)}),
         # ('For database automatic process', {
-        #     'fields': ('cumdistance', 'cumduration')
+        #      'fields': ('totalspeed', 'cumbicycledistance', 'cumbicycleduration', 'cumdistance', 'cumduration', 'cumspeed')
         # }),
 
     )
@@ -94,6 +102,20 @@ class CycleRidesAdmin(admin.ModelAdmin):
         self.message_user(request, f"Average is {obj.speed} km/s.")
 
         return super().response_change(request, obj)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Prefill with default Bicycle or last added bicycle
+        if db_field.name == "bicycle":
+            try:
+                selected = Bicycles.objects.filter(is_default=True)
+                if selected:
+                    kwargs["initial"] = selected[0].id
+                else:
+                    selected = Bicycles.objects.latest('id')
+                    kwargs["initial"] = selected.id
+            except Bicycles.DoesNotExist:
+                pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     """def save_model(self, request, obj, form, change: bool):
         # Perform additional validation or modifications before saving

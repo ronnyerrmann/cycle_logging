@@ -50,10 +50,10 @@ class BackgroundThread(threading.Thread):
     @staticmethod
     def load_data_if_new():
         from .models import (
-            CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, NoGoAreas, GPSData, GeoLocateData,
-            PhotoData
+            Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, NoGoAreas, GPSData,
+            GeoLocateData, PhotoData
         )
-        for model in CycleRides, NoGoAreas, GPSData, GeoLocateData, PhotoData:
+        for model in Bicycles, CycleRides, NoGoAreas, GPSData, GeoLocateData, PhotoData:
             try:
                 model.load_data()
             except EOFError as e:

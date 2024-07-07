@@ -56,6 +56,39 @@ def _get_duration_components_no_days(duration):
 django.utils.duration._get_duration_components = _get_duration_components_no_days
 
 
+class Bicycles(models.Model):
+    id = models.AutoField(primary_key=True, help_text='Will be filled automatically')
+    description = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    is_default = models.BooleanField(default=False)
+
+    @staticmethod
+    def add_bicycle_if_none():
+        if Bicycles.objects.all().count() == 0:
+            Bicycles(description='standard').save()
+
+    def __str__(self):
+        return self.description
+
+    def save(self, *args, no_check=False, **kwargs):
+        if self.is_default:
+            for obj in Bicycles.objects.filter(is_default=True):
+                obj.is_default = False
+                obj.save(no_check=True)
+        super().save(*args, **kwargs)
+        # would be good to also save as text file
+        Backup().dump_Bicycles_dbs()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Backup().dump_Bicycles_dbs()
+
+    @classmethod
+    def load_data(cls):
+        backup = Backup()
+        loaded_backup = backup.load_dump_Bicycles()
+
+
 class CycleRides(models.Model):
     # most of the fieldnames are lower case of the db fieldnames
     entryid = models.AutoField(primary_key=True, help_text='Will be filled automatically')
@@ -63,13 +96,27 @@ class CycleRides(models.Model):
     distance = models.FloatField(help_text='Give the Distance in KM')
     duration = models.DurationField(verbose_name="Duration", help_text='Give in [HH:]MM:SS')
     speed = models.FloatField(blank=True, null=True, help_text='Will be filled automatically')
-    totaldistance = models.FloatField(unique=True, help_text='Give the Distance in KM')
+    totaldistance = models.FloatField(unique=False, help_text='Give the Distance in KM')
     totalduration = models.DurationField(verbose_name="Total Duration", help_text='Give in [H]HH:MM:SS')
     totalspeed = models.FloatField(blank=True, null=True, help_text='Will be filled automatically')
-    cumdistance = models.FloatField(blank=True, null=True, help_text='Will be filled automatically')
-    cumduration = models.DurationField(
-        verbose_name="Culminated Duration", blank=True, null=True, help_text='Will be filled automatically'
+    cumbicycledistance = models.FloatField(
+        verbose_name="Cumulated Distance for this bicycle", blank=True, null=True,
+        help_text='Will be filled automatically'
     )
+    cumbicycleduration = models.DurationField(
+        verbose_name="Cumulated Duration for this bicycle", blank=True, null=True,
+        help_text='Will be filled automatically'
+    )
+    cumdistance = models.FloatField(
+        verbose_name="Cumulated Distance", blank=True, null=True, help_text='Will be filled automatically'
+    )
+    cumduration = models.DurationField(
+        verbose_name="Cumulated Duration", blank=True, null=True, help_text='Will be filled automatically'
+    )
+    cumspeed = models.FloatField(
+        verbose_name="Cumulated Speed", blank=True, null=True, help_text='Will be filled automatically'
+    )
+    bicycle = models.ForeignKey(Bicycles, on_delete=models.PROTECT)
 
     class Meta:
         unique_together = (('date', 'distance', 'duration'),)
@@ -127,7 +174,27 @@ class CycleRides(models.Model):
             original_obj = CycleRides.objects.get(pk=self.pk)
             date_for_cum = min(date_for_cum, original_obj.date)
 
-        # Last object with a culm distance
+        # Last object with a cumulative distance (for the current bicycle)
+        for obj in CycleRides.objects.filter(date__lt=date_for_cum, bicycle=self.bicycle).order_by('-date'):
+            if obj.cumbicycledistance and obj.cumbicycleduration:
+                prev_cumdistance = obj.cumdistance
+                prev_cumduration = obj.cumduration
+                break
+            else:
+                date_for_cum = obj.date
+        else:
+            prev_cumdistance = 0
+            prev_cumduration = datetime.timedelta(0)
+
+        for obj in CycleRides.objects.filter(date__gte=date_for_cum, bicycle=self.bicycle).order_by('date'):
+            prev_cumdistance += obj.distance
+            prev_cumduration += obj.duration
+            obj.cumbicycledistance = round(prev_cumdistance, 4)
+            obj.cumbicycleduration = prev_cumduration
+            obj.save(no_more_modifications=True)
+            logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
+
+        # Last object with a cumulative distance (for all)
         for obj in CycleRides.objects.filter(date__lt=date_for_cum).order_by('-date'):
             if obj.cumdistance and obj.cumduration:
                 prev_cumdistance = obj.cumdistance
@@ -144,6 +211,7 @@ class CycleRides(models.Model):
             prev_cumduration += obj.duration
             obj.cumdistance = round(prev_cumdistance, 4)
             obj.cumduration = prev_cumduration
+            obj.cumspeed = round(obj.cumdistance / obj.cumduration.total_seconds() * 3600, 4)
             obj.save(no_more_modifications=True)
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
 

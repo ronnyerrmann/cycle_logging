@@ -216,7 +216,10 @@ class ExtraPlots(BaseDataListView):
                      [270, 365, 365 * 2, 365 * 4 + 1]):
             result_all = {'days': days}
             for data_source in ['distance', 'duration']:
-                dist = data_frame[data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
+                if days < 10:       # needed because of no daily data before that date
+                    dist = data_frame[data_frame['Date_dt'] >= pandas.to_datetime('2006-12-06')][data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
+                else:
+                    dist = data_frame[data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
                 dist_sort = dist.sort_values(ascending=False)
                 result = []
                 diff = datetime.timedelta(days=days - 1)
@@ -375,19 +378,25 @@ class ExtraPlots(BaseDataListView):
         ay1 = "totalspeed"
         ay2 = "totaldistance"
         ay3 = "totalduration"
+        ay1c = "cumspeed"
+        ay2c = "cumdistance"
+        ay3c = "cumduration"
         fig_total = go.Figure()
-        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay1], name="Speed"))
-        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay2], name="Distance", yaxis="y2"))
-        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay3], name="Duration", yaxis="y3"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay1], name="T Speed"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay2], name="T Distance", yaxis="y2"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay3], name="T Duration", yaxis="y3"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay1c], name="C Speed"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay2c], name="C Distance", yaxis="y2"))
+        fig_total.add_trace(go.Scatter(x=self.data_frame[ax], y=self.data_frame[ay3c], name="C Duration", yaxis="y3"))
         fig_total.update_layout(
             xaxis=dict(title="Date", domain=[0.0, 0.85]),
             yaxis=dict(
-                title="Cumulative speed [km/h]",
+                title="Total/Cumulative speed [km/h]",
                 titlefont=dict(color="#1f77b4"),
                 tickfont=dict(color="#1f77b4")
             ),
             yaxis2=dict(
-                title="Cumulative Distance [km]",
+                title="Total/Cumulative Distance [km]",
                 titlefont=dict(color="#cc0000"),
                 tickfont=dict(color="#cc0000"),
                 anchor="free",
@@ -396,7 +405,7 @@ class ExtraPlots(BaseDataListView):
                 position=0.85
             ),
             yaxis3=dict(
-                title="Cumulative Duration [hh:mm]",
+                title="Total/Cumulative Duration [hh:mm]",
                 titlefont=dict(color="#009973"),
                 tickfont=dict(color="#009973"),
                 anchor="free",
@@ -446,9 +455,9 @@ class ExtraPlots(BaseDataListView):
         bx = "date"
         by1 = "diffkm"
         by2 = "diffsec"
-        self.data_frame[by1] = self.data_frame["totaldistance"] - self.data_frame["cumdistance"]
+        self.data_frame[by1] = self.data_frame["totaldistance"] - self.data_frame["cumbicycledistance"]
         self.data_frame[by2] = pandas.to_numeric(
-            self.data_frame["totalduration"] - self.data_frame["cumduration"]
+            self.data_frame["totalduration"] - self.data_frame["cumbicycleduration"]
         ) * 1E-9  # From mu sec to seconds
 
         fig_diff = go.Figure()
@@ -726,19 +735,19 @@ def analyse_gps_data_sets(
     context = {'gps': None, 'gps_positions': all_positions, 'individual_gps_list': individual_gps_list}
 
     if plot_graphs:
-        all_df['Culm_dist'] = all_df['Distance'].cumsum()
-        culm_duration = all_df['Duration'].cumsum()
-        all_df['Culm_speed'] = all_df['Culm_dist'] / culm_duration * 3600
+        all_df['Cum_dist'] = all_df['Distance'].cumsum()
+        cum_duration = all_df['Duration'].cumsum()
+        all_df['Cum_speed'] = all_df['Cum_dist'] / cum_duration * 3600
         alt_rolling_median = all_df['Altitudes'].rolling(window=5).median().to_numpy()
         alt_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
         alt_rolling_median = all_df['Altitudes_srtm'].rolling(window=5).median().to_numpy()
         alt_srtm_diff = alt_rolling_median[1:] - alt_rolling_median[:-1]
-        ax = "Culm_dist"
+        ax = "Cum_dist"
         ay1 = "Altitudes"
         ay1s = "Altitudes_srtm"
         ay2 = "Speed_5"
         ay3 = "Speed_50"
-        ay4 = "Culm_speed"
+        ay4 = "Cum_speed"
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay1s], name="SRTM Elevation [m]",
                                  mode='lines', marker=dict(color='#FF9999')))
@@ -751,7 +760,7 @@ def analyse_gps_data_sets(
             min_alt = all_df['Altitudes'].min()
             max_alt = all_df['Altitudes'].max()
 
-            diff_dist = all_df['Culm_dist'].max() / 200.
+            diff_dist = all_df['Cum_dist'].max() / 200.
             diff_sec = all_df.shape[0] / 15
             # make dependent on number of datapoints
             if covered_time_d < 1:
@@ -794,15 +803,15 @@ def analyse_gps_data_sets(
             df10th.loc[df10th['Distance'].isna(), 'place_sep'] = np.nan
             while df10th['place_sep'].min() < earth_radius:
                 index = df10th['place_sep'].idxmin()
-                culm_dist = df10th['Culm_dist'][index]
+                cum_dist = df10th['Cum_dist'][index]
                 name = df10th['places'][index]
-                if isinstance(culm_dist, pandas.core.series.Series):
-                    culm_dist = culm_dist.to_numpy()[0]
+                if isinstance(cum_dist, pandas.core.series.Series):
+                    cum_dist = cum_dist.to_numpy()[0]
                     name = name.to_numpy()[0]
-                df10th.loc[((culm_dist - diff_dist) < df10th['Culm_dist']) &
-                           (df10th['Culm_dist'] < (culm_dist + diff_dist)), 'place_sep'] = earth_radius
+                df10th.loc[((cum_dist - diff_dist) < df10th['Cum_dist']) &
+                           (df10th['Cum_dist'] < (cum_dist + diff_dist)), 'place_sep'] = earth_radius
                 fig.add_annotation(go.layout.Annotation(
-                    x=culm_dist, y=max_alt, text=name,
+                    x=cum_dist, y=max_alt, text=name,
                     align='center', showarrow=False, yanchor='top', textangle=90, clicktoshow=False,
                     font=font_places
                 ))
@@ -817,9 +826,9 @@ def analyse_gps_data_sets(
         fig.update_layout(
             title=(f"{datetime.datetime.fromtimestamp(all_df['Times'].min())} to "
                    f"{datetime.datetime.fromtimestamp(all_df['Times'].max())} : "
-                   f"{all_df['Culm_dist'].iloc[-1]:.2f} km, "
-                   f"{datetime.timedelta(seconds=culm_duration.iloc[-1])} moving, "
-                   f"{all_df['Culm_speed'].iloc[-1]:.2f} km/h, "
+                   f"{all_df['Cum_dist'].iloc[-1]:.2f} km, "
+                   f"{datetime.timedelta(seconds=cum_duration.iloc[-1])} moving, "
+                   f"{all_df['Cum_speed'].iloc[-1]:.2f} km/h, "
                    f"{alt_diff[alt_diff > 0].sum():.0f} m up, {alt_diff[alt_diff < 0].sum():.0f} m down, "
                    f" SRTM: {alt_srtm_diff[alt_srtm_diff > 0].sum():.0f} m up, "
                    f"{alt_srtm_diff[alt_srtm_diff < 0].sum():.0f} m down"
