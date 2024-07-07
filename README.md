@@ -47,6 +47,7 @@ The repository will be cloned into the current folder.
 In the deploy script, the `SETTINGS_FOLDERS` needs to be adjusted to give a path that contains `django_admin_password.txt` and `django_secret_key.txt`.
 The files contain a single line with a good password and key, respectively.
 In the deploy script the `DATABASE_BACKUP_FOLDER` needs to be adjusted if a database dump should be read on startup of the gunicorn server.
+If optional own pictures should be shown, `PHOTO_FOLDER` needs to be adjusted.
 The backup of the database will be stored in the folder from which the deploy script was executed, under `cycle_logging/cycle_django/backup_database/`.
 The log of the migrations and the gunicorn server are stored under `cycle_logging/cycle_django/docker_run.log`.
 
@@ -59,6 +60,7 @@ The website runs on a test server: [Cycle Results](http://109.123.245.13:8314).
 * The SRTM data needs to be stored as htg or htg.zip files. I used `get_srtm_hgt_files.py` to download the files.
 * Finally, the SRTM htg files can be zipped using `for file in *.htg; do zip "${file}.zip" "$file" && rm "$file" && echo "$file has been zipped into ${file}.zip"; done` .
 * GPS files that were loaded without SRTM data won't get SRTM data automatically. They need to be removed, so they will be loaded again.
+* Elevations below 0 will have an unsigned integer (16 bit) buffer underflow, elevations without a reading will end up with 32k.
 
 ### Learnings
 * Django makes the development easier only if it can manage tables
