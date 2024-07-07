@@ -26,7 +26,6 @@
           <li><a href="{% url 'cycle_extra_plots' %}">Daily cycle: extra plots</a></li>
           <li><a href="{% url 'gps_data' %}">GPS Files</a></li>
           <li><a href="https://github.com/ronnyerrmann/cycle_logging">Github page of the project</a></li>
-          <li><a href="http://ronnyerrmann.ddns.net:80/">PHP and JavaScript version</a></li>
           {% if user.is_authenticated %}
             <li><a href="{% url 'add_places_admin' %}">GPS Places</a></li>
           {% endif %}
