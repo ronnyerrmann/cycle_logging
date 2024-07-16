@@ -5,8 +5,8 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 
 from .models import (
-    Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas,
-    GeoLocateData, PhotoData, convert_to_str_hours
+    Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSFilesToIgnore, GPSData,
+    NoGoAreas, GeoLocateData, PhotoData, convert_to_str_hours
 )
 
 from my_base import Logging
@@ -142,6 +142,13 @@ class CycleYearlySummaryAdmin(admin.ModelAdmin):
 
 # Register the admin class with the associated model instead of using a decorator
 admin.site.register(CycleYearlySummary, CycleYearlySummaryAdmin)
+
+
+@admin.register(GPSFilesToIgnore)
+class GPSFilesToIgnoreAdmin(admin.ModelAdmin):
+    list_display = (
+        'filename', 'notes'
+    )
 
 
 @admin.register(GPSData)

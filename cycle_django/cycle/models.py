@@ -371,6 +371,25 @@ class CycleYearlySummary(models.Model):
         return objs
 
 
+class GPSFilesToIgnore(models.Model):
+    filename = models.CharField(primary_key=True, max_length=100)
+    notes = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        Backup().dump_gpsFilesToIgnore_dbs()
+        logger.info(f"111, {GPSData.objects.filter(filename=self.filename)}")
+        GPSData.objects.filter(filename=self.filename).delete()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Backup().dump_gpsFilesToIgnore_dbs()
+
+    @classmethod
+    def load_data(cls):
+        Backup().load_dump_gpsFilesToIgnore_dbs()
+
+
 class GPSData(models.Model):
     filename = models.CharField(primary_key=True, max_length=100)
     start = models.DateTimeField()
@@ -381,22 +400,6 @@ class GPSData(models.Model):
     altitudes = models.TextField()
     alt_srtm = models.TextField()
     speeds = models.TextField(null=True)
-    GPX_IGNORE_FILES = [    # Todo: store these in a table
-        "tour-20101128_1551.gpx",       # Flug Madrid-Frankfurt
-        "tourges-20140707_0836.gpx",    # Jena-Bern
-        "tourges-20140820_0858.gpx",    # Norway
-        "2023-08-27_08-48_Sun.gpx",
-        "2023-08-09_13-47_Wed.gpx",
-        "2023-05-30_14-39_Tue.gpx",
-        "2021-05-16_13-05_Sun.gpx",
-        "2022-07-25_05-22_Mon.gpx",
-        "2022-01-16_08-58_Sun.gpx",
-        "2020-05-10_09-37_Sun.gpx",
-        "2019-07-14_16-30_Sun.gpx",
-        "2020-07-19_14-19_Sun.gpx",
-        "2024-01-11_06-51_Thu.gpx",     # Commute by public transport
-        "2024-02-25_09-02_Sun.gpx",     # Logging failed early on
-    ]
 
     class Meta:
         ordering = ['start']
@@ -426,12 +429,13 @@ class GPSData(models.Model):
         backup = Backup()
         backup.load_dump_GPSData()
 
-        cls.import_gpx_file_to_database(GPX_FOLDERS, cls.GPX_IGNORE_FILES)
+        cls.import_gpx_file_to_database()
 
     @staticmethod
-    def import_gpx_file_to_database(gpx_folders: Iterable[str], gpx_ignore_files: List[str]):
+    def import_gpx_file_to_database():
+        gpx_ignore_files = GPSFilesToIgnore.objects.values_list('filename', flat=True)
         # Get all gpxfiles that are not in the database
-        for folder in gpx_folders:
+        for folder in GPX_FOLDERS:
             gpx_files = []
             for foldername, subfolders, filenames in os.walk(folder):
                 gpx_files += [

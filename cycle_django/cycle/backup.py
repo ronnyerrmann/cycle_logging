@@ -85,6 +85,9 @@ class Backup:
         # To load last changes on production instance
         call_command("dumpdata", "cycle.CycleRides", output=os.path.join(BACKUP_FOLDER, "CycleRides_dump.json.gz"))
 
+    def dump_gpsFilesToIgnore_dbs(self):
+        call_command("dumpdata", "cycle.GPSFilesToIgnore", output=os.path.join(BACKUP_FOLDER, "GPSFilesToIgnore_dump.json.gz"))
+
     def dump_gpsdata_dbs(self):
         call_command("dumpdata", "cycle.GPSData", output=os.path.join(BACKUP_FOLDER, "GPSData_dump.json.gz"))
 
@@ -137,6 +140,9 @@ class Backup:
 
     def load_dump_cycle_rides(self):
         return self.load_database_dump("CycleRides_dump.json.gz")
+
+    def load_dump_gpsFilesToIgnore_dbs(self):
+        return self.load_database_dump("GPSFilesToIgnore_dump.json.gz")
 
     def load_dump_GPSData(self):
         return self.load_database_dump("GPSData_dump.json.gz")
