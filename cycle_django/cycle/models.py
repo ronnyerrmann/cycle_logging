@@ -378,7 +378,6 @@ class GPSFilesToIgnore(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         Backup().dump_gpsFilesToIgnore_dbs()
-        logger.info(f"111, {GPSData.objects.filter(filename=self.filename)}")
         GPSData.objects.filter(filename=self.filename).delete()
 
     def delete(self, *args, **kwargs):
