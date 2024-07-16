@@ -19,6 +19,10 @@ class Backup:
     file_changed_last_loaded = {}
     warn_db_dump_not_found = ["No database dump found"]
 
+    def __init__(self):
+        create_folder_if_required(BACKUP_FOLDER)
+        super().__init__()
+
     @staticmethod
     def remove_old_files(folder_path):
         files = glob.glob(os.path.join(folder_path, "*.csv.gz"))
@@ -64,7 +68,6 @@ class Backup:
                 os.remove(file_to_remove)
 
     def backup_cycle_rides(self):
-        create_folder_if_required(BACKUP_FOLDER)
         self.remove_old_files(BACKUP_FOLDER)
 
         with gzip.open(os.path.join(BACKUP_FOLDER, datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S.csv.gz')), "w") as f:
