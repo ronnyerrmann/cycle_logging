@@ -18,10 +18,15 @@ from .backup import Backup
 logger = Logging.setup_logger(__name__)
 
 # Make SRTM availale
+hasSrtm = False
 if os.environ.get('SRTM1_DIR'):
-    import srtm
-    elevation_data_30m = srtm.Srtm1HeightMapCollection()
-    elevation_data_90m = srtm.Srtm3HeightMapCollection()
+    try:
+        import srtm
+        elevation_data_30m = srtm.Srtm1HeightMapCollection()
+        elevation_data_90m = srtm.Srtm3HeightMapCollection()
+        hasSrtm = True
+    except OSError as e:
+        logger.warning(f'Failed loading the SRTM data: {e}')
 else:
     logger.warning('Not using SRTM!')
 
@@ -473,7 +478,7 @@ class GPSData(models.Model):
                             latitudes.append(round(point.latitude, 5))
                             longitudes.append(round(point.longitude, 5))
                             altitudes.append(point.elevation)
-                            if os.environ.get('SRTM1_DIR'):
+                            if hasSrtm:
                                 for i, elevation_data_source in enumerate({elevation_data_30m, elevation_data_90m}):
                                     try:
                                         elevation_srtm = elevation_data_source.get_altitude(

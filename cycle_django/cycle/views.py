@@ -962,7 +962,7 @@ def add_places_admin_view(request):
                     obj.save()
             elif key.startswith('photo'):
                 key = key[5:]
-                [filename, desc, lat, lon] = value.split(',')
+                [filename, desc, lat, lon] = value.split('@')
                 for obj in photos:
                     if key == obj.identifier:
                         obj.filename = filename

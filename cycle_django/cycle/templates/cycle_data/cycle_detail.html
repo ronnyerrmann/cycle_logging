@@ -232,7 +232,7 @@
               var name = document.getElementById('name').value;
               var radius = document.getElementById('radius').value;
               var identifier = document.getElementById('identifierInput').value;
-              if(name.replace(/ /g, "").length > 3 && radius >= 0.1) {
+              if(name.replace(/ /g, "").length > 3 && radius >= 0.05) {
                 var latLon = markersMap[identifier].marker.getLatLng();
                 if(identifier === 'New') {
                   var identifier = name + '_' + latLon.lat + '_' + latLon.lng;
@@ -259,10 +259,10 @@
               url += window.location.pathname
               url += '?'
               url += Object.keys(updatedMarkers).map(function (key) {
-                  return 'geolocate' + key + '=' + updatedMarkers[key].join(',');
+                  return 'geolocate' + key + '=' + updatedMarkers[key].join('@');
               }).join('&');
               url += '&' + Object.keys(updatedMarkersPhotos).map(function (key) {
-                  return 'photo' + key + '=' + updatedMarkersPhotos[key].join(',');
+                  return 'photo' + key + '=' + updatedMarkersPhotos[key].join('@');
               }).join('&');
               window.location.href = url;
             } else {
