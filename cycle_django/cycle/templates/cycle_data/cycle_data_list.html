@@ -22,36 +22,52 @@
     {% endif %}
     <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
     <table class='table_inner_borders'>
-      <tr>
-        {% if dataset == 'day' %}
-          <th> </th>
-        {% endif %}
-        <th>Date</th> <th>Distance</th> <th>Duration</th> <th>Speed</th>
-        {% if dataset == 'day' %}
-          <th>Total Distance</th> <th>Total Duration</th> <th>Cumulative Speed</th> <th>GPS (if available)</th>
-        {% endif %}
-      </tr>
-      {% for entry in cycle_data_list %}
+      <thead>
         <tr>
-        {% if dataset == 'day' %}
-          <td><a href="{{ entry.get_absolute_url }}">{{entry.entryid}}</a></td> <td>{{entry.date}}</td>
-          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
-          <td>{{entry.totaldistance}}</td> <td>{{entry.totalduration}}</td> <td>{{entry.totalspeed}}</td>
-          <td>
-            {% for gps_info in entry.get_gps_url %}
-              <a href="{{gps_info.0}}">{{gps_info.1}}</a>,
-            {% endfor %}
-          </td>
-        {% elif dataset == "week" or dataset == "month" or dataset == "year"%}
-          <td><a href="{{ entry.get_absolute_url }}">{{ entry.date}}</a></td>
-          <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
-        {% else %}
-          Do not know dataset: {{ dataset }}
-        {% endif %}
+          {% if dataset == 'day' %}
+            <th> </th>
+          {% endif %}
+          <th>Date</th> <th>Distance</th> <th>Duration</th> <th>Speed</th>
+          {% if dataset == 'day' %}
+            <th>Bicycle</th>
+            <th>Total Dist.</th> <th>Total Duration</th> <th>Speed (Bicycle)</th>
+            <th>Cumu. Dist.</th> <th>Cumulative Duration</th> <th>Cumu. Speed</th>
+            <th>GPS (if available)</th>
+          {% endif %}
         </tr>
-    {% empty %}
-      There are no entries in the database.
-    {% endfor %}
+      </thead>
+      <tbody>
+        {% for entry in cycle_data_list %}
+          <tr>
+          {% if dataset == 'day' %}
+            <td><a href="{{ entry.get_absolute_url }}">{{entry.entryid}}</a></td>
+            <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyymmdd}}</a></td>
+            <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+            <td>{{entry.bicycle}}</td>
+            <td>{{entry.totaldistance}}</td> <td>{{entry.totalduration}}</td> <td>{{entry.totalspeed}}</td>
+            <td>{{entry.cumdistance}}</td> <td>{{entry.cumduration}}</td> <td>{{entry.cumspeed}}</td>
+            <td>
+              {% for gps_info in entry.get_gps_url %}
+                <a href="{{gps_info.0}}">{{gps_info.1}}</a>,
+              {% endfor %}
+            </td>
+          {% elif dataset == "week" %}
+            <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyymmdd}}</a></td>
+            <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+          {% elif dataset == "month" %}
+            <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyymm}}</a></td>
+            <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+          {% elif dataset == "year" %}
+            <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyy}}</a></td>
+            <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+          {% else %}
+            Do not know dataset: {{ dataset }}
+          {% endif %}
+          </tr>
+        {% empty %}
+          There are no entries in the database.
+        {% endfor %}
+      </tbody>
     </table>
   </ul>
   {% else %}

@@ -48,3 +48,18 @@ def convert_duration_hms(duration):
     minutes, seconds = divmod(remainder, 60)
 
     return f'{hours}:{minutes:02}:{seconds:02}'
+
+
+@register.filter
+def date_as_yyyymmdd(date):
+    return date.strftime('%Y-%m-%d')
+
+
+@register.filter
+def date_as_yyyymm(date):
+    return date.strftime('%Y-%m')
+
+
+@register.filter
+def date_as_yyyy(date):
+    return date.strftime('%Y')
