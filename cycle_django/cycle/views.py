@@ -63,6 +63,16 @@ class BaseDataListView(generic.ListView):
         super().__init__(*args, **kwargs)
         self._data_frame = None
 
+    # This is overwritten by the child get_queryset, use the sort_queryset instead
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #     sort_by = self.request.GET.get('sort', 'date')  # Default sort by 'date'
+    #     return queryset.order_by(sort_by)
+
+    def sort_queryset(self, queryset):
+        sort_by = self.request.GET.get('sort', 'date')  # Default sort by 'date'
+        return queryset.order_by(sort_by)
+
     def get_context_data(self, **kwargs):
         # Call the base implementation first to get the context
         context = super().get_context_data(**kwargs)
@@ -79,6 +89,7 @@ class BaseDataListView(generic.ListView):
         # Create any data and add it to the context
         context['dataset'] = self.context_dataset
         context['plot_div'] = self.create_plot()
+        context['sort_by'] = self.request.GET.get('sort', 'date')
 
         return context
 
@@ -136,7 +147,7 @@ class DataListView(BaseDataListView):
 
     def get_queryset(self):
         # executed when the page is opened
-        return CycleRides.objects.all()
+        return self.sort_queryset(CycleRides.objects.all())
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -167,21 +178,21 @@ class DataWListView(DataSummaryView):
     context_dataset = "week"
 
     def get_queryset(self):
-        return CycleWeeklySummary.objects.all()
+        return self.sort_queryset(CycleWeeklySummary.objects.all())
 
 
 class DataMListView(DataSummaryView):
     context_dataset = "month"
 
     def get_queryset(self):
-        return CycleMonthlySummary.objects.all()
+        return self.sort_queryset(CycleMonthlySummary.objects.all())
 
 
 class DataYListView(DataSummaryView):
     context_dataset = "year"
 
     def get_queryset(self):
-        return CycleYearlySummary.objects.all()
+        return self.sort_queryset(CycleYearlySummary.objects.all())
 
 
 class ExtraPlots(BaseDataListView):
@@ -550,9 +561,10 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     context.update(gps_context)
 
     # Add the images
-    coords = gps_context['min_max_coords']
-    context['photo_data'] = PhotoData.objects.filter(
-        latitude__gte=coords[0], latitude__lte=coords[1], longitude__gte=coords[2], longitude__lte=coords[3])
+    if 'min_max_coords' in gps_context:
+        coords = gps_context['min_max_coords']
+        context['photo_data'] = PhotoData.objects.filter(
+            latitude__gte=coords[0], latitude__lte=coords[1], longitude__gte=coords[2], longitude__lte=coords[3])
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 

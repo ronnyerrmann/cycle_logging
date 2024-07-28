@@ -20,19 +20,52 @@
     {% if dataset == 'day' %}
       <a href="{% url 'cycle_extra_plots' %}">Extra plots</a>
     {% endif %}
-    <p>Number of (shown) entries: {{ cycle_data_list.count }}</p>
+    {% block pagination %}
+    <div class="pagination">
+      <span>
+        Number of (shown) entries: {{ cycle_data_list.count }}
+        {% if page_obj.number %}
+          - Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        {% endif %}
+      </span>
+      {% if page_obj.has_previous %}
+        &nbsp;<a href="?page=1&sort={{ sort_by }}">First</a>
+        &nbsp;<a href="?page={{ page_obj.previous_page_number }}&sort={{ sort_by }}">Previous</a>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          &nbsp;<span>{{ num }}</span>
+        {% elif num > page_obj.number|add:'-5' and num < page_obj.number|add:'5' %}
+          &nbsp;<a href="?page={{ num }}&sort={{ sort_by }}">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        &nbsp;<a href="?page={{ page_obj.next_page_number }}&sort={{ sort_by }}">Next</a>
+        &nbsp;<a href="?page={{ page_obj.paginator.num_pages }}&sort={{ sort_by }}">Last</a>
+      {% endif %}
+    </div>
+    {% endblock %}
     <table class='table_inner_borders'>
       <thead>
         <tr>
           {% if dataset == 'day' %}
-            <th> </th>
+            <th><a href="?sort=entryid">ID</a></th>
           {% endif %}
-          <th>Date</th> <th>Distance</th> <th>Duration</th> <th>Speed</th>
+          <th><a href="?sort=date">Date</a></th>
+          <th><a href="?sort=distance">Distance</a></th>
+          <th><a href="?sort=duration">Duration</a></th>
+          <th><a href="?sort=speed">Speed</a></th>
           {% if dataset == 'day' %}
-            <th>Bicycle</th>
-            <th>Total Dist.</th> <th>Total Duration</th> <th>Speed (Bicycle)</th>
-            <th>Cumu. Dist.</th> <th>Cumulative Duration</th> <th>Cumu. Speed</th>
+            <th><a href="?sort=bicycle">Bicycle</a></th>
+            <th><a href="?sort=totaldistance">Total Dist.</a></th>
+            <th><a href="?sort=totalduration">Total Duration</a></th>
+            <th><a href="?sort=totalspeed">Speed (Bicycle)</a></th>
+            <th><a href="?sort=cumdistance">Cumu. Dist.</a></th>
+            <th><a href="?sort=cumduration">Cumulative Duration</a></th>
+            <th><a href="?sort=cumspeed">Cumu. Speed</a></th>
             <th>GPS (if available)</th>
+          {% elif dataset == "week" or dataset == "month" or dataset == "year" %}
+            <th><a href="?sort=numberofdays">Number of Days</a></th>
           {% endif %}
         </tr>
       </thead>
@@ -54,12 +87,15 @@
           {% elif dataset == "week" %}
             <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyymmdd}}</a></td>
             <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+            <td>{{entry.numberofdays}}</td>
           {% elif dataset == "month" %}
             <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyymm}}</a></td>
             <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+            <td>{{entry.numberofdays}}</td>
           {% elif dataset == "year" %}
             <td><a href="{{ entry.get_absolute_url }}">{{entry.date|date_as_yyyy}}</a></td>
             <td>{{entry.distance}}</td> <td>{{entry.duration}}</td> <td>{{entry.speed}}</td>
+            <td>{{entry.numberofdays}}</td>
           {% else %}
             Do not know dataset: {{ dataset }}
           {% endif %}
