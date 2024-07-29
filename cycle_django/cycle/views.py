@@ -948,7 +948,7 @@ def add_places_admin_view(request):
         for key, value in request.GET.items():
             if key.startswith('geolocate'):
                 key = key[9:]
-                [name, lat, lon, radius] = value.split(',')
+                [name, lat, lon, radius] = value.split('@')
                 for obj in places:
                     if key == obj.identifier:
                         obj.name = name
