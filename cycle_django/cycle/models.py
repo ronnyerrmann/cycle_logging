@@ -16,6 +16,7 @@ from my_base import Logging, create_timezone_object, photoStorage, GPX_FOLDERS, 
 from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
+backup_instance = Backup()
 
 # Make SRTM availale
 hasSrtm = False
@@ -67,6 +68,8 @@ class Bicycles(models.Model):
     notes = models.TextField(blank=True)
     is_default = models.BooleanField(default=False)
 
+    table_name = 'Bicycles'
+
     @staticmethod
     def add_bicycle_if_none():
         if Bicycles.objects.all().count() == 0:
@@ -75,23 +78,28 @@ class Bicycles(models.Model):
     def __str__(self):
         return self.description
 
+    def backup(self):
+        data_string = ""
+        for obj in Bicycles.objects.all():
+            data_string += f"{obj.description};{obj.notes}\n"
+
+        backup_instance.backup_table(self.table_name, data_string.encode())
+
     def save(self, *args, no_check=False, **kwargs):
         if self.is_default:
             for obj in Bicycles.objects.filter(is_default=True):
                 obj.is_default = False
                 obj.save(no_check=True)
         super().save(*args, **kwargs)
-        # would be good to also save as text file
-        Backup().dump_Bicycles_dbs()
+        self.backup()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().dump_Bicycles_dbs()
+        self.backup()
 
     @classmethod
     def load_data(cls):
-        backup = Backup()
-        loaded_backup = backup.load_dump_Bicycles()
+        backup_instance.load_database_dump(cls.table_name)
 
 
 class CycleRides(models.Model):
@@ -123,6 +131,8 @@ class CycleRides(models.Model):
     )
     bicycle = models.ForeignKey(Bicycles, on_delete=models.PROTECT)
 
+    table_name = 'CycleRides'
+
     class Meta:
         unique_together = (('date', 'distance', 'duration'),)
         ordering = ['date']
@@ -146,6 +156,14 @@ class CycleRides(models.Model):
             data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0]])
         return data
 
+    def backup(self):
+        data_string = ""
+        for obj in CycleRides.objects.all():
+            data_string += (f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{convert_to_str_hours(obj.duration)};"
+                            f"{obj.totaldistance};{convert_to_str_hours(obj.totalduration)};{obj.bicycle.id}\n")
+
+        backup_instance.backup_table(self.table_name, data_string.encode())
+
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
 
         if no_more_modifications:
@@ -160,7 +178,7 @@ class CycleRides(models.Model):
         super().save(*args, **kwargs)
 
         if not no_backup:
-            Backup().backup_cycle_rides()
+            self.backup()
 
         if not no_summary:
             self.mark_summary_tables(self)
@@ -169,7 +187,7 @@ class CycleRides(models.Model):
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().backup_cycle_rides()
+        self.backup()
 
     def update_cumulative_values(self):
         # Calculate cumulative values
@@ -260,10 +278,9 @@ class CycleRides(models.Model):
 
     @classmethod
     def load_data(cls):
-        backup = Backup()
-        loaded_backup = backup.load_dump_cycle_rides()
+        loaded_backup = backup_instance.load_database_dump(cls.table_name)
         if CycleRides.objects.all().count() == 0:
-            loaded_backup |= backup.load_backup_mysql_based()
+            loaded_backup |= backup_instance.load_backup_mysql_based()
         if loaded_backup:
             logger.info("Loaded data")
             # Update the summary tables if database dump or backup was loaded successfully
@@ -380,18 +397,27 @@ class GPSFilesToIgnore(models.Model):
     filename = models.CharField(primary_key=True, max_length=100)
     notes = models.TextField(blank=True)
 
+    table_name = 'GPSFilesToIgnore'
+
+    def backup(self):
+        data_string = ""
+        for obj in GPSFilesToIgnore.objects.all():
+            data_string += f"{obj.filename};{obj.notes}\n"
+
+        backup_instance.backup_table(self.table_name, data_string.encode())
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        Backup().dump_gpsFilesToIgnore_dbs()
+        self.backup()
         GPSData.objects.filter(filename=self.filename).delete()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().dump_gpsFilesToIgnore_dbs()
+        self.backup()
 
     @classmethod
     def load_data(cls):
-        Backup().load_dump_gpsFilesToIgnore_dbs()
+        backup_instance.load_database_dump(cls.table_name)
 
 
 class GPSData(models.Model):
@@ -404,6 +430,8 @@ class GPSData(models.Model):
     altitudes = models.TextField()
     alt_srtm = models.TextField()
     speeds = models.TextField(null=True)
+
+    table_name = 'GPSData'
 
     class Meta:
         ordering = ['start']
@@ -419,19 +447,21 @@ class GPSData(models.Model):
         """Returns the url to access a detail record for this GPS file."""
         return reverse('gps_detail', args=[self.filename])
 
+    def backup(self):
+        backup_instance.backup_table(self.tablename, ''.encode(), only_dump=True)
+
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)
         if not no_backup:
-            Backup().dump_gpsdata_dbs()
+            self.backup()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().dump_gpsdata_dbs()
+        self.backup()
 
     @classmethod
     def load_data(cls):
-        backup = Backup()
-        backup.load_dump_GPSData()
+        backup_instance.load_database_dump(cls.table_name)
 
         cls.import_gpx_file_to_database()
 
@@ -542,13 +572,22 @@ class NoGoAreas(models.Model):
     radius = models.FloatField()
     auto_whole_world = "Auto whole world"
 
+    table_name = 'NoGoAreas'
+
+    def backup(self):
+        data_string = ""
+        for obj in NoGoAreas.objects.all():
+            data_string += f"{obj.name};{obj.latitude};{obj.longitude};{obj.radius};\n"
+
+        backup_instance.backup_table(self.table_name, data_string.encode())
+
     def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
         super().save(*args, **kwargs)
-        Backup().dump_no_go_areas_dbs()
+        self.backup()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().dump_no_go_areas_dbs()
+        self.backup()
 
     @classmethod
     def load_data(cls):
@@ -556,8 +595,7 @@ class NoGoAreas(models.Model):
             NoGoAreas.objects.filter(pk=cls.auto_whole_world).delete()
         except NoGoAreas.DoesNotExist:
             pass
-        backup = Backup()
-        loaded_backup = backup.load_dump_no_go_areas()
+        backup_instance.load_database_dump(cls.table_name)
         if NoGoAreas.objects.all().count() == 0:
             logger.warning(f"No no-go-area defined, hence will create one for the whole world")
             obj = NoGoAreas(name=cls.auto_whole_world, latitude=0., longitude=0, radius=40000.)
@@ -570,6 +608,8 @@ class GeoLocateData(models.Model):
     longitude = models.FloatField()
     radius = models.FloatField()
 
+    table_name = 'GeoLocateData'
+
     class Meta:
         unique_together = (('name', 'latitude', 'longitude'),)
 
@@ -577,22 +617,28 @@ class GeoLocateData(models.Model):
     def identifier(self):
         return f"{self.name}_{self.latitude}_{self.longitude}".replace('.', '_').replace(' ', '')
 
+    def backup(self):
+        data_string = ""
+        for obj in GeoLocateData.objects.all():
+            data_string += f"{obj.name};{obj.latitude};{obj.longitude};{obj.radius};\n"
+
+        backup_instance.backup_table(self.table_name, data_string.encode())
+
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)
         if not no_backup:
             # would be good to also save as text file
-            Backup().dump_GeoLocateData_dbs()
+            self.backup()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().dump_GeoLocateData_dbs()
+        self.backup()
 
     @classmethod
     def load_data(cls):
-        backup = Backup()
-        loaded_backup = backup.load_dump_GeoLocateData()
+        loaded_backup = backup_instance.load_database_dump(cls.table_name)
         if GeoLocateData.objects.all().count() == 0:
-            loaded_backup = backup.load_backup_GeoLocateData_file_based()
+            loaded_backup = backup_instance.load_backup_GeoLocateData_file_based()
 
 
 class PhotoData(models.Model):
@@ -601,6 +647,8 @@ class PhotoData(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     thumbnail = models.BinaryField()
+
+    table_name = 'PhotoData'
 
     def __str__(self):
         return self.filename
@@ -613,20 +661,26 @@ class PhotoData(models.Model):
     def full_filename(self):
         return photoStorage.full_fillname_or_false(self.filename)
 
+    def backup(self):
+        data_string = ""
+        for obj in PhotoData.objects.all():
+            data_string += f"{obj.filename};{obj.description};{obj.latitude};{obj.longitude};\n"
+
+        backup_instance.backup_table(self.table_name, data_string.encode())
+
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)
         if not no_backup:
             # would be good to also save as text file
-            Backup().dump_PhotoData_dbs()
+            self.backup()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
-        Backup().dump_PhotoData_dbs()
+        self.backup()
 
     @classmethod
     def load_data(cls):
-        backup = Backup()
-        loaded_backup = backup.load_dump_PhotoData()
+        backup_instance.load_database_dump(cls.table_name)
         cls.store_files_in_static_folder()
 
     @classmethod

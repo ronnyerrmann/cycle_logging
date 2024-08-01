@@ -24,8 +24,8 @@ class Backup:
         super().__init__()
 
     @staticmethod
-    def remove_old_files(folder_path):
-        files = glob.glob(os.path.join(folder_path, "*.csv.gz"))
+    def remove_old_files(data_name):
+        files = glob.glob(os.path.join(BACKUP_FOLDER, data_name + "_*.csv.gz"))
         files.sort()
 
         keep_files = set()
@@ -39,7 +39,7 @@ class Backup:
 
         for file in files:
             file_name = os.path.basename(file)
-            file_date = datetime.datetime.strptime(file_name[:15], "%Y%m%d_%H%M%S")
+            file_date = datetime.datetime.strptime(file_name, data_name+"_%Y%m%d_%H%M%S.csv.gz")
 
             # For files older than 1 month, keep the first file of the month
             if file_date < beginning_of_last_month:
@@ -67,43 +67,25 @@ class Backup:
             for file_to_remove in files_to_remove:
                 os.remove(file_to_remove)
 
-    def backup_cycle_rides(self):
-        self.remove_old_files(BACKUP_FOLDER)
-
-        with gzip.open(os.path.join(BACKUP_FOLDER, datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S.csv.gz')), "w") as f:
-            for obj in cycle.models.CycleRides.objects.all():
-                f.write(f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{cycle.models.convert_to_str_hours(obj.duration)};"
-                        f"{obj.totaldistance};{cycle.models.convert_to_str_hours(obj.totalduration)}\n".encode())
-
-        self.dump_cycle_rides_dbs()
-
-    def dump_Bicycles_dbs(self):
+    @staticmethod
+    def dump_database_table(table: str):
         # To load last changes on production instance
-        call_command("dumpdata", "cycle.Bicycles", output=os.path.join(BACKUP_FOLDER, "Bicycles_dump.json.gz"))
+        call_command(
+            "dumpdata", "cycle." + table, output=os.path.join(BACKUP_FOLDER, table + "_dump.json.gz")
+        )
 
-    def dump_cycle_rides_dbs(self):
-        # To load last changes on production instance
-        call_command("dumpdata", "cycle.CycleRides", output=os.path.join(BACKUP_FOLDER, "CycleRides_dump.json.gz"))
+    def backup_table(self, data_name: str, data: bytes, only_dump: bool = False):
+        if not only_dump:
+            self.remove_old_files(data_name)
+            with gzip.open(os.path.join(BACKUP_FOLDER,
+                                        datetime.datetime.utcnow().strftime(data_name + '_%Y%m%d_%H%M%S.csv.gz')
+                                        ), "w") as f:
+                f.write(data)
 
-    def dump_gpsFilesToIgnore_dbs(self):
-        call_command("dumpdata", "cycle.GPSFilesToIgnore", output=os.path.join(BACKUP_FOLDER, "GPSFilesToIgnore_dump.json.gz"))
+        self.dump_database_table(data_name)
 
-    def dump_gpsdata_dbs(self):
-        call_command("dumpdata", "cycle.GPSData", output=os.path.join(BACKUP_FOLDER, "GPSData_dump.json.gz"))
-
-    def dump_no_go_areas_dbs(self):
-        # To load last changes on production instance
-        call_command("dumpdata", "cycle.NoGoAreas", output=os.path.join(BACKUP_FOLDER, "NoGoAreas_dump.json.gz"))
-
-    def dump_GeoLocateData_dbs(self):
-        # To load last changes on production instance
-        call_command("dumpdata", "cycle.GeoLocateData", output=os.path.join(BACKUP_FOLDER, "GeoLocateData_dump.json.gz"))
-
-    def dump_PhotoData_dbs(self):
-        # To load last changes on production instance
-        call_command("dumpdata", "cycle.PhotoData", output=os.path.join(BACKUP_FOLDER, "PhotoData_dump.json.gz"))
-
-    def load_database_dump(self, database_dump_file):
+    def load_database_dump(self, data_name: str):
+        database_dump_file = data_name + '_dump.json.gz'
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", database_dump_file)
         if not os.path.isfile(filename):
@@ -134,27 +116,6 @@ class Backup:
 
         self.__class__.file_changed_last_loaded[database_dump_file] = file_changed
         return True
-
-    def load_dump_Bicycles(self):
-        return self.load_database_dump("Bicycles_dump.json.gz")
-
-    def load_dump_cycle_rides(self):
-        return self.load_database_dump("CycleRides_dump.json.gz")
-
-    def load_dump_gpsFilesToIgnore_dbs(self):
-        return self.load_database_dump("GPSFilesToIgnore_dump.json.gz")
-
-    def load_dump_GPSData(self):
-        return self.load_database_dump("GPSData_dump.json.gz")
-
-    def load_dump_no_go_areas(self):
-        return self.load_database_dump("NoGoAreas_dump.json.gz")
-
-    def load_dump_GeoLocateData(self):
-        return self.load_database_dump("GeoLocateData_dump.json.gz")
-
-    def load_dump_PhotoData(self):
-        return self.load_database_dump("PhotoData_dump.json.gz")
 
     def load_backup_mysql_based(self):
         """ Import the backup from the MySQL based version into this version
