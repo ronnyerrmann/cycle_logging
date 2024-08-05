@@ -76,9 +76,12 @@ class CycleRidesAdmin(admin.ModelAdmin):
     form = AdminForm
     list_display = (
         'date', 'distance', 'duration', 'speed', 'totaldistance', 'totalduration', 'totalspeed', 'cumdistance',
-        'cumduration', 'cumspeed', 'bicycle'
+        'cumduration', 'cumspeed', 'bicycle',
+        # 'cumbicycledistance', 'cumbicycleduration'
     )
-    readonly_fields = ('totalspeed', 'cumbicycledistance', 'cumbicycleduration', 'cumdistance', 'cumduration', 'cumspeed')
+    readonly_fields = (
+        'totalspeed', 'cumbicycledistance', 'cumbicycleduration', 'cumdistance', 'cumduration', 'cumspeed'
+    )
     fieldsets = (
         (None, {
             'fields': ('date', 'distance', 'duration')
@@ -88,7 +91,9 @@ class CycleRidesAdmin(admin.ModelAdmin):
         }),
         ('Bicycle', {'fields': ('bicycle',)}),
         # ('For database automatic process', {
-        #      'fields': ('totalspeed', 'cumbicycledistance', 'cumbicycleduration', 'cumdistance', 'cumduration', 'cumspeed')
+        #      'fields': (
+        #          'totalspeed', 'cumbicycledistance', 'cumbicycleduration', 'cumdistance', 'cumduration', 'cumspeed'
+        #      )
         # }),
 
     )

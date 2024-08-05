@@ -200,8 +200,8 @@ class CycleRides(models.Model):
         # Last object with a cumulative distance (for the current bicycle)
         for obj in CycleRides.objects.filter(date__lt=date_for_cum, bicycle=self.bicycle).order_by('-date'):
             if obj.cumbicycledistance and obj.cumbicycleduration:
-                prev_cumdistance = obj.cumdistance
-                prev_cumduration = obj.cumduration
+                prev_cumdistance = obj.cumbicycledistance
+                prev_cumduration = obj.cumbicycleduration
                 break
             else:
                 date_for_cum = obj.date
