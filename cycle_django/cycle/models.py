@@ -209,13 +209,15 @@ class CycleRides(models.Model):
             prev_cumdistance = 0
             prev_cumduration = datetime.timedelta(0)
 
+        change = False
         for obj in CycleRides.objects.filter(date__gte=date_for_cum, bicycle=self.bicycle).order_by('date'):
             prev_cumdistance += obj.distance
             prev_cumduration += obj.duration
             obj.cumbicycledistance = round(prev_cumdistance, 4)
             obj.cumbicycleduration = prev_cumduration
             obj.save(no_more_modifications=True)
-            logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
+            change = True
+            logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date} for bycle: {self.bicycle}")
 
         # Last object with a cumulative distance (for all)
         for obj in CycleRides.objects.filter(date__lt=date_for_cum).order_by('-date'):
@@ -236,10 +238,14 @@ class CycleRides(models.Model):
             obj.cumduration = prev_cumduration
             obj.cumspeed = round(obj.cumdistance / obj.cumduration.total_seconds() * 3600, 4)
             obj.save(no_more_modifications=True)
-            logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
+            change = True
+            logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date} for all bicycles")
+
+        if change:
+            self.backup()
 
     @staticmethod
-    def mark_summary_tables(obj: Union["CycleRides", None], update_all=False):
+    def mark_summary_tables(obj: Union["CycleRides", None], update_all: bool = False):
         # Mark in the summary tables that dates were updated
         if update_all:
             dates_to_mark = CycleRides.objects.values_list("date", flat=True)
@@ -282,7 +288,6 @@ class CycleRides(models.Model):
         if CycleRides.objects.all().count() == 0:
             loaded_backup |= backup_instance.load_backup_mysql_based()
         if loaded_backup:
-            logger.info("Loaded data")
             # Update the summary tables if database dump or backup was loaded successfully
             cls.mark_summary_tables(None, update_all=True)
 
@@ -448,7 +453,7 @@ class GPSData(models.Model):
         return reverse('gps_detail', args=[self.filename])
 
     def backup(self):
-        backup_instance.backup_table(self.tablename, ''.encode(), only_dump=True)
+        backup_instance.backup_table(self.table_name, ''.encode(), only_dump=True)
 
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)

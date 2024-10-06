@@ -602,8 +602,9 @@ def analyse_gps_data_sets(
             'Times': np.array(obj.datetimes[1:-1].split(", "), dtype=int),  # e.g. 1269530756
             'Latitudes_deg': lats,
             'Longitudes_deg': lons,
-            'Altitudes': np.array(obj.altitudes[1:-1].split(", "), dtype=int),
-            'Altitudes_srtm': np.array(obj.alt_srtm[1:-1].split(", "), dtype=int),
+            'Altitudes': np.array(obj.altitudes[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
+            'Altitudes_srtm':
+                np.array(obj.alt_srtm[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
         })
         individual_gps_list.append({'url': obj.get_absolute_url(), 'start': obj.start, 'end': obj.end})
 

@@ -6,6 +6,8 @@ migrations
 cycle_django_env/
 django_admin_password.txt
 django_secret_key.txt
+cycle_django/cycle/static/images/
+
 # Autocreated
 *~
 # Byte-compiled / optimized / DLL files
