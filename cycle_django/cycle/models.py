@@ -239,7 +239,7 @@ class CycleRides(models.Model):
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date}")
 
     @staticmethod
-    def mark_summary_tables(obj: Union["CycleRides", None], update_all=False):
+    def mark_summary_tables(obj: Union["CycleRides", None], update_all: bool = False):
         # Mark in the summary tables that dates were updated
         if update_all:
             dates_to_mark = CycleRides.objects.values_list("date", flat=True)
@@ -282,7 +282,6 @@ class CycleRides(models.Model):
         if CycleRides.objects.all().count() == 0:
             loaded_backup |= backup_instance.load_backup_mysql_based()
         if loaded_backup:
-            logger.info("Loaded data")
             # Update the summary tables if database dump or backup was loaded successfully
             cls.mark_summary_tables(None, update_all=True)
 
@@ -448,7 +447,7 @@ class GPSData(models.Model):
         return reverse('gps_detail', args=[self.filename])
 
     def backup(self):
-        backup_instance.backup_table(self.tablename, ''.encode(), only_dump=True)
+        backup_instance.backup_table(self.table_name, ''.encode(), only_dump=True)
 
     def save(self, *args, no_backup=False, **kwargs):
         super().save(*args, **kwargs)

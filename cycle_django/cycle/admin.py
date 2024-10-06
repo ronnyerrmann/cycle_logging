@@ -35,6 +35,8 @@ class AdminForm(forms.ModelForm):
         if speed < 2 or speed > 30:
             raise ValidationError(f"A speed of {speed:4.2f} km/h is outside the sensible range")
 
+        # This will cause a problem, when a wrong date needs to be moved forward. Cleaned data doesn't know about object
+        # id, but this should be filtered out too - Todo
         previous = CycleRides.objects.filter(date__lt=date, bicycle=bicycle).order_by('-date').first()
 
         if previous:

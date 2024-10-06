@@ -470,6 +470,7 @@ class ExtraPlots(BaseDataListView):
         self.data_frame[by2] = pandas.to_numeric(
             self.data_frame["totalduration"] - self.data_frame["cumbicycleduration"]
         ) * 1E-9  # From mu sec to seconds
+        self.data_frame.loc[self.data_frame["cumbicycleduration"].isna(), by2] = np.nan # Restore NaNs
 
         fig_diff = go.Figure()
         fig_diff.add_trace(go.Scatter(x=self.data_frame[bx], y=self.data_frame[by1], name="Distance"))
@@ -602,8 +603,9 @@ def analyse_gps_data_sets(
             'Times': np.array(obj.datetimes[1:-1].split(", "), dtype=int),  # e.g. 1269530756
             'Latitudes_deg': lats,
             'Longitudes_deg': lons,
-            'Altitudes': np.array(obj.altitudes[1:-1].split(", "), dtype=int),
-            'Altitudes_srtm': np.array(obj.alt_srtm[1:-1].split(", "), dtype=int),
+            'Altitudes': np.array(obj.altitudes[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
+            'Altitudes_srtm':
+                np.array(obj.alt_srtm[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
         })
         individual_gps_list.append({'url': obj.get_absolute_url(), 'start': obj.start, 'end': obj.end})
 

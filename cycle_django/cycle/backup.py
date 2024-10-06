@@ -115,6 +115,7 @@ class Backup:
             return
 
         self.__class__.file_changed_last_loaded[database_dump_file] = file_changed
+        logger.info(f"Loaded database dump {database_dump_file}.")
         return True
 
     def load_backup_mysql_based(self):
