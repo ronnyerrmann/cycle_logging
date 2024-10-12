@@ -156,15 +156,16 @@ class CycleRides(models.Model):
             data.append([reverse('gps_detail', args=[obj.filename]), obj.filename.rsplit('.', 1)[0]])
         return data
 
-    def backup(self):
+    def backup(self, csv_update: bool = True):
         data_string = ""
-        for obj in CycleRides.objects.all():
-            data_string += (f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{convert_to_str_hours(obj.duration)};"
-                            f"{obj.totaldistance};{convert_to_str_hours(obj.totalduration)};{obj.bicycle.id}\n")
+        if csv_update:
+            for obj in CycleRides.objects.all():
+                data_string += (f"{obj.date.strftime('%Y-%m-%d')};{obj.distance};{convert_to_str_hours(obj.duration)};"
+                                f"{obj.totaldistance};{convert_to_str_hours(obj.totalduration)};{obj.bicycle.id}\n")
 
-        backup_instance.backup_table(self.table_name, data_string.encode())
+        backup_instance.backup_table(self.table_name, data_string.encode(), csv_dump=csv_update)
 
-    def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
+    def save(self, *args, no_more_modifications=False, run_backup=True, run_summary=True, **kwargs):
 
         if no_more_modifications:
             # Just run parent save for entries that don't need more modification
@@ -177,10 +178,10 @@ class CycleRides(models.Model):
 
         super().save(*args, **kwargs)
 
-        if not no_backup:
+        if run_backup:
             self.backup()
 
-        if not no_summary:
+        if run_summary:
             self.mark_summary_tables(self)
 
         self.update_cumulative_values()
@@ -206,7 +207,7 @@ class CycleRides(models.Model):
             else:
                 date_for_cum = obj.date
         else:
-            prev_cumdistance = 0
+            prev_cumdistance = 0.0
             prev_cumduration = datetime.timedelta(0)
 
         change = False
@@ -242,7 +243,7 @@ class CycleRides(models.Model):
             logger.info(f"Updated cumulative values for entry {obj.pk}: {obj.date} for all bicycles")
 
         if change:
-            self.backup()
+            self.backup(csv_update=False)
 
     @staticmethod
     def mark_summary_tables(obj: Union["CycleRides", None], update_all: bool = False):
@@ -453,11 +454,11 @@ class GPSData(models.Model):
         return reverse('gps_detail', args=[self.filename])
 
     def backup(self):
-        backup_instance.backup_table(self.table_name, ''.encode(), only_dump=True)
+        backup_instance.backup_table(self.table_name, ''.encode(), csv_dump=False)
 
-    def save(self, *args, no_backup=False, **kwargs):
+    def save(self, *args, run_backup=True, **kwargs):
         super().save(*args, **kwargs)
-        if not no_backup:
+        if run_backup:
             self.backup()
 
     def delete(self, *args, **kwargs):
@@ -566,7 +567,7 @@ class GPSData(models.Model):
                         altitudes=json.dumps(altitudes), alt_srtm=json.dumps(alt_srtm)
                     )
                     # not just -1 but -10, as otherwise empty files can be an issue
-                    obj.save(no_backup=(ii < len(gpx_files)-(min(10, len(gpx_files)))))
+                    obj.save(run_backup=(ii >= len(gpx_files)-(min(10, len(gpx_files)))))
                     logger.info(f"Loaded {len(datetimes)} points from {filename}{alt_adjust_text}")
 
 
@@ -586,7 +587,7 @@ class NoGoAreas(models.Model):
 
         backup_instance.backup_table(self.table_name, data_string.encode())
 
-    def save(self, *args, no_more_modifications=False, no_backup=False, no_summary=False, **kwargs):
+    def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.backup()
 
@@ -629,10 +630,9 @@ class GeoLocateData(models.Model):
 
         backup_instance.backup_table(self.table_name, data_string.encode())
 
-    def save(self, *args, no_backup=False, **kwargs):
+    def save(self, *args, run_backup=True, **kwargs):
         super().save(*args, **kwargs)
-        if not no_backup:
-            # would be good to also save as text file
+        if run_backup:
             self.backup()
 
     def delete(self, *args, **kwargs):
@@ -673,10 +673,9 @@ class PhotoData(models.Model):
 
         backup_instance.backup_table(self.table_name, data_string.encode())
 
-    def save(self, *args, no_backup=False, **kwargs):
+    def save(self, *args, run_backup=True, **kwargs):
         super().save(*args, **kwargs)
-        if not no_backup:
-            # would be good to also save as text file
+        if run_backup:
             self.backup()
 
     def delete(self, *args, **kwargs):

@@ -74,8 +74,8 @@ class Backup:
             "dumpdata", "cycle." + table, output=os.path.join(BACKUP_FOLDER, table + "_dump.json.gz")
         )
 
-    def backup_table(self, data_name: str, data: bytes, only_dump: bool = False):
-        if not only_dump:
+    def backup_table(self, data_name: str, data: bytes, csv_dump: bool = True):
+        if csv_dump:
             self.remove_old_files(data_name)
             with gzip.open(os.path.join(BACKUP_FOLDER,
                                         datetime.datetime.utcnow().strftime(data_name + '_%Y%m%d_%H%M%S.csv.gz')
@@ -145,7 +145,7 @@ class Backup:
                             date=date, distance=distance, duration=duration,
                             totaldistance=totaldistance, totalduration=totalduration
                         )
-                        obj.save(no_backup=True, no_summary=True)
+                        obj.save(run_backup=False, run_summary=False)
                         number_of_imports += 1
             if number_of_imports:
                 logger.info(f"Imported {number_of_imports} entries from {filename}")
@@ -172,7 +172,7 @@ class Backup:
                         obj = cycle.models.GeoLocateData(
                             name=name, latitude=lat, longitude=lon, radius=radius
                         )
-                        obj.save(no_backup=True)
+                        obj.save(run_backup=False)
                         number_of_imports += 1
             if number_of_imports:
                 logger.info(f"Imported {number_of_imports} entries from {filename}")
