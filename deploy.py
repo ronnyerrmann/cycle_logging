@@ -9,14 +9,21 @@ SETTINGS_FOLDERS = [
     "/home/roghurt/Ronny_IP330S_home/Documents/Scripts/cycle_logging",  # Production
     "/home/roghurt/cycle_logging_tmp/",     # Test production
 ]
-PHOTO_FOLDERS = [
+PHOTO_FOLDERS = [       # The links to images are created in the static files images/ folder through store_files_in_static_folder
     "/home/ronny/Pictures/",                        # Test Production locally
-    "/home/roghurt/Ronny_IP330S_home/Pictures",     # Production
+    "/home/roghurt/Ronny_IP330S_home/Pictures/",     # Production
+]
+TILES_FOLDERS = [
+    "/mnt/backup500/srtm/tiles/",     # Test Production
+    "/home/roghurt/srtm/tiles/",  # Production
 ]
 CYCLE_BASE_PATH = "cycle_logging"
 
 BASE_PATH = os.getcwd()
 
+SETTINGS_FOLDER = 'dummy'
+PHOTO_FOLDER = 'dummy'
+TILES_FOLDER = 'dummy'
 for SETTINGS_FOLDER in SETTINGS_FOLDERS:
     DATABASE_BACKUP_FOLDER = os.path.join(SETTINGS_FOLDER, "cycle_django", "backup_database")
     if os.path.isfile(os.path.join(DATABASE_BACKUP_FOLDER, "CycleRides_dump.json.gz")):
@@ -29,6 +36,12 @@ for PHOTO_FOLDER in PHOTO_FOLDERS:
         break
 else:
     print(f"No Folder for Photos, will use {PHOTO_FOLDER} for settings")
+
+for TILES_FOLDER in TILES_FOLDERS:
+    if os.path.isdir(TILES_FOLDER):
+        break
+else:
+    print(f"No Folder for Tiles, will use {TILES_FOLDER} for settings")
 
 for docker_bin in DOCKER_BINS:
     if os.path.isfile(docker_bin):
@@ -66,7 +79,7 @@ if not new:
     cmd = ["git", "reset", "--hard", f"origin/{args.branch}"]
     run_with_print(cmd)
 
-# Run everything below only if there was a new commit
+# Todo: Run everything below only if there was a new commit
 docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
@@ -75,6 +88,7 @@ cmds = ["cp -rp /cycle_logging/* .",    # work in /cycle_django_int
         # don't use mv or rm in the original folder, as DATABASE_BACKUP_FOLDER is linked inside
         "cd cycle_django/",
         "ln -s /load_db_dump_at_startup",
+        # Pictures are linked in background.py:do_first_startup_tasks
         "python manage.py makemigrations",
         "python manage.py migrate",
         "python manage.py collectstatic --noinput",
@@ -99,6 +113,7 @@ cmd = [docker_bin, "run", "--detach",
        "-v", f"{os.path.abspath(SETTINGS_FOLDER)}:/cycle_setup",        # listen to changes in this folder
        "-v", f"{os.path.abspath(DATABASE_BACKUP_FOLDER)}:/load_db_dump_at_startup",
        "-v", f"{os.path.abspath(PHOTO_FOLDER)}:/Pictures:ro",           # Readonly photo folder
+       "-v", f"{os.path.abspath(TILES_FOLDER)}:/Tiles:ro",              # Readonly Tiles folder
        # need to mount SRTM data and set the environment variable to it
        "-p", "8314:8314",
        "--name", "cycle_log",

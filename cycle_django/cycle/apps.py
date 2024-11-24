@@ -18,6 +18,7 @@ class CycleConfig(AppConfig):
         if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv and 'collectstatic' not in sys.argv:
             self.add_superuser()
             self.add_bicycle_if_none()
+            # more tasks are done in background.do_first_startup_tasks
             background_thread = BackgroundThread()
             background_thread.start(first_interval=1)
             atexit.register(background_thread.stop)
@@ -72,15 +73,3 @@ class CycleConfig(AppConfig):
                         ).save()
         os.system('mv /tmp/cycle_tmp.txt /tmp/cycle_tmp.old')
     """
-
-    """@staticmethod
-    def load_data():
-        from .models import CycleRides, NoGoAreas, GPSData
-        for model in CycleRides, NoGoAreas, GPSData:
-            try:
-                model.load_data()
-            except OperationalError as e:
-                if str(e).startswith("no such table: "):
-                    logger.warning(f"Missing Table for {model}")
-                else:
-                    raise"""

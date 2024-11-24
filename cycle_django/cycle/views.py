@@ -3,6 +3,7 @@ import copy
 import datetime
 from math import log10, radians, sin, cos, acos
 import numpy as np
+import os
 import pandas
 from plotly.offline import plot
 import plotly.express as px
@@ -10,6 +11,7 @@ import plotly.graph_objects as go
 from typing import Dict, List, Union
 
 from django.shortcuts import get_object_or_404, render, redirect
+from django.conf import settings
 from django.core import serializers
 from django.db.models import Avg, Max, Min, Sum
 from django.http import HttpResponse
@@ -20,7 +22,7 @@ from .models import (
     PhotoData
 )
 from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
-from my_base import Logging, create_timezone_object, photoStorage
+from my_base import Logging, create_timezone_object, photoStorage, TILES_FOLDERS
 
 logger = Logging.setup_logger(__name__)
 
@@ -566,6 +568,8 @@ def data_detail_view(request, date_wmy=None, entryid=None):
         context['photo_data'] = PhotoData.objects.filter(
             latitude__gte=coords[0], latitude__lte=coords[1], longitude__gte=coords[2], longitude__lte=coords[3])
 
+    context['tile_dyn_range'] = get_tile_dynamic_ranges()
+
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
@@ -921,6 +925,7 @@ def gps_detail_view(request, filename=None):
 
     context = analyse_gps_data_sets(gpsData, coords, admin=request.user.is_superuser)
     context['gpsdatarangeform'] = form
+    context['tile_dyn_range'] = get_tile_dynamic_ranges()
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
@@ -992,3 +997,43 @@ def add_places_admin_view(request):
     context['adminView'] = True
 
     return render(request, 'cycle_data/cycle_detail.html', context=context)
+
+
+def get_tile_dynamic_ranges():
+    # check what dynamic ranges and zoom levels exist (to create the overlays in the map dynamically)
+    tiles = []
+    TILES_FOLDER = 'dummy'
+    for TILES_FOLDER in TILES_FOLDERS:
+        if os.path.exists(TILES_FOLDER):
+            break
+    for dynrange_folder in os.listdir(TILES_FOLDER):
+        # What dynamic ranges do exist?
+        dyn_range_folder = os.path.join(TILES_FOLDER, dynrange_folder)
+        if not os.path.isdir(dyn_range_folder):
+            continue
+        min_max = dynrange_folder.split('_')[-2:]
+        if len(min_max) != 2:
+            continue
+        zoom_min = 20
+        zoom_max = -1
+        for zoom_folder in os.listdir(dyn_range_folder):
+            # what zoom levels do exist?
+            if os.path.isdir(os.path.join(dyn_range_folder, zoom_folder)):
+                try:
+                    zoom = int(zoom_folder)
+                    zoom_max = max(zoom_max, zoom)
+                    zoom_min = min(zoom_min, zoom)
+                except:
+                    pass
+        if zoom_max > 0:
+            if settings.DEBUG:
+                # use an absolute path to the static folder instead the given folder
+                dyn_range_folder = ('/' + os.path.basename(os.path.normpath(settings.STATICFILES_DIRS[0])) + '/tiles/' +
+                                    dynrange_folder)
+            else:
+                # on a windows system, the paths in a website still need to be /
+                dyn_range_folder = dyn_range_folder.replace('\\', '/')
+            tiles.append({'elevation_min': int(min_max[0]), 'elevation_max': int(min_max[1]),
+                          'folder_name': dyn_range_folder, 'zoom_min': zoom_min, 'zoom_max': zoom_max})
+
+    return sorted(tiles, key=lambda x: (x['elevation_min'], x['elevation_max']))

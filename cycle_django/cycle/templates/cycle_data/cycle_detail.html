@@ -105,9 +105,33 @@
       <script>
         const map = L.map('map').setView({{ center | safe }}, {{ zoom }});
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        })
+        osmLayer.addTo(map);
+
+        const overlays = {};
+        // dynamically create the overlays from the tiles folder structure
+        {% for tile_setting in tile_dyn_range %}
+          const srtmLayer{{ forloop.counter }} = L.tileLayer('{{ tile_setting.folder_name }}/{z}/{x}/{y}.png', {
+              attribution: '&copy; SRTM Data',
+              tms: true,  // tiles are flipped vertically
+              minZoom: {{ tile_setting.zoom_min }},
+              maxZoom: {{ tile_setting.zoom_max }},
+              tileSize: 256, // this seems to cause infinite tiles as at some point it tries to divide through array: [256, 256],
+              opacity: 0.7
+          });
+          overlays["SRTM {{ tile_setting.elevation_min }}m to {{ tile_setting.elevation_max }}m"] = srtmLayer{{ forloop.counter }}
+        {% endfor %}
+
+        if (Object.keys(overlays).length) {
+          L.control.layers(
+              { "OpenStreetMap": osmLayer },
+              overlays,
+              { collapsed: false}
+          ).addTo(map);
+        }
+
         {% for position in gps_positions %}
             L.polyline({{ position | safe }}, { color: 'blue' }).addTo(map);
         {% endfor %}

@@ -3,7 +3,7 @@ import gpxpy
 import json
 import os
 import numpy as np
-from typing import Iterable, List, Union
+from typing import Union, Tuple
 
 from django.conf import settings
 from django.db import models
@@ -12,13 +12,13 @@ from django.urls import reverse
 import django.utils.duration
 # using: python manage.py inspectdb > models.py
 
-from my_base import Logging, create_timezone_object, photoStorage, GPX_FOLDERS, PHOTO_FOLDERS
+from my_base import Logging, create_timezone_object, photoStorage, GPX_FOLDERS
 from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
 backup_instance = Backup()
 
-# Make SRTM availale
+# Make SRTM available
 hasSrtm = False
 if os.environ.get('SRTM1_DIR'):
     try:
@@ -31,7 +31,7 @@ if os.environ.get('SRTM1_DIR'):
 else:
     logger.warning('Not using SRTM!')
 
-def convert_to_str_hours(value: Union[int, datetime.timedelta]) -> str:
+def convert_to_str_hours(value: Union[int, datetime.timedelta, None]) -> Union[str, None]:
     if isinstance(value, datetime.timedelta):
         value = value.total_seconds()
     if isinstance(value, float):
@@ -44,8 +44,8 @@ def convert_to_str_hours(value: Union[int, datetime.timedelta]) -> str:
     raise ValueError(f"Got {value.__class__.__name__} instead of int or timedelta")
 
 
-def _get_duration_components_no_days(duration):
-    """ Monkey Patch: Instead of d hh:mm:ss use hhh:mm:ss"""
+def _get_duration_components_no_days(duration) -> Tuple[int, int, int, int, int]:
+    """ Monkey Patch: Instead of 'd hh:mm:ss' use 'hhh:mm:ss'"""
     days = duration.days
     seconds = duration.seconds
     microseconds = duration.microseconds
@@ -59,6 +59,7 @@ def _get_duration_components_no_days(duration):
     return 0, hours, minutes, seconds, microseconds
 
 
+# Patch the django function
 django.utils.duration._get_duration_components = _get_duration_components_no_days
 
 
@@ -660,6 +661,7 @@ class PhotoData(models.Model):
 
     @property
     def identifier(self):
+        # A unique identifier
         return f"{self.filename}_{self.latitude}_{self.longitude}".replace('.', '_').replace(' ', '')
 
     @property
@@ -689,6 +691,7 @@ class PhotoData(models.Model):
 
     @classmethod
     def store_files_in_static_folder(cls):
+        # Link all the used photos into the static folder
         if settings.DEBUG:
             image_folder = os.path.join(settings.STATICFILES_DIRS[0], 'images')
         else:

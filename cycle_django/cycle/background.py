@@ -2,8 +2,10 @@ import os
 import psutil
 import threading
 from django.db.utils import OperationalError
+from django.conf import settings
 
-from my_base import Logging
+from my_base import Logging, TILES_FOLDERS
+
 
 logger = Logging.setup_logger(__name__)
 
@@ -71,4 +73,16 @@ class BackgroundThread(threading.Thread):
     def do_first_startup_tasks(self):
         from .models import PhotoData
         PhotoData.store_files_in_static_folder()
+        self.link_tiles_folder()
         logger.info("Finished first startup tasks")
+
+    @staticmethod
+    def link_tiles_folder():
+        # If we are in debug mode, the tiles need to be linked to the static folder to be served by django
+        tiles_folder_in_static = os.path.join(settings.STATICFILES_DIRS[0], 'tiles')
+        if settings.DEBUG and not os.path.exists(tiles_folder_in_static):
+            for TILES_FOLDER in TILES_FOLDERS:
+                if os.path.exists(TILES_FOLDER):
+                    os.symlink(TILES_FOLDER, tiles_folder_in_static)
+                    logger.info(f"Linked {tiles_folder_in_static} to {TILES_FOLDER}")
+                    break
