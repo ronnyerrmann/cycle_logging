@@ -79,7 +79,7 @@ process_area() {
 #  - all the base names for the htg.zip files
 
 # UK
-process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
+process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
   "N49W006" \
   "N50E000" "N50E001" "N50W001" "N50W002" "N50W003" "N50W004" "N50W005" "N50W006" \
   "N51E000" "N51E001" "N51W001" "N51W002" "N51W003" "N51W004" "N51W005" \
@@ -92,16 +92,16 @@ process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
   "N58W003" "N58W004" "N58W005" "N58W006" "N58W007"
 
 # La Palma
-process_area 1 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "1024_3071" \
+process_area 0 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "1024_3071" \
   "N28W017" "N28W018" "N28W019"
 
 # Norway
-process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
+process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
   "N68E018" "N68E019" "N68E020" \
   "N69E018" "N69E019" "N69E020"
 
 # Sweden
-process_area 1 $SRTM_BASE_3 "0_255" \
+process_area 0 $SRTM_BASE_3 "0_255" \
   "N55E013" "N55E014" \
   "N56E013" "N56E014" "N56E015" "N56E016" \
   "N57E011" "N57E012" "N57E013" "N57E014" "N57E015" "N57E016" \
@@ -109,25 +109,25 @@ process_area 1 $SRTM_BASE_3 "0_255" \
   "N59E013" "N59E014" "N59E015" "N59E016" "N59E017" "N59E018"
 
 # Slowakia/Cech
-process_area 1 $SRTM_BASE_3 "0_1023" \
+process_area 0 $SRTM_BASE_3 "0_1023" \
   "N48E016" "N48E017" "N48E018" "N48E019" "N48E020" \
   "N49E014" "N49E015" "N49E016" "N49E017" "N49E018" "N49E019" "N49E020" \
   "N50E014" "N50E015"
 
 # High Tatra
-process_area 1 $SRTM_BASE_3 "0_4095" \
+process_area 0 $SRTM_BASE_3 "0_4095" \
   "N49E019" "N49E020"
 
 # Brittany
-process_area 1 $SRTM_BASE_3 "0_255" \
+process_area 0 $SRTM_BASE_3 "0_255" \
  "N48W002" "N48W003" "N48W004" "N48W005"
 
 # Mecklenburg Vorpommern
-process_area 1 $SRTM_BASE_3 "0_255" \
+process_area 0 $SRTM_BASE_3 "0_255" \
   "N53E013" "N54E013"
 
 # Deutschland
-process_area 1 $SRTM_BASE_3 "0_255" \
+process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
   "N47E007" "N47E008" "N47E009" "N47E010" "N47E011" "N47E012" \
   "N48E007" "N48E008" "N48E009" "N48E010" "N48E011" "N48E012" \
   "N49E007" "N49E008" "N49E009" "N49E010" "N49E011" "N49E012" \
@@ -135,21 +135,21 @@ process_area 1 $SRTM_BASE_3 "0_255" \
   "N51E006" "N51E007" "N51E008" "N51E009" "N51E010" "N51E011" "N51E012" "N51E013" "N51E014"
 
 # Alps
-process_area 1 $SRTM_BASE_3 "0_4095" "0_2047" "2048_4095" \
+process_area 0 $SRTM_BASE_3 "0_4095" "0_2047" "2048_4095" \
   "N46E006" "N46E007" "N46E008" "N46E009" "N46E010" "N46E011" "N46E012" "N46E013" \
   "N47E006" "N47E007" "N47E008" "N47E009" "N47E010" "N47E011" "N47E012" "N47E013"
 
 # Hawaii
-process_area 1 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "0_2047" "2048_4095" \
+process_area 0 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "0_2047" "2048_4095" \
   "N18W156" \
   "N19W155" "N19W156" "N19W157" \
   "N20W156" "N20W157" \
   "N21W157"
 
 # Thailand - Khao Sok
-process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
+process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
   "N08E098" "N09E098"
 
 # Thailand - Chiang Mai
-process_area 1 $SRTM_BASE_3 "0_1023" "0_2047" \
+process_area 0 $SRTM_BASE_3 "0_1023" "0_2047" \
   "N18E098" "N18E099"

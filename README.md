@@ -1,9 +1,8 @@
 # cycle_logging
-App to log daily exercise and and to analyse the data.
+Initially planned as app to log daily exercise and to analyse the data. However, it became more, when adding a map, then photographs to the map and displaying the SRTM overlays.
 
 This is the Django based version. Initially, I started with a MySQL Database and a PHP and Javascript front-end.
 That version can be fund under https://github.com/ronnyerrmann/cycle_logging_mysql_based.
-This repository has not yet been cleaned up from some of the old code.
 
 ### Show results in a Webbrowser:
 To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/development_environment]
@@ -11,6 +10,15 @@ To install Django you can follow: [https://developer.mozilla.org/en-US/docs/Lear
 The following packages are required
 ```
 pip install requests urllib3 django pandas plotly gpxpy django-leaflet psutil python-srtm Pillow
+```
+
+The following packages are optional (for the SRTM tiles):
+```
+sudo apt-get install gdal-bin libgdal-dev python3-gdal
+```
+Afterwards it might be necessary to run:
+```
+pip install gdal==3.4.1
 ```
 
 To create the environment:
@@ -63,7 +71,7 @@ The website runs on a test server: [Cycle Results](http://109.123.245.13:8314).
 * GPS files that were loaded without SRTM data won't get SRTM data automatically. They need to be removed, so they will be loaded again.
 * Elevations below 0 will have an unsigned integer (16 bit) buffer underflow, elevations without a reading will end up with 32k.
 * **Create Tiles**
-  * run `./create_tiles.sh` after adjusting the top parameters and the areas you want to serve at the bottom of the file
+  * run `./create_tiles.sh` after adjusting the top parameters and the areas you want to serve at the bottom of the file. This will remove the tiles that are all white or all grey (at the top or bottom of the given elevation range)
   * if run in development mode, the tiles folder will be linked under `cycle_django/cycle/static/tiles`
 
 ### Learnings
