@@ -2,7 +2,7 @@ FROM python:3.12-slim-bullseye
 
 # Install nginx - update and install in same line, as otherwise different caches
 # Don't install vim as a standard, way too many dep
-RUN apt-get update -y && apt-get install -y nginx libgdal-dev # vim
+RUN apt-get update -y && apt-get install -y nginx gdal-bin=3.4.1 libgdal-dev python3-gdal # vim
 COPY nginx_server.conf /etc/nginx/sites-enabled
 
 # Install Django
