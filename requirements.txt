@@ -3,7 +3,7 @@ certifi==2023.11.17
 charset-normalizer==3.3.2
 Django==5.0
 django-leaflet==0.29.0
-GDAL==3.4.1
+# GDAL==3.4.1   # requires gdal-bin libgdal-dev python3-gdal to be installed on system, Docker container provide only a much older version
 gpxpy==1.6.2
 gunicorn==21.2.0
 idna==3.6

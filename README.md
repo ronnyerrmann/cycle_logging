@@ -12,9 +12,9 @@ The following packages are required
 pip install requests urllib3 django pandas plotly gpxpy django-leaflet psutil python-srtm Pillow
 ```
 
-The following packages are optional (for the SRTM tiles):
+The following packages are optional (for the SRTM tiles, adjustment of the version might be necessary):
 ```
-sudo apt-get install gdal-bin libgdal-dev python3-gdal
+sudo apt-get install gdal-bin=3.4.1+dfsg-1build4 libgdal-dev python3-gdal
 ```
 Afterwards it might be necessary to run:
 ```
