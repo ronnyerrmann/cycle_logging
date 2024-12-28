@@ -65,7 +65,7 @@ class PhotoStorage:
         if full_filename:
             with Image.open(full_filename) as img:
                 width, height = img.size
-                scale = max(width, height) / 100.
+                scale = max(width, height) / 100.   # make the longest side to 100 px
                 img.thumbnail((int(width / scale), int(height / scale)))
                 thumbnail_stream = io.BytesIO()
                 img.save(thumbnail_stream, format='JPEG')

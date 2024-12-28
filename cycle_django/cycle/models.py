@@ -1,7 +1,9 @@
 import datetime
 import gpxpy
+import io
 import json
 import os
+from PIL import Image
 import numpy as np
 from typing import Union, Tuple
 
@@ -543,7 +545,7 @@ class GPSData(models.Model):
                                 # SRTM data that could not be determined because of too steep landscape is set to 32768
                                 alt_srtm.append(
                                     -1 if elevation_srtm > 65000 else
-                                    elevation_srtm if elevation_srtm < 30000 else np.nan
+                                    elevation_srtm if elevation_srtm < 30000 else -1 # np.nan
                                 )
                                 diff = elevation_srtm - point.elevation
                                 if abs(diff) < 200:
@@ -667,6 +669,13 @@ class PhotoData(models.Model):
     @property
     def full_filename(self):
         return photoStorage.full_fillname_or_false(self.filename)
+
+    @property
+    def dimensions(self):
+        # get the Thumbnail dimensions
+        image = Image.open(io.BytesIO(self.thumbnail))
+        logger.info(f"112 {image.width, image.height}")
+        return {'width': image.width, 'height': image.height}
 
     def backup(self):
         data_string = ""

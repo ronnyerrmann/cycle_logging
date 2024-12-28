@@ -121,8 +121,12 @@
               tileSize: 256, // this seems to cause infinite tiles as at some point it tries to divide through array: [256, 256],
               opacity: 0.7
           });
-          overlays["SRTM {{ tile_setting.elevation_min }}m to {{ tile_setting.elevation_max }}m"] = srtmLayer{{ forloop.counter }}
+          overlays["SRTM {{ tile_setting.elevation_min }}m to {{ tile_setting.elevation_max }}m"] = srtmLayer{{ forloop.counter }};
         {% endfor %}
+        {% if photo_data %}
+          photoLayer = L.layerGroup([L.tileLayer('')]).addTo(map);
+          overlays["Photos"] = photoLayer;
+        {% endif %}
 
         if (Object.keys(overlays).length) {
           L.control.layers(
@@ -132,8 +136,25 @@
           ).addTo(map);
         }
 
+        // Add the GPS graphs
         {% for position in gps_positions %}
             L.polyline({{ position | safe }}, { color: 'blue' }).addTo(map);
+        {% endfor %}
+
+        // Add the photo thumbnail
+        {% for entry in photo_data %}
+          const icon_{{ forloop.counter }} = L.icon({
+            iconUrl: '{% url 'thumbnail' entry.filename %}',
+            iconSize: [{{ entry.dimensions.width }}, {{ entry.dimensions.height }}],
+            iconAnchor: [0.5 * {{ entry.dimensions.width }}, 0.5 * {{entry.dimensions.height }}],
+            popupAnchor: [0, -25]
+          });
+          const marker_{{ forloop.counter }} = L.marker([{{ entry.latitude }}, {{ entry.longitude }}], { icon: icon_{{ forloop.counter }} });
+          marker_{{ forloop.counter }}.addTo(photoLayer);
+          marker_{{ forloop.counter }}.bindTooltip('{{ entry.filename }} - {{entry.description}}', { direction: "top", offset: [0, -10] });
+          marker_{{ forloop.counter }}.on('click', () => {
+            window.open('{% static 'images/'%}{{ entry.filename }}', '_blank'); // Open the URL in a new tab // todo: open on top of current window
+          });
         {% endfor %}
 
         {% if adminView %}

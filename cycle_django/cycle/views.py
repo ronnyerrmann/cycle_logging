@@ -1002,38 +1002,40 @@ def add_places_admin_view(request):
 def get_tile_dynamic_ranges():
     # check what dynamic ranges and zoom levels exist (to create the overlays in the map dynamically)
     tiles = []
-    TILES_FOLDER = 'dummy'
     for TILES_FOLDER in TILES_FOLDERS:
         if os.path.exists(TILES_FOLDER):
             break
-    for dynrange_folder in os.listdir(TILES_FOLDER):
-        # What dynamic ranges do exist?
-        dyn_range_folder = os.path.join(TILES_FOLDER, dynrange_folder)
-        if not os.path.isdir(dyn_range_folder):
-            continue
-        min_max = dynrange_folder.split('_')[-2:]
-        if len(min_max) != 2:
-            continue
-        zoom_min = 20
-        zoom_max = -1
-        for zoom_folder in os.listdir(dyn_range_folder):
-            # what zoom levels do exist?
-            if os.path.isdir(os.path.join(dyn_range_folder, zoom_folder)):
-                try:
-                    zoom = int(zoom_folder)
-                    zoom_max = max(zoom_max, zoom)
-                    zoom_min = min(zoom_min, zoom)
-                except:
-                    pass
-        if zoom_max > 0:
-            if settings.DEBUG:
-                # use an absolute path to the static folder instead the given folder
-                dyn_range_folder = ('/' + os.path.basename(os.path.normpath(settings.STATICFILES_DIRS[0])) + '/tiles/' +
-                                    dynrange_folder)
-            else:
-                # on a windows system, the paths in a website still need to be /
-                dyn_range_folder = dyn_range_folder.replace('\\', '/')
-            tiles.append({'elevation_min': int(min_max[0]), 'elevation_max': int(min_max[1]),
-                          'folder_name': dyn_range_folder, 'zoom_min': zoom_min, 'zoom_max': zoom_max})
+    else:
+        TILES_FOLDER = 'dummy'
+    if TILES_FOLDER != 'dummy':
+        for dynrange_folder in os.listdir(TILES_FOLDER):
+            # What dynamic ranges do exist?
+            dyn_range_folder = os.path.join(TILES_FOLDER, dynrange_folder)
+            if not os.path.isdir(dyn_range_folder):
+                continue
+            min_max = dynrange_folder.split('_')[-2:]
+            if len(min_max) != 2:
+                continue
+            zoom_min = 20
+            zoom_max = -1
+            for zoom_folder in os.listdir(dyn_range_folder):
+                # what zoom levels do exist?
+                if os.path.isdir(os.path.join(dyn_range_folder, zoom_folder)):
+                    try:
+                        zoom = int(zoom_folder)
+                        zoom_max = max(zoom_max, zoom)
+                        zoom_min = min(zoom_min, zoom)
+                    except:
+                        pass
+            if zoom_max > 0:
+                if settings.DEBUG:
+                    # use an absolute path to the static folder instead the given folder
+                    dyn_range_folder = ('/' + os.path.basename(os.path.normpath(settings.STATICFILES_DIRS[0])) +
+                                        '/tiles/' + dynrange_folder)
+                else:
+                    # on a windows system, the paths in a website still need to be /
+                    dyn_range_folder = dyn_range_folder.replace('\\', '/')
+                tiles.append({'elevation_min': int(min_max[0]), 'elevation_max': int(min_max[1]),
+                              'folder_name': dyn_range_folder, 'zoom_min': zoom_min, 'zoom_max': zoom_max})
 
     return sorted(tiles, key=lambda x: (x['elevation_min'], x['elevation_max']))
