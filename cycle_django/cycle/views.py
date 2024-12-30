@@ -927,6 +927,12 @@ def gps_detail_view(request, filename=None):
     context['gpsdatarangeform'] = form
     context['tile_dyn_range'] = get_tile_dynamic_ranges()
 
+    # Add the images
+    if 'min_max_coords' in context:
+        coords = context['min_max_coords']
+        context['photo_data'] = PhotoData.objects.filter(
+            latitude__gte=coords[0], latitude__lte=coords[1], longitude__gte=coords[2], longitude__lte=coords[3])
+
     return render(request, 'cycle_data/cycle_detail.html', context=context)
 
 
