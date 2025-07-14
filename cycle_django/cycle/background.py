@@ -31,6 +31,7 @@ class BackgroundThread(threading.Thread):
             self.first_interval = None
 
     def stop(self):
+        logger.info("Background task stopped")
         self.stopped.set()
 
     def start(self, first_interval=None):

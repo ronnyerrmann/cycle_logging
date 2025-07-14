@@ -474,8 +474,8 @@ class GPSData(models.Model):
 
         cls.import_gpx_file_to_database()
 
-    @staticmethod
-    def import_gpx_file_to_database():
+    @classmethod
+    def import_gpx_file_to_database(cls):
         gpx_ignore_files = GPSFilesToIgnore.objects.values_list('filename', flat=True)
         # Get all gpxfiles that are not in the database
         for folder in GPX_FOLDERS:
@@ -570,9 +570,11 @@ class GPSData(models.Model):
                         altitudes=json.dumps(altitudes), alt_srtm=json.dumps(alt_srtm)
                     )
                     # not just -1 but -10, as otherwise empty files can be an issue
-                    obj.save(run_backup=(ii >= len(gpx_files)-(min(10, len(gpx_files)))))
+                    # obj.save(run_backup=(ii >= len(gpx_files)-(min(10, len(gpx_files)))))
+                    obj.save()
                     logger.info(f"Loaded {len(datetimes)} points from {filename}{alt_adjust_text}")
-
+        if gpx_files:
+            cls.backup(GPSData())
 
 class NoGoAreas(models.Model):
     name = models.TextField(primary_key=True)
@@ -711,4 +713,9 @@ class PhotoData(models.Model):
         for obj in PhotoData.objects.all():
             static_link = os.path.join(image_folder, obj.filename)
             if not os.path.isfile(static_link) and obj.full_filename:
-                os.symlink(obj.full_filename, static_link)
+                # a broken link will also enter here, but will raise a FileExistsError
+                try:
+                    os.symlink(obj.full_filename, static_link)
+                except FileExistsError:
+                    os.unlink(static_link)
+                    os.symlink(obj.full_filename, static_link)

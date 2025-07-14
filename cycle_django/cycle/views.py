@@ -602,13 +602,19 @@ def analyse_gps_data_sets(
         if coords and not (np.max(lats) > lat_min and np.min(lats) < lat_max and
                            np.max(lons) > lon_min and np.min(lons) < lon_max):
             continue
+        if len(obj.alt_srtm[1:-1]):
+            srtm = obj.alt_srtm[1:-1].split(", ")
+            for i in range(len(srtm)):
+                if srtm[i].lower() == 'nan':
+                    srtm[i] = 0
+        else:
+            srtm = lats * 0
         objs.append({
             'Times': np.array(obj.datetimes[1:-1].split(", "), dtype=int),  # e.g. 1269530756
             'Latitudes_deg': lats,
             'Longitudes_deg': lons,
             'Altitudes': np.array(obj.altitudes[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
-            'Altitudes_srtm':
-                np.array(obj.alt_srtm[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
+            'Altitudes_srtm': np.array(srtm, dtype=int),
         })
         individual_gps_list.append({'url': obj.get_absolute_url(), 'start': obj.start, 'end': obj.end})
 
@@ -992,7 +998,7 @@ def add_places_admin_view(request):
                         obj.save()
                     else:
                         logger.warning(
-                            f"No file found for {filename}, description was: {desc}, lat/lon: {lat:.7f}/{lon:.7f}"
+                            f"No file found for {filename}, description was: {desc}, lat/lon: {lat}/{lon}"
                         )
 
     gpsData = GPSData.objects.all()
