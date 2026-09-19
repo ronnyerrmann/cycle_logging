@@ -194,3 +194,5 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
 # For debug:
 STATICFILES_DIRS = [os.path.join(PROJECT_ROOT, '..', 'cycle', 'static')]
 
+# for OSM tiles to work (as otherwise Referrer Policy is same-origin
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
