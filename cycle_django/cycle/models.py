@@ -124,10 +124,10 @@ class CycleRides(models.Model):
         help_text='Will be filled automatically'
     )
     cumdistance = models.FloatField(
-        verbose_name="Cumulated Distance", blank=True, null=True, help_text='Will be filled automatically'
+        verbose_name="Cumulated Distance over all bicycles", blank=True, null=True, help_text='Will be filled automatically'
     )
     cumduration = models.DurationField(
-        verbose_name="Cumulated Duration", blank=True, null=True, help_text='Will be filled automatically'
+        verbose_name="Cumulated Duration over all bicycles", blank=True, null=True, help_text='Will be filled automatically'
     )
     cumspeed = models.FloatField(
         verbose_name="Cumulated Speed", blank=True, null=True, help_text='Will be filled automatically'
@@ -168,7 +168,7 @@ class CycleRides(models.Model):
 
         backup_instance.backup_table(self.table_name, data_string.encode(), csv_dump=csv_update)
 
-    def save(self, *args, no_more_modifications=False, run_backup=True, run_summary=True, **kwargs):
+    def save(self, *args, no_more_modifications=False, run_backup=True, run_summary=True, run_cumulative=True, **kwargs):
 
         if no_more_modifications:
             # Just run parent save for entries that don't need more modification
@@ -187,10 +187,13 @@ class CycleRides(models.Model):
         if run_summary:
             self.mark_summary_tables(self)
 
-        self.update_cumulative_values()
+        if run_cumulative:
+            self.update_cumulative_values()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
+        self.mark_summary_tables(self)
+        self.update_cumulative_values()
         self.backup()
 
     def update_cumulative_values(self):
@@ -291,7 +294,15 @@ class CycleRides(models.Model):
         loaded_backup = backup_instance.load_database_dump(cls.table_name)
         if CycleRides.objects.all().count() == 0:
             loaded_backup |= backup_instance.load_backup_mysql_based()
+        filename_csv_import = 'insert_data.csv.gz' # load a file with manual entries, needs to be zipped
+        if os.path.isfile(filename_csv_import):
+            logger.info(f'Loading data from {filename_csv_import}')
+            loaded_backup |= backup_instance.load_csv_data(filename_csv_import)
+            os.rename(filename_csv_import, filename_csv_import.replace('.csv.gz', '_done.csv.gz'))
+            logger.info(f'Loaded data from {filename_csv_import} and renamed file')
         if loaded_backup:
+            # Calculate the cumulative values for all entries
+            # Todo: can't run update_cumulative_values as that is not a class function, needs a better way (needs to be on earliest entry for each bicycle)
             # Update the summary tables if database dump or backup was loaded successfully
             cls.mark_summary_tables(None, update_all=True)
 

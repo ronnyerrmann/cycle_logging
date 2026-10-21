@@ -91,13 +91,13 @@ class Backup:
         if not os.path.isfile(filename):
             if self.warn_db_dump_not_found:
                 logger.warning(self.warn_db_dump_not_found.pop())
-            return
+            return False
 
         file_changed = os.path.getmtime(filename)
 
         if self.file_changed_last_loaded.get(database_dump_file):
             if file_changed <= self.file_changed_last_loaded[database_dump_file]:
-                return
+                return False
             else:
                 logger.info(f"Load database dump {database_dump_file} as it has changed.")
 
@@ -107,12 +107,12 @@ class Backup:
         except DeserializationError as e:
             if str(e).find("Invalid model identifier") != -1:
                 logger.error(f"Deserialiser Error: {e}")
-                return
+                return False
             else:
                 raise
         except (CommandError, OperationalError) as e:
             logger.warning(f"Couldn't load backup: {e}")
-            return
+            return False
 
         self.__class__.file_changed_last_loaded[database_dump_file] = file_changed
         logger.info(f"Loaded database dump {database_dump_file}.")
@@ -120,37 +120,57 @@ class Backup:
 
     def load_backup_mysql_based(self):
         """ Import the backup from the MySQL based version into this version
-        - only required once
+        - only required once, the file is the last one created by the mysql-based version
+        """
+        return self.load_csv_data(os.path.join(BACKUP_FOLDER, "20230722_070547.csv.gz"))
+
+    def load_csv_data(self, filename):
+        """
         - takes a long time for 3k entries as it only does about 5 entries per second (faster after disabling the backup)
         """
         def str_to_timedelta(text):
             data = [int(ii) for ii in (":0:0:" + text).rsplit(":", 3)[-3:]]
             return datetime.timedelta(hours=data[-3], minutes=data[-2], seconds=data[-1])
 
-        filename = os.path.join(BACKUP_FOLDER, "20230722_070547.csv.gz")
         if os.path.isfile(filename):
             number_of_imports = 0
             with gzip.open(filename, "r") as f:
                 for line in f.readlines():
                     line = line.decode().split(";")      # 2008-06-12;14.94;00:38:40;247.0;11:21:00
+                    if len(line) < 5 or len(line[0]) < 5:   # skip empty lines or lines without a date
+                        continue
                     date = datetime.datetime.strptime(line[0], "%Y-%m-%d").date()
                     distance = float(line[1])
                     duration = str_to_timedelta(line[2])
                     totaldistance = float(line[3])
                     totalduration = str_to_timedelta(line[4])
+                    bicycle = None
+                    if len(line) >= 6:
+                        bicycle = cycle.models.Bicycles(id=int(line[5]))
                     try:
                         obj = cycle.models.CycleRides.objects.get(date=date, distance=distance, duration=duration)
                     except cycle.models.CycleRides.DoesNotExist:
-                        obj = cycle.models.CycleRides(
-                            date=date, distance=distance, duration=duration,
-                            totaldistance=totaldistance, totalduration=totalduration
-                        )
-                        obj.save(run_backup=False, run_summary=False)
+                        if bicycle:
+                            obj = cycle.models.CycleRides(
+                                date=date, distance=distance, duration=duration,
+                                totaldistance=totaldistance, totalduration=totalduration, bicycle=bicycle
+                            )
+                        else:
+                            obj = cycle.models.CycleRides(
+                                date=date, distance=distance, duration=duration,
+                                totaldistance=totaldistance, totalduration=totalduration
+                            )
+                        obj.save(run_backup=False, run_summary=False, run_cumulative=False)
                         number_of_imports += 1
             if number_of_imports:
+                data_string = ""
+                for obj in cycle.models.Bicycles.objects.all():
+                    data_string += f"{obj.description};{obj.notes}\n"
+                self.backup_table(cycle.models.Bicycles.table_name, data_string.encode())
                 logger.info(f"Imported {number_of_imports} entries from {filename}")
-                self.dump_cycle_rides_dbs()
                 return True
+
+        return False
 
     def load_backup_GeoLocateData_file_based(self):
         """ Import the backup from the MySQL based version into this version
