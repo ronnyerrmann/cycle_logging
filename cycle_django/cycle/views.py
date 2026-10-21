@@ -230,7 +230,7 @@ class ExtraPlots(BaseDataListView):
             result_all = {'days': days}
             for data_source in ['distance', 'duration']:
                 if days < 10:       # needed because of no daily data before that date
-                    dist = data_frame[data_frame['Date_dt'] >= pandas.to_datetime('2006-12-06')][data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
+                    dist = data_frame[data_frame['Date_dt'] >= pandas.to_datetime('2006-09-16')][data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
                 else:
                     dist = data_frame[data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
                 dist_sort = dist.sort_values(ascending=False)
