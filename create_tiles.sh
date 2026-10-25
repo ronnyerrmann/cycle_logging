@@ -18,6 +18,52 @@ create_individual_tifs() {
   done
 }
 
+# Move the tiles from $1 to $2:
+#  - tile doesn't exist at destination: move it
+#  - tile exists and the new tile has data for all pixels (alpha fully opaque): replace it
+#  - tile exists and the new tile is only partially covered: paint the covered pixels onto the existing tile
+merge_tiles() {
+  python3 - "$1" "$2" <<'EOF'
+import os
+import shutil
+import sys
+
+import numpy as np
+from PIL import Image
+
+src_root, dest_root = sys.argv[1], sys.argv[2]
+counts = {'moved': 0, 'replaced': 0, 'merged': 0}
+for dirpath, _, filenames in os.walk(src_root):
+    dest_dir = os.path.join(dest_root, os.path.relpath(dirpath, src_root))
+    os.makedirs(dest_dir, exist_ok=True)
+    for filename in filenames:
+        src = os.path.join(dirpath, filename)
+        dest = os.path.join(dest_dir, filename)
+        if not os.path.exists(dest):
+            shutil.move(src, dest)
+            counts['moved'] += 1
+            continue
+        if not filename.lower().endswith('.png'):
+            shutil.move(src, dest)   # e.g. tilemapresource.xml, overwrite as rsync did
+            continue
+        with Image.open(src) as src_img:
+            src_img.load()
+        if 'A' not in src_img.getbands() or np.asarray(src_img.getchannel('A')).min() == 255:
+            shutil.move(src, dest)
+            counts['replaced'] += 1
+            continue
+        with Image.open(dest) as dest_img:
+            dest_img.load()
+        if dest_img.size != src_img.size:
+            dest_img = dest_img.resize(src_img.size)
+        merged = Image.alpha_composite(dest_img.convert('RGBA'), src_img.convert('RGBA'))
+        merged.convert(src_img.mode).save(dest)
+        os.remove(src)
+        counts['merged'] += 1
+print(f"tiles moved: {counts['moved']}, replaced: {counts['replaced']}, merged: {counts['merged']}")
+EOF
+}
+
 process_area() {
   if [[ $1 != true && $1 != 1 ]]; then return; fi
   shift
@@ -44,7 +90,8 @@ process_area() {
     all_tifs="${all_tifs} ${WORK_DIR}${base}.tif"
   done
   rm -f "${WORK_DIR}merged.tif"
-  cmd="gdal_merge.py -o ${WORK_DIR}merged.tif ${all_tifs}"
+  # areas not covered by any hgt file (and voids) get the srtm nodata value, so they become transparent later
+  cmd="gdal_merge.py -n -32768 -a_nodata -32768 -init -32768 -o ${WORK_DIR}merged.tif ${all_tifs}"
   echo "$(date '+%Y-%m-%d %H:%M:%S') executing ${cmd}"
   ${cmd}
   rm -f "${all_tifs}"
@@ -53,9 +100,10 @@ process_area() {
     # Create the tiles
     IFS='_' read -r start end _ <<< "${dynamic_range}"
     rm -f "${WORK_DIR}merged_8bit.tif"
-    cmd="gdal_translate -ot Byte -scale ${start} ${end} ${WORK_DIR}merged.tif ${WORK_DIR}merged_8bit.tif"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') executing ${cmd}"
-    ${cmd}
+    # scale to 1..255 and keep 0 as nodata, so gdal2tiles makes the areas without data transparent
+    calc="clip(rint(1+(A.astype(float)-${start})*254.0/(${end}-${start})),1,255)"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') executing gdal_calc.py ${calc}"
+    gdal_calc.py --quiet -A "${WORK_DIR}merged.tif" --outfile="${WORK_DIR}merged_8bit.tif" --type=Byte --NoDataValue=0 --calc="${calc}"
 
 #    cmd="gdal2tiles.py -z 5-10 -tms ${WORK_DIR}merged_8bit.tif ${WORK_DIR}tiles_${dynamic_range}"   # quick
     cmd="gdal2tiles.py -z 5-13 -tms ${WORK_DIR}merged_8bit.tif ${WORK_DIR}tiles_${dynamic_range}"   # normal
@@ -65,7 +113,7 @@ process_area() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') clearing empty tiles and storing tiles in ${DEST_DIR}"
     find "${WORK_DIR}tiles_${dynamic_range}" -type f -size -700c -delete
     if [[ "${WORK_DIR}" != "${DEST_DIR}" ]]; then
-      rsync -au "${WORK_DIR}tiles_${dynamic_range}" "${DEST_DIR}"
+      merge_tiles "${WORK_DIR}tiles_${dynamic_range}" "${DEST_DIR}tiles_${dynamic_range}"
       rm -r "${WORK_DIR}tiles_${dynamic_range}"
     fi
   done
@@ -79,7 +127,7 @@ process_area() {
 #  - all the base names for the htg.zip files
 
 # UK
-process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
+process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
   "N49W006" \
   "N50E000" "N50E001" "N50W001" "N50W002" "N50W003" "N50W004" "N50W005" "N50W006" \
   "N51E000" "N51E001" "N51W001" "N51W002" "N51W003" "N51W004" "N51W005" \
@@ -92,16 +140,16 @@ process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
   "N58W003" "N58W004" "N58W005" "N58W006" "N58W007"
 
 # La Palma
-process_area 0 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "1024_3071" \
+process_area 1 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "1024_3071" \
   "N28W017" "N28W018" "N28W019"
 
 # Norway
-process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
+process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
   "N68E018" "N68E019" "N68E020" \
   "N69E018" "N69E019" "N69E020"
 
 # Sweden
-process_area 0 $SRTM_BASE_3 "0_255" \
+process_area 1 $SRTM_BASE_3 "0_255" \
   "N55E013" "N55E014" \
   "N56E013" "N56E014" "N56E015" "N56E016" \
   "N57E011" "N57E012" "N57E013" "N57E014" "N57E015" "N57E016" \
@@ -109,21 +157,21 @@ process_area 0 $SRTM_BASE_3 "0_255" \
   "N59E013" "N59E014" "N59E015" "N59E016" "N59E017" "N59E018"
 
 # Slowakia/Cech
-process_area 0 $SRTM_BASE_3 "0_1023" \
+process_area 1 $SRTM_BASE_3 "0_1023" \
   "N48E016" "N48E017" "N48E018" "N48E019" "N48E020" \
   "N49E014" "N49E015" "N49E016" "N49E017" "N49E018" "N49E019" "N49E020" \
   "N50E014" "N50E015"
 
 # High Tatra
-process_area 0 $SRTM_BASE_3 "0_4095" \
+process_area 1 $SRTM_BASE_3 "0_4095" \
   "N49E019" "N49E020"
 
 # Brittany
-process_area 0 $SRTM_BASE_3 "0_255" \
+process_area 1 $SRTM_BASE_3 "0_255" \
  "N48W002" "N48W003" "N48W004" "N48W005"
 
 # Mecklenburg Vorpommern
-process_area 0 $SRTM_BASE_3 "0_255" \
+process_area 1 $SRTM_BASE_3 "0_255" \
   "N53E013" "N54E013"
 
 # Deutschland
@@ -135,21 +183,21 @@ process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
   "N51E006" "N51E007" "N51E008" "N51E009" "N51E010" "N51E011" "N51E012" "N51E013" "N51E014"
 
 # Alps
-process_area 0 $SRTM_BASE_3 "0_4095" "0_2047" "2048_4095" \
+process_area 1 $SRTM_BASE_3 "0_4095" "0_2047" "2048_4095" \
   "N46E006" "N46E007" "N46E008" "N46E009" "N46E010" "N46E011" "N46E012" "N46E013" \
   "N47E006" "N47E007" "N47E008" "N47E009" "N47E010" "N47E011" "N47E012" "N47E013"
 
 # Hawaii
-process_area 0 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "0_2047" "2048_4095" \
+process_area 1 $SRTM_BASE_3 "0_255" "0_1023" "0_4095" "0_2047" "2048_4095" \
   "N18W156" \
   "N19W155" "N19W156" "N19W157" \
   "N20W156" "N20W157" \
   "N21W157"
 
 # Thailand - Khao Sok
-process_area 0 $SRTM_BASE_3 "0_255" "0_1023" \
+process_area 1 $SRTM_BASE_3 "0_255" "0_1023" \
   "N08E098" "N09E098"
 
 # Thailand - Chiang Mai
-process_area 0 $SRTM_BASE_3 "0_1023" "0_2047" \
+process_area 1 $SRTM_BASE_3 "0_1023" "0_2047" \
   "N18E098" "N18E099"
