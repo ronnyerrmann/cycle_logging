@@ -453,6 +453,8 @@ class GPSData(models.Model):
 
     table_name = 'GPSData'
 
+    already_tried_files = []
+
     class Meta:
         ordering = ['start']
 
@@ -495,8 +497,10 @@ class GPSData(models.Model):
                 gpx_files += [
                     (foldername, filename) for filename in filenames
                     if filename.endswith(".gpx") and
-                       filename not in gpx_ignore_files and
-                       not GPSData.objects.filter(filename=filename).exists()
+                        filename not in gpx_ignore_files and
+                        filename not in cls.already_tried_files and  # don't try to read files again and again
+                        not GPSData.objects.filter(filename=filename).exists() and
+                        not filename.startswith("tour_wrong_date")  # date in BT747 gpx files needs to be offset by 1C00
                 ]
         # Read the gpx files
         for ii, (foldername, filename) in enumerate(gpx_files):
@@ -565,6 +569,7 @@ class GPSData(models.Model):
                     end = point.time
                 if bad or len(datetimes) < 20:
                     logger.warning(f"Ignored {len(datetimes)} points from {filename}")
+                    cls.already_tried_files.append(filename)
                 else:
                     alt_adjust_text = ''
                     if len(alt_diff) > 50:
