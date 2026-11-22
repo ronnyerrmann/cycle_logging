@@ -3,18 +3,19 @@ import gpxpy
 import io
 import json
 import os
+import pandas
 from PIL import Image
 import numpy as np
 from typing import Union, Tuple
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Sum, Count
 from django.urls import reverse
 import django.utils.duration
 # using: python manage.py inspectdb > models.py
 
-from my_base import Logging, create_timezone_object, photoStorage, GPX_FOLDERS
+from my_base import Logging, create_timezone_object, photoStorage, GPX_FOLDERS, EARTH_RADIUS
 from .backup import Backup
 
 logger = Logging.setup_logger(__name__)
@@ -147,9 +148,9 @@ class CycleRides(models.Model):
     def get_gps_objs(self):
         """Returns the url to access a gps plot"""
         date = create_timezone_object(self.date)
-        objs = GPSData.objects.filter(
-            start__lt=date+datetime.timedelta(days=1)-datetime.timedelta(seconds=1), end__gt=date
-        ).order_by('start')
+        objs = GPSTrack.objects.filter(
+            start_time__lt=date+datetime.timedelta(days=1)-datetime.timedelta(seconds=1), end_time__gt=date
+        ).order_by('start_time')
         return objs
 
     def get_gps_url(self):
@@ -344,9 +345,9 @@ class CycleWeeklySummary(models.Model):
     def get_gps_objs(self):
         """Returns the url to access a gps plot"""
         date = create_timezone_object(self.date)
-        objs = GPSData.objects.filter(
-            start__lt=date+datetime.timedelta(days=7)-datetime.timedelta(seconds=1), end__gt=date
-        ).order_by('start')
+        objs = GPSTrack.objects.filter(
+            start_time__lt=date+datetime.timedelta(days=7)-datetime.timedelta(seconds=1), end_time__gt=date
+        ).order_by('start_time')
         return objs
 
 
@@ -377,9 +378,9 @@ class CycleMonthlySummary(models.Model):
         date = create_timezone_object(self.date)
         end_date = date + datetime.timedelta(days=31)
         end_date -= datetime.timedelta(days=end_date.day - 1)
-        objs = GPSData.objects.filter(
-            start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date
-        ).order_by('start')
+        objs = GPSTrack.objects.filter(
+            start_time__lt=end_date-datetime.timedelta(seconds=1), end_time__gt=date
+        ).order_by('start_time')
         return objs
 
 class CycleYearlySummary(models.Model):
@@ -407,9 +408,9 @@ class CycleYearlySummary(models.Model):
         """Returns the url to access a gps plot"""
         date = create_timezone_object(self.date)
         end_date = datetime.date(date.year + 1, 1, 1)
-        objs = GPSData.objects.filter(
-            start__lt=end_date-datetime.timedelta(seconds=1), end__gt=date
-        ).order_by('start')
+        objs = GPSTrack.objects.filter(
+            start_time__lt=end_date-datetime.timedelta(seconds=1), end_time__gt=date
+        ).order_by('start_time')
         return objs
 
 
@@ -430,10 +431,274 @@ class GPSFilesToIgnore(models.Model):
         super().save(*args, **kwargs)
         self.backup()
         GPSData.objects.filter(filename=self.filename).delete()
+        for track in GPSTrack.objects.filter(filename=self.filename):
+            track.delete()
 
     def delete(self, *args, **kwargs):
         super().delete(*args, **kwargs)
         self.backup()
+
+    @classmethod
+    def load_data(cls):
+        backup_instance.load_database_dump(cls.table_name)
+
+
+class GPSTrack(models.Model):
+    filename = models.CharField(primary_key=True, max_length=100)
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    number_entries = models.IntegerField()
+    total_distance_m = models.IntegerField(help_text="Total distance in metres")
+
+    table_name = 'GPSTrack'
+
+    already_tried_files = []
+
+    class Meta:
+        ordering = ['start_time', 'end_time']
+
+    def __str__(self):
+        return f"{self.filename} - {self.number_entries}"
+
+    def get_absolute_url(self):
+        """Returns the url to access a detail record for this GPS file."""
+        return reverse('gps_detail', args=[self.filename])
+
+    @property
+    def total_distance_km(self) -> float:
+        return self.total_distance_m / 1000
+
+    def backup(self):
+        """ Dumps the tracks and their points. Dumping the points is slow, so only call this after an import
+        (or deletion) has finished and not for every single track """
+        backup_instance.backup_table(self.table_name, ''.encode(), csv_dump=False)
+        backup_instance.backup_table(GPSPoint.table_name, ''.encode(), csv_dump=False)
+
+    def save(self, *args, run_backup=True, **kwargs):
+        super().save(*args, **kwargs)
+        if run_backup:
+            self.backup()
+
+    def delete(self, *args, run_backup=True, **kwargs):
+        super().delete(*args, **kwargs)   # deletes the points via on_delete=CASCADE
+        if run_backup:
+            self.backup()
+
+    @classmethod
+    def load_data(cls):
+        # Tracks first, as the points reference them
+        backup_instance.load_database_dump(cls.table_name)
+        GPSPoint.load_data()
+        cls.import_gpx_file_to_database()
+
+    @staticmethod
+    def get_srtm_elevation(latitude: float, longitude: float) -> Union[float, None]:
+        """ Returns the SRTM elevation (np.nan if unknown) or None if the SRTM data can't be read """
+        elevation_srtm = None
+        for i, elevation_data_source in enumerate((elevation_data_30m, elevation_data_90m)):
+            try:
+                elevation_srtm = elevation_data_source.get_altitude(latitude=latitude, longitude=longitude)
+            except srtm.exceptions.NoHeightMapDataException:
+                if i == 1:
+                    logger.warning('Cannot read srtm data')
+                    return None
+            except AssertionError as e:
+                if str(e).startswith('Unexpected number of bytes found in'):
+                    logger.warning(f'Problem with (zipped) htg file: {e}')
+                    return None
+                raise
+            else:  # no exceptions, don't try second elevation_data_source
+                break
+        # SRTM data below 0 m has an underflow of the uint to values above 65000
+        # SRTM data that could not be determined because of too steep landscape is set to 32768
+        if elevation_srtm > 65000:
+            return -1
+        return elevation_srtm if elevation_srtm < 30000 else np.nan
+
+    @classmethod
+    def read_gpx_file(cls, path: str) -> Union[pandas.DataFrame, None]:
+        """ Reads the points of a gpx file, returns None if the file can't be used """
+        times, latitudes, longitudes, elevations, ele_srtm = [], [], [], [], []
+        with open(path, 'r') as gpx_file:
+            gpx = gpxpy.parse(gpx_file)
+        for track in gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    if not point.time:
+                        logger.warning(f"Point without timestamp in {path}: {point} - will ignore file")
+                        return None
+                    if abs(point.latitude) == 90:  # ignore dummy values
+                        continue
+                    elevation_srtm = np.nan
+                    if hasSrtm:
+                        elevation_srtm = cls.get_srtm_elevation(point.latitude, point.longitude)
+                        if elevation_srtm is None:
+                            logger.warning(f'Will not read the file {path}')
+                            return None
+                    timestamp = point.time
+                    if timestamp.tzinfo is None:
+                        timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+                    times.append(timestamp)
+                    latitudes.append(point.latitude)
+                    longitudes.append(point.longitude)
+                    elevations.append(np.nan if point.elevation is None else point.elevation)
+                    ele_srtm.append(elevation_srtm)
+
+        return pandas.DataFrame({
+            'Timestamp': times,
+            'Times': np.array([tt.timestamp() for tt in times], dtype=np.int64),  # e.g. 1269530756
+            'Latitude_deg': np.array(latitudes, dtype=np.float64),
+            'Longitude_deg': np.array(longitudes, dtype=np.float64),
+            'Elevation': np.array(elevations, dtype=np.float64),
+            'Elevation_srtm': np.array(ele_srtm, dtype=np.float64),
+        })
+
+    @staticmethod
+    def adjust_elevation(df: pandas.DataFrame) -> str:
+        """ Some devices don't record the correct gps elevation: move the elevations to match SRTM """
+        alt_diff = (df['Elevation_srtm'] - df['Elevation']).dropna()
+        alt_diff = alt_diff[np.abs(alt_diff) < 200]
+        if alt_diff.shape[0] > 50:
+            alt_adjust = np.median(alt_diff)
+            if abs(alt_adjust) >= 10:
+                df['Elevation'] += alt_adjust
+                return f', moved altitudes by {alt_adjust:.1f}m to match SRTM'
+        return ''
+
+    @staticmethod
+    def calculate_track_values(df: pandas.DataFrame):
+        """ Adds Duration (s), Distance (km) and Speed_5/Speed_50 (km/h) to the DataFrame.
+        Duration/Distance of point i are relative to point i-1 and NaN during/after a pause.
+        Be careful to apply sin/cos only on radians!
+        """
+        window_med_duration = 50
+        paused_after = 30  # assume a pause if the next data point took 30s to appear
+        min_consecutive_points = 10  # exclude sections with breaks within min_consecutive_points points
+        min_periods = 3  # to calculate rolling median/sum at least these number of datapoints should not be nans
+
+        latitude_rad = np.radians(df['Latitude_deg'])
+        longitude_rad = np.radians(df['Longitude_deg'])
+        sin_lat = np.sin(latitude_rad)
+        cos_lat = np.cos(latitude_rad)
+
+        # Duration
+        duration = df['Times'].diff().to_numpy(dtype=np.float64)  # in seconds
+        duration[0] = 0
+        # Exclude datapoints after/during a stop
+        duration[duration > paused_after] = np.nan
+        duration_rolling_median = pandas.Series(duration).rolling(
+            window=window_med_duration, min_periods=int(0.1 * window_med_duration)
+        ).median().to_numpy()
+        duration[duration > 3 * duration_rolling_median] = np.nan
+        duration_is_nan = np.where(np.isnan(duration))[0]
+        if duration_is_nan.shape[0] >= 1:
+            if duration_is_nan[0] <= min_consecutive_points:
+                duration[0:duration_is_nan[0]] = np.nan
+            if duration_is_nan[-1] >= duration.shape[0] - min_consecutive_points:
+                duration[duration_is_nan[-1]:] = np.nan
+            # Indexes, where gap between spaces <= min_consecutive_points:
+            space_nan = np.where(duration_is_nan[1:] - duration_is_nan[:-1] <= min_consecutive_points)[0]
+            for index in space_nan:
+                duration[duration_is_nan[index]:duration_is_nan[index + 1]] = np.nan
+        df['Duration'] = duration
+
+        # Distance
+        cos_angle = (
+            sin_lat * sin_lat.shift(1) + cos_lat * cos_lat.shift(1) * np.cos(longitude_rad - longitude_rad.shift(1))
+        ).clip(-1, 1)   # rounding errors can create values slightly above 1
+        distance = (np.arccos(cos_angle) * EARTH_RADIUS).to_numpy()
+        distance[0] = 0
+        distance[np.isnan(duration)] = np.nan
+        df['Distance'] = distance
+
+        # Speed
+        for window in (5, 50):
+            duration_rolling_sum = df['Duration'].rolling(window=window, min_periods=min_periods).sum()
+            distance_rolling_sum = df['Distance'].rolling(window=window, min_periods=min_periods).sum()
+            df[f'Speed_{window}'] = (distance_rolling_sum / duration_rolling_sum * 3600).replace(
+                [np.inf, -np.inf], np.nan
+            )
+
+    @classmethod
+    def import_gpx_file_to_database(cls):
+        gpx_ignore_files = set(GPSFilesToIgnore.objects.values_list('filename', flat=True))
+        known_files = set(cls.objects.values_list('filename', flat=True))
+        # Get all gpxfiles that are not in the database
+        gpx_files = []
+        for folder in GPX_FOLDERS:
+            for foldername, subfolders, filenames in os.walk(folder):
+                gpx_files += [
+                    (foldername, filename) for filename in filenames
+                    if filename.endswith(".gpx") and
+                    filename not in gpx_ignore_files and
+                    filename not in known_files and
+                    filename not in cls.already_tried_files and  # don't try to read files again and again
+                    not filename.startswith("tour_wrong_date")  # date in BT747 gpx files needs to be offset by 1C00
+                ]
+
+        def to_int_or_none(value):
+            return None if np.isnan(value) else int(round(value))
+
+        imported = 0
+        for foldername, filename in gpx_files:
+            df = cls.read_gpx_file(os.path.join(foldername, filename))
+            if df is None or df.shape[0] < 20:
+                logger.warning(f"Ignored {0 if df is None else df.shape[0]} points from {filename}")
+                cls.already_tried_files.append(filename)
+                continue
+
+            alt_adjust_text = cls.adjust_elevation(df)
+            cls.calculate_track_values(df)
+
+            # Store the data
+            with transaction.atomic():
+                track = cls(
+                    filename=filename,
+                    start_time=df['Timestamp'].iloc[0],
+                    end_time=df['Timestamp'].iloc[-1],
+                    number_entries=df.shape[0],
+                    total_distance_m=int(round(np.nansum(df['Distance']) * 1000)),
+                )
+                track.save(run_backup=False)
+                GPSPoint.objects.bulk_create([
+                    GPSPoint(
+                        track=track,
+                        timestamp=row.Timestamp,
+                        latitude=row.Latitude_deg,
+                        longitude=row.Longitude_deg,
+                        elevation=to_int_or_none(row.Elevation),
+                        ele_srtm=to_int_or_none(row.Elevation_srtm),
+                        speed=None if np.isnan(row.Speed_5) else float(row.Speed_5),
+                    )
+                    for row in df.itertuples(index=False)
+                ], batch_size=1000)
+            imported += 1
+            logger.info(f"Loaded {df.shape[0]} points from {filename}{alt_adjust_text}")
+
+        if imported:
+            # Only dump the tables once all files are imported
+            cls.backup(GPSTrack())
+
+
+class GPSPoint(models.Model):
+    track = models.ForeignKey(GPSTrack, on_delete=models.CASCADE, related_name='points')
+    timestamp = models.DateTimeField()
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    elevation = models.IntegerField(null=True, blank=True)
+    ele_srtm = models.IntegerField(null=True, blank=True)
+    speed = models.FloatField(null=True, blank=True, help_text="Speed in km/h averaged over 5 points")
+
+    table_name = 'GPSPoint'
+
+    class Meta:
+        ordering = ['timestamp', 'track']
+        indexes = [
+            models.Index(fields=['track', 'timestamp']),
+        ]
+
+    def __str__(self):
+        return f"Point of {self.track} at {self.timestamp} ({self.latitude}, {self.longitude})"
 
     @classmethod
     def load_data(cls):
@@ -692,7 +957,6 @@ class PhotoData(models.Model):
     def dimensions(self):
         # get the Thumbnail dimensions
         image = Image.open(io.BytesIO(self.thumbnail))
-        logger.info(f"112 {image.width, image.height}")
         return {'width': image.width, 'height': image.height}
 
     def backup(self):

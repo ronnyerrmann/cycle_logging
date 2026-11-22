@@ -8,17 +8,17 @@ import pandas
 from plotly.offline import plot
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import Dict, List, Union
+from typing import Dict, Iterable, Union
 
 from django.shortcuts import get_object_or_404, render, redirect
 from django.conf import settings
 from django.core import serializers
-from django.db.models import Avg, Max, Min, Sum
+from django.db.models import Max, Min, QuerySet
 from django.http import HttpResponse
 from django.views import generic
 
 from .models import (
-    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSData, NoGoAreas, GeoLocateData,
+    CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSTrack, GPSPoint, NoGoAreas, GeoLocateData,
     PhotoData
 )
 from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
@@ -40,7 +40,7 @@ def index(request):
     number_of_weeks = CycleWeeklySummary.objects.all().count()
     number_of_months = CycleMonthlySummary.objects.all().count()
     number_of_years = CycleYearlySummary.objects.all().count()
-    number_of_gps_files = GPSData.objects.all().count()
+    number_of_gps_files = GPSTrack.objects.all().count()
 
     context = {
         'start_date': start_date.strftime('%Y-%m-%d') if start_date is not None else None,
@@ -546,15 +546,8 @@ def data_detail_view(request, date_wmy=None, entryid=None):
     if not gps_objs:
         gps_objs = cycleThisData.get_gps_objs()
         if gps_objs:
-            begin_date = gps_objs[0].start
-            end_date = gps_objs[0].end
-            for obj in gps_objs:
-                if obj.start < begin_date:
-                    begin_date = obj.start
-                if obj.end > end_date:
-                    end_date = obj.end
-            initial_values['begin_date'] = begin_date
-            initial_values['end_date'] = end_date
+            initial_values['begin_date'] = min(obj.start_time for obj in gps_objs)
+            initial_values['end_date'] = max(obj.end_time for obj in gps_objs)
         form = GpsDateRangeForm(initial=initial_values)
 
     # And then the data
@@ -574,7 +567,7 @@ def data_detail_view(request, date_wmy=None, entryid=None):
 
 
 def analyse_gps_data_sets(
-        objs_in: List[GPSData],
+        objs_in: Iterable[GPSTrack],
         coords: Union[None, Dict] = None,
         plot_graphs: bool = True,
         admin: bool = False
@@ -584,39 +577,40 @@ def analyse_gps_data_sets(
     if not objs_in:
         return {}
 
+    tracks = {track.filename: track for track in objs_in}
+    # Use a subquery for querysets, as a list of all filenames can exceed the SQL variable limit
+    track_filter = objs_in.values('pk') if isinstance(objs_in, QuerySet) else list(tracks)
+    points = GPSPoint.objects.filter(track__in=track_filter)
     if coords:
+        # Only use tracks that have at least one point in the shown area
         # This won't work for +/- 180 deg longitude
         delta_lat = 0.5 * 10**((coords['zoom'] - 9.5) / -3.2)
         delta_lon = delta_lat / sin(radians(coords['cenLat']))
-        lat_min = coords['cenLat'] - delta_lat
-        lat_max = coords['cenLat'] + delta_lat
-        lon_min = coords['cenLng'] - delta_lon
-        lon_max = coords['cenLng'] + delta_lon
+        tracks_in_area = GPSPoint.objects.filter(
+            track__in=track_filter,
+            latitude__gt=coords['cenLat'] - delta_lat, latitude__lt=coords['cenLat'] + delta_lat,
+            longitude__gt=coords['cenLng'] - delta_lon, longitude__lt=coords['cenLng'] + delta_lon,
+        ).values_list('track', flat=True).distinct()
+        points = points.filter(track__in=tracks_in_area)
 
+    points_df = pandas.DataFrame.from_records(
+        points.order_by('track__start_time', 'timestamp').values_list(
+            'track', 'timestamp', 'latitude', 'longitude', 'elevation', 'ele_srtm'
+        ),
+        columns=['track', 'timestamp', 'Latitudes_deg', 'Longitudes_deg', 'Altitudes', 'Altitudes_srtm'],
+    )
     objs = []
     individual_gps_list = []
-    for obj in objs_in:
-        lats = np.array(obj.latitudes[1:-1].split(", "), dtype=np.float64)  # degrees
-        lons = np.array(obj.longitudes[1:-1].split(", "), dtype=np.float64)  # degrees
-        # This won't work for +/- 180 deg longitude
-        if coords and not (np.max(lats) > lat_min and np.min(lats) < lat_max and
-                           np.max(lons) > lon_min and np.min(lons) < lon_max):
-            continue
-        if len(obj.alt_srtm[1:-1]):
-            srtm = obj.alt_srtm[1:-1].split(", ")
-            for i in range(len(srtm)):
-                if srtm[i].lower() == 'nan':
-                    srtm[i] = 0
-        else:
-            srtm = lats * 0
-        objs.append({
-            'Times': np.array(obj.datetimes[1:-1].split(", "), dtype=int),  # e.g. 1269530756
-            'Latitudes_deg': lats,
-            'Longitudes_deg': lons,
-            'Altitudes': np.array(obj.altitudes[1:-1].split(", ") if len(obj.alt_srtm[1:-1]) else lats * 0, dtype=int),
-            'Altitudes_srtm': np.array(srtm, dtype=int),
-        })
-        individual_gps_list.append({'url': obj.get_absolute_url(), 'start': obj.start, 'end': obj.end})
+    if points_df.shape[0]:
+        points_df['Times'] = pandas.to_datetime(points_df['timestamp'], utc=True).astype('int64') // 10**9  # e.g. 1269530756
+        points_df['Altitudes'] = points_df['Altitudes'].astype(np.float64)
+        points_df['Altitudes_srtm'] = points_df['Altitudes_srtm'].astype(np.float64).fillna(0)
+        for filename, track_df in points_df.groupby('track', sort=False):
+            track = tracks[filename]
+            objs.append(track_df[['Times', 'Latitudes_deg', 'Longitudes_deg', 'Altitudes', 'Altitudes_srtm']])
+            individual_gps_list.append({
+                'url': track.get_absolute_url(), 'start': track.start_time, 'end': track.end_time
+            })
 
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
         steps = 10
@@ -679,7 +673,7 @@ def analyse_gps_data_sets(
         slice = 1
     settings = {'slice': slice}
     for obj_index, data in enumerate(objs):
-        df = pandas.DataFrame(data)
+        df = data.reset_index(drop=True).copy()
         if slice > 1:
             df = df.iloc[::slice]
         df['Latitudes_rad'] = np.radians(df['Latitudes_deg'])
@@ -708,16 +702,17 @@ def analyse_gps_data_sets(
         df.loc[df['Duration'] > 3 * duration_rolling_median, 'Duration'] = np.nan
         duration_is_nan = np.where(df['Duration'].isna().to_numpy())[0]
         if duration_is_nan.shape[0] >= 1:
+            duration_col = df.columns.get_loc('Duration')
             if duration_is_nan[0] <= min_consecutive_points:
-                df['Duration'][0:duration_is_nan[0]] = np.nan
+                df.iloc[0:duration_is_nan[0], duration_col] = np.nan
             if duration_is_nan[-1] >= df.shape[0] - min_consecutive_points:
-                df['Duration'][duration_is_nan[-1]:] = np.nan
+                df.iloc[duration_is_nan[-1]:, duration_col] = np.nan
             # Indexes, where gap between spaces <= min_consecutive_points:
             space_nan = np.where(duration_is_nan[1:] - duration_is_nan[:-1] <= min_consecutive_points)[0]
             for index in space_nan:
                 index_df_beg = duration_is_nan[index]
                 index_df_end = duration_is_nan[index + 1]
-                df['Duration'][index_df_beg:index_df_end] = np.nan
+                df.iloc[index_df_beg:index_df_end, duration_col] = np.nan
         df.loc[df['Duration'].isna(), 'Altitudes'] = np.nan
         # Distance
         distance = np.zeros(df.shape[0])
@@ -906,7 +901,7 @@ def read_GpsDateRangeForm(request):
             initial_values['end_date'] = end_date
             beg_date = create_timezone_object(begin_date)
             end_date = create_timezone_object(end_date) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-            gpsData = GPSData.objects.filter(end__gte=beg_date, start__lte=end_date).order_by('start')
+            gpsData = GPSTrack.objects.filter(end_time__gte=beg_date, start_time__lte=end_date).order_by('start_time')
         if zoom:
             # only if the user selects to use coordinates
             coords = {'zoom': int(zoom), 'cenLat': float(cenLat), 'cenLng': float(cenLng)}
@@ -918,13 +913,13 @@ def gps_detail_view(request, filename=None):
     form, gpsData, coords, initial_values = read_GpsDateRangeForm(request)
     if not gpsData:
         if filename == "all":
-            gpsData = GPSData.objects.all()
-            begin_date = GPSData.objects.all().aggregate(Min('start'))['start__min']
-            end_date = GPSData.objects.all().aggregate(Max('end'))['end__max']
+            gpsData = GPSTrack.objects.all()
+            begin_date = gpsData.aggregate(Min('start_time'))['start_time__min']
+            end_date = gpsData.aggregate(Max('end_time'))['end_time__max']
             initial_values['begin_date'] = begin_date
             initial_values['end_date'] = end_date
         elif filename is not None:
-            gpsData = [get_object_or_404(GPSData, pk=filename)]
+            gpsData = [get_object_or_404(GPSTrack, pk=filename)]
         else:
             raise ValueError('Parameter unknown.')
         form = GpsDateRangeForm(initial=initial_values)
@@ -953,7 +948,7 @@ class GPSDataListView(generic.ListView):
 
     def get_queryset(self):
         # executed when the page is opened
-        return GPSData.objects.all()
+        return GPSTrack.objects.all()
 
 
 def add_places_admin_view(request):
@@ -1001,7 +996,7 @@ def add_places_admin_view(request):
                             f"No file found for {filename}, description was: {desc}, lat/lon: {lat}/{lon}"
                         )
 
-    gpsData = GPSData.objects.all()
+    gpsData = GPSTrack.objects.all()
     context = analyse_gps_data_sets(gpsData, coords=None, plot_graphs=False, admin=request.user.is_superuser)
 
     context['markers'] = GeoLocateData.objects.all()

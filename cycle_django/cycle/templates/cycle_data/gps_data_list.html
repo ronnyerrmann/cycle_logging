@@ -7,12 +7,12 @@
     <p>Number of (shown) entries: {{ gps_data_list.count }} - <a href="{% url 'gps_detail_all' %}">Show all on a map (will take a moment)</a></p>
     <table  class='table_inner_borders'>
       <tr>
-        <th>Filename</th> <th>Start</th> <th>End</th>
+        <th>Filename</th> <th>Start</th> <th>End</th> <th>Distance [km]</th>
       </tr>
       {% for entry in gps_data_list %}
         <tr>
           <td><a href="{{ entry.get_absolute_url }}">{{ entry.filename}}</a></td>
-          <td>{{entry.start}}</td> <td>{{entry.end}}</td>
+          <td>{{entry.start_time}}</td> <td>{{entry.end_time}}</td> <td>{{entry.total_distance_km|floatformat:1}}</td>
         </tr>
     {% empty %}
       There are no entries in the database.

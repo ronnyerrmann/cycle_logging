@@ -17,6 +17,7 @@ DEBUG = os.environ.get("IS_PRODUCTION", "False").lower() != "true"
 GPX_FOLDERS = {"/home/ronny/Documents/gps-logger/", }
 PHOTO_FOLDERS = {"/home/ronny/Pictures/", "/Pictures"}      # local laptop; docker container
 TILES_FOLDERS = {'/mnt/backup500/srtm/tiles/', '/Tiles'}    # local dev environment; docker container
+EARTH_RADIUS = 6371.009
 
 from my_proc import Logging
 

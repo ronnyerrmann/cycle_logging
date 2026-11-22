@@ -45,7 +45,7 @@
     {% if gps is not None %}
         <div style="margin-left:20px;margin-top:20px">
           <h4>{{ gps.filename }}</h4>
-          <p><strong>Start:</strong> {{ gps.start }} &nbsp; <strong>End:</strong> {{ gps.end }}</p>
+          <p><strong>Start:</strong> {{ gps.start_time }} &nbsp; <strong>End:</strong> {{ gps.end_time }}</p>
         </div>
     {% endif %}
     <div style="margin-left:20px;margin-top:20px">
@@ -105,7 +105,7 @@
       <script>
         const map = L.map('map').setView({{ center | safe }}, {{ zoom }});
 
-        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         })
         osmLayer.addTo(map);

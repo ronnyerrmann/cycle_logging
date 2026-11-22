@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 
 from .models import (
-    Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSFilesToIgnore, GPSData,
+    Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, GPSFilesToIgnore, GPSTrack,
     NoGoAreas, GeoLocateData, PhotoData, convert_to_str_hours
 )
 
@@ -158,10 +158,10 @@ class GPSFilesToIgnoreAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(GPSData)
-class GPSDataAdmin(admin.ModelAdmin):
+@admin.register(GPSTrack)
+class GPSTrackAdmin(admin.ModelAdmin):
     list_display = (
-        'filename', 'start', 'end', 'number_entries'
+        'filename', 'start_time', 'end_time', 'number_entries', 'total_distance_m'
     )
 
 

@@ -54,9 +54,9 @@ class BackgroundThread(threading.Thread):
     def load_data_if_new():
         from .models import (
             Bicycles, CycleRides, CycleWeeklySummary, CycleMonthlySummary, CycleYearlySummary, NoGoAreas,
-            GPSFilesToIgnore, GPSData, GeoLocateData, PhotoData
+            GPSFilesToIgnore, GPSTrack, GeoLocateData, PhotoData
         )
-        for model in Bicycles, CycleRides, NoGoAreas, GPSFilesToIgnore, GPSData, GeoLocateData, PhotoData:
+        for model in Bicycles, CycleRides, NoGoAreas, GPSFilesToIgnore, GPSTrack, GeoLocateData, PhotoData:
             try:
                 model.load_data()
             except EOFError as e:
