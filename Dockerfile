@@ -2,7 +2,7 @@ FROM python:3.12-slim-trixie
 
 # Install nginx - update and install in same line, as otherwise different caches
 # Don't install vim as a standard, way too many dep
-RUN apt-get update -y && apt-get install -y nginx # libgdal-dev # vim   # libgdal-dev is only needed on the host that creates the SRTM tiles
+RUN apt-get update -y && apt-get install -y nginx libgdal # vim   # libgdal-dev is only needed on the host that creates the SRTM tiles
 COPY nginx_server.conf /etc/nginx/sites-enabled
 
 # Install Django
