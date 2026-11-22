@@ -2,6 +2,11 @@
 
 {% load filters %}
 
+{% load static %}
+{% block extra_head %}
+  <script src="{% static 'plotly/plotly.min.js' %}"></script>
+{% endblock %}
+
 {% block content %}
   <h3>Cycle ride list - {{ dataset|safe|replace:"day|Dai" }}ly</h3>
   {% if cycle_data_list %}

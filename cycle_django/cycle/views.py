@@ -139,7 +139,7 @@ class BaseDataListView(generic.ListView):
         if self.data_frame is not None:
             fig = px.scatter(self.data_frame, **plot_args)
             # fig.update_yaxes(autorange="reversed")
-            return plot(fig, output_type="div")
+            return plot(fig, output_type="div", include_plotlyjs=False)
 
 
 class DataListView(BaseDataListView):
@@ -512,12 +512,12 @@ class ExtraPlots(BaseDataListView):
         )
 
         plot_dict = {
-            "plot_total_div": plot(fig_total, output_type="div"),
-            "plot_hist_dist": plot(fig_hist_dist, output_type="div"),
-            "plot_hist_dur": plot(fig_hist_dur, output_type="div"),
-            "plot_hist_speed": plot(fig_hist_spd, output_type="div"),
-            "plot_diff_div": plot(fig_diff, output_type="div"),
-            "plot_frac_div": plot(fig_frac, output_type="div"),
+            "plot_total_div": plot(fig_total, output_type="div", include_plotlyjs=False),
+            "plot_hist_dist": plot(fig_hist_dist, output_type="div", include_plotlyjs=False),
+            "plot_hist_dur": plot(fig_hist_dur, output_type="div", include_plotlyjs=False),
+            "plot_hist_speed": plot(fig_hist_spd, output_type="div", include_plotlyjs=False),
+            "plot_diff_div": plot(fig_diff, output_type="div", include_plotlyjs=False),
+            "plot_frac_div": plot(fig_frac, output_type="div", include_plotlyjs=False),
         }
 
         return plot_dict
@@ -876,7 +876,7 @@ def analyse_gps_data_sets(
                 position=0.92
             ),
         )
-        context["plot_div"] = plot(fig, output_type="div")
+        context["plot_div"] = plot(fig, output_type="div", include_plotlyjs=False)
     # map_center and zoom won't work for +/- 180 deg longitude
     max_lat = all_df['Latitudes_deg'].max()
     min_lat = all_df['Latitudes_deg'].min()

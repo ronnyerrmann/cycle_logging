@@ -194,6 +194,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
 # For debug:
 STATICFILES_DIRS = [os.path.join(PROJECT_ROOT, '..', 'cycle', 'static')]
+# Serve plotly.js from the installed plotly package (always matches the python version, works offline),
+# available as {% static 'plotly/plotly.min.js' %}; plots are created with include_plotlyjs=False
+import plotly
+STATICFILES_DIRS.append(('plotly', os.path.join(os.path.dirname(plotly.__file__), 'package_data')))
 
 # for OSM tiles to work (as otherwise Referrer Policy is same-origin
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"

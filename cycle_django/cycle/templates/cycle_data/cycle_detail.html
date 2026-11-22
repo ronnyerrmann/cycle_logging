@@ -7,6 +7,7 @@
 {% load leaflet_tags %}
 
 {% block extra_head %}
+  <script src="{% static 'plotly/plotly.min.js' %}"></script>
   {% leaflet_js %}
   {% leaflet_css %}
 {% endblock %}
