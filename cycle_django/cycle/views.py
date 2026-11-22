@@ -1,6 +1,7 @@
 import abc
 import copy
 import datetime
+import json
 from math import log10, radians, sin, cos, acos
 import numpy as np
 import os
@@ -640,6 +641,7 @@ def analyse_gps_data_sets(
         return df.iloc[tokeep]
 
     all_positions = []
+    all_dfs = []    # concatenated once after the loop (concat inside the loop is quadratic)
     all_df = pandas.DataFrame({
         'Duration': [], 'Distance': [], 'Altitudes': [], 'Altitudes_srtm': [], 'Speed_5': [], 'Speed_50': [],
         'Times': [], 'Latitudes_deg': [], 'Longitudes_deg': [], 'Longitudes_rad': [], 'sin_lat': [], 'cos_lat': []
@@ -732,7 +734,8 @@ def analyse_gps_data_sets(
         df['Speed_50'] = distance_rolling_sum / duration_rolling_sum * 3600
 
         # Add markers for each GPS data point
-        positions = df[['Latitudes_deg', 'Longitudes_deg']].values.tolist()
+        # 5 decimals are ~1 m, which is enough for the map and reduces the page size a lot
+        positions = df[['Latitudes_deg', 'Longitudes_deg']].round(6).values.tolist()
 
         distance = df['Distance'].sum()
         duration = df['Duration'].sum()
@@ -741,17 +744,22 @@ def analyse_gps_data_sets(
         individual_gps_list[obj_index]['Speed'] = distance / duration * 3600 if duration > 0 else np.nan
 
         all_positions.append(positions)
-        all_df = pandas.concat(
-            [all_df, df[[
+        all_dfs.append(
+            df[[
                 'Duration', 'Distance', 'Altitudes', 'Altitudes_srtm', 'Speed_5', 'Speed_50', 'Times',
                 'Latitudes_deg', 'Longitudes_deg', 'Longitudes_rad', 'sin_lat', 'cos_lat'
-            ]][~df['Duration'].isna()]], ignore_index=True
+            ]][~df['Duration'].isna()]
         )
+    if all_dfs:
+        all_df = pandas.concat([all_df] + all_dfs, ignore_index=True)
 
     if all_df.shape[0] == 0:
         return {'gps': None}
 
-    context = {'gps': None, 'gps_positions': all_positions, 'individual_gps_list': individual_gps_list}
+    context = {
+        'gps': None, 'individual_gps_list': individual_gps_list,
+        'gps_positions': json.dumps(all_positions, separators=(',', ':')),
+    }
 
     if plot_graphs:
         all_df['Cum_dist'] = all_df['Distance'].cumsum()
