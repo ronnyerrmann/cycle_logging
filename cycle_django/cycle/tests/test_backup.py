@@ -54,7 +54,7 @@ class TestBackupDB(BackupTest):
         with patch(MODULE_PATH + "gzip.open", m):
             with patch(MODULE_PATH + "datetime.datetime") as mock_datetime:
                 # This is required instead of a @patch
-                mock_datetime.utcnow.return_value = datetime(2023, 6, 20, 12, 23, 34)
+                mock_datetime.now.return_value = datetime(2023, 6, 20, 12, 23, 34)
                 mock_datetime.side_effect = lambda *args, **kw: date(*args, **kw)
 
                 self.backup.backup_table('CycleRides', ''.encode())

@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import subprocess
 
@@ -80,7 +80,7 @@ if not new:
     run_with_print(cmd)
 
 # Todo: Run everything below only if there was a new commit
-docker_tag = f"cycle_django_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+docker_tag = f"cycle_django_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 cmd = [docker_bin, "build", "--tag", docker_tag, "."]
 run_with_print(cmd)
 

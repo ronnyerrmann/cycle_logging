@@ -78,7 +78,7 @@ class Backup:
         if csv_dump:
             self.remove_old_files(data_name)
             with gzip.open(os.path.join(BACKUP_FOLDER,
-                                        datetime.datetime.utcnow().strftime(data_name + '_%Y%m%d_%H%M%S.csv.gz')
+                                        datetime.datetime.now(datetime.timezone.utc).strftime(data_name + '_%Y%m%d_%H%M%S.csv.gz')
                                         ), "w") as f:
                 f.write(data)
 
