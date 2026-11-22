@@ -6,7 +6,7 @@ from math import log10, radians, sin, cos, acos
 import numpy as np
 import os
 import pandas
-from plotly.offline import plot
+import plotly.io as pio
 import plotly.express as px
 import plotly.graph_objects as go
 from typing import Dict, Iterable, Union
@@ -26,6 +26,13 @@ from .forms import PlotDataForm, PlotDataFormSummary, GpsDateRangeForm
 from my_base import Logging, create_timezone_object, photoStorage, TILES_FOLDERS
 
 logger = Logging.setup_logger(__name__)
+
+
+def plot_div(fig) -> str:
+    """HTML div for a plotly figure; plotly.js is loaded separately from the static folder.
+    An explicit default height is needed: since plotly.js 3 a height of 100% inside an auto-height parent no longer
+    falls back to 450px, resulting in a broken/huge white plot area"""
+    return pio.to_html(fig, full_html=False, include_plotlyjs=False, default_height="450px")
 
 FIELDS_TO_LABELS = {"date": "Date", "distance": "Distance [km]", "duration": "Duration", "speed": "Speed [km/h]",
                     "days": "Days", "numberofdays": "Number of Days", "bicycle": "Bicycle"}
@@ -139,7 +146,7 @@ class BaseDataListView(generic.ListView):
         if self.data_frame is not None:
             fig = px.scatter(self.data_frame, **plot_args)
             # fig.update_yaxes(autorange="reversed")
-            return plot(fig, output_type="div", include_plotlyjs=False)
+            return plot_div(fig)
 
 
 class DataListView(BaseDataListView):
@@ -405,13 +412,11 @@ class ExtraPlots(BaseDataListView):
         fig_total.update_layout(
             xaxis=dict(title="Date", domain=[0.0, 0.85]),
             yaxis=dict(
-                title="Total/Cumulative speed [km/h]",
-                titlefont=dict(color="#1f77b4"),
+                title=dict(text="Total/Cumulative speed [km/h]", font=dict(color="#1f77b4")),
                 tickfont=dict(color="#1f77b4")
             ),
             yaxis2=dict(
-                title="Total/Cumulative Distance [km]",
-                titlefont=dict(color="#cc0000"),
+                title=dict(text="Total/Cumulative Distance [km]", font=dict(color="#cc0000")),
                 tickfont=dict(color="#cc0000"),
                 anchor="free",
                 overlaying="y",
@@ -419,8 +424,7 @@ class ExtraPlots(BaseDataListView):
                 position=0.85
             ),
             yaxis3=dict(
-                title="Total/Cumulative Duration [hh:mm]",
-                titlefont=dict(color="#009973"),
+                title=dict(text="Total/Cumulative Duration [hh:mm]", font=dict(color="#009973")),
                 tickfont=dict(color="#009973"),
                 anchor="free",
                 overlaying="y",
@@ -480,13 +484,11 @@ class ExtraPlots(BaseDataListView):
         fig_diff.update_layout(
             xaxis=dict(title="Date", domain=[0.0, 0.9]),
             yaxis=dict(
-                title="Diff between Total and Cumulative Distance [km]",
-                titlefont=dict(color="#1f77b4"),
+                title=dict(text="Diff between Total and Cumulative Distance [km]", font=dict(color="#1f77b4")),
                 tickfont=dict(color="#1f77b4")
             ),
             yaxis2=dict(
-                title="Diff between Total and Cumulative Duration [sec]",
-                titlefont=dict(color="#cc0000"),
+                title=dict(text="Diff between Total and Cumulative Duration [sec]", font=dict(color="#cc0000")),
                 tickfont=dict(color="#cc0000"),
                 anchor="free",
                 overlaying="y",
@@ -512,12 +514,12 @@ class ExtraPlots(BaseDataListView):
         )
 
         plot_dict = {
-            "plot_total_div": plot(fig_total, output_type="div", include_plotlyjs=False),
-            "plot_hist_dist": plot(fig_hist_dist, output_type="div", include_plotlyjs=False),
-            "plot_hist_dur": plot(fig_hist_dur, output_type="div", include_plotlyjs=False),
-            "plot_hist_speed": plot(fig_hist_spd, output_type="div", include_plotlyjs=False),
-            "plot_diff_div": plot(fig_diff, output_type="div", include_plotlyjs=False),
-            "plot_frac_div": plot(fig_frac, output_type="div", include_plotlyjs=False),
+            "plot_total_div": plot_div(fig_total),
+            "plot_hist_dist": plot_div(fig_hist_dist),
+            "plot_hist_dur": plot_div(fig_hist_dur),
+            "plot_hist_speed": plot_div(fig_hist_spd),
+            "plot_diff_div": plot_div(fig_diff),
+            "plot_frac_div": plot_div(fig_frac),
         }
 
         return plot_dict
@@ -803,7 +805,7 @@ def analyse_gps_data_sets(
                     prev_time = row['Times'] + diff_sec
                     fig.add_annotation(go.layout.Annotation(
                         x=row[ax], y=min_alt,
-                        text=datetime.datetime.utcfromtimestamp(row['Times']).strftime(time_str),
+                        text=datetime.datetime.fromtimestamp(row['Times'], datetime.timezone.utc).strftime(time_str),
                         align='center', showarrow=False, yanchor='bottom', textangle=90, clicktoshow=False,
                         font=dict(color='rgb(125,125,125)', size=10)
                     ))
@@ -862,13 +864,11 @@ def analyse_gps_data_sets(
                    ),
             xaxis=dict(title="Distance [km]", domain=[0.0, 0.92]),
             yaxis=dict(
-                title="Elevation [m]",
-                titlefont=dict(color="#FF0000"),
+                title=dict(text="Elevation [m]", font=dict(color="#FF0000")),
                 tickfont=dict(color="#FF0000")
             ),
             yaxis2=dict(
-                title="Speed [km/h]",
-                titlefont=dict(color="#00AF00"),
+                title=dict(text="Speed [km/h]", font=dict(color="#00AF00")),
                 tickfont=dict(color="#00AF00"),
                 anchor="free",
                 overlaying="y",
@@ -876,12 +876,12 @@ def analyse_gps_data_sets(
                 position=0.92
             ),
         )
-        context["plot_div"] = plot(fig, output_type="div", include_plotlyjs=False)
+        context["plot_div"] = plot_div(fig)
     # map_center and zoom won't work for +/- 180 deg longitude
-    max_lat = all_df['Latitudes_deg'].max()
-    min_lat = all_df['Latitudes_deg'].min()
-    max_lon = all_df['Longitudes_deg'].max()
-    min_lon = all_df['Longitudes_deg'].min()
+    max_lat = float(all_df['Latitudes_deg'].max())
+    min_lat = float(all_df['Latitudes_deg'].min())
+    max_lon = float(all_df['Longitudes_deg'].max())
+    min_lon = float(all_df['Longitudes_deg'].min())
     map_center = [0.5 * (min_lat + max_lat), 0.5 * (min_lon + max_lon)]
     zoom = int(round(-3.2 * log10(max(max_lat - min_lat, (max_lon - min_lon) * sin(radians(map_center[0])))) + 8.9))
     context['center'] = map_center
