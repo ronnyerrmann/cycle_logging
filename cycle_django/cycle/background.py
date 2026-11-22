@@ -14,7 +14,7 @@ class BackgroundThread(threading.Thread):
     _instance = None
 
     def __init__(self, interval=60):
-        super().__init__()
+        super().__init__(daemon=True)
         self.interval = interval
         self.first_interval = None
         self.stopped = threading.Event()

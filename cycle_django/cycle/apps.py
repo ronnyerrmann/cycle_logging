@@ -1,4 +1,5 @@
 import atexit
+import os
 import sys
 from django.apps import AppConfig
 from django.db.utils import OperationalError
@@ -15,6 +16,13 @@ class CycleConfig(AppConfig):
 
     def ready(self):
         #super().ready()
+        # With runserver's autoreloader, ready() runs in the file-watching parent process too.
+        # Only start the background thread in the child (RUN_MAIN=true), which is restarted on code changes.
+        is_reloader_parent = (
+            'runserver' in sys.argv and '--noreload' not in sys.argv and os.environ.get('RUN_MAIN') != 'true'
+        )
+        if is_reloader_parent:
+            return
         if 'makemigrations' not in sys.argv and 'migrate' not in sys.argv and 'collectstatic' not in sys.argv:
             self.add_superuser()
             self.add_bicycle_if_none()
