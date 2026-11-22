@@ -1,11 +1,15 @@
 import datetime
 import glob
 import gzip
+import json
 import os
+import time
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.core.serializers.base import DeserializationError
-from django.db.utils import OperationalError
+from django.db import connection, transaction
+from django.db.utils import IntegrityError, OperationalError
 
 import cycle.models
 from my_base import Logging, create_folder_if_required
@@ -84,7 +88,107 @@ class Backup:
 
         self.dump_database_table(data_name)
 
-    def load_database_dump(self, data_name: str):
+    @staticmethod
+    def iter_json_dump_objects(filename: str, chunk_size: int = 1 << 20):
+        """ Yields the objects of a (gzipped) dumpdata JSON list one by one, without loading the whole file.
+        dumpdata writes the list in a single line, so it can't be read line by line """
+        decoder = json.JSONDecoder()
+        with gzip.open(filename, "rt", encoding="utf-8") as f:
+            buffer = ""
+            pos = 0
+            eof = False
+            while True:
+                # skip the list syntax between objects
+                while pos < len(buffer) and buffer[pos] in "[], \n\r\t":
+                    pos += 1
+                if pos >= len(buffer):
+                    if eof:
+                        return
+                    buffer = f.read(chunk_size)
+                    pos = 0
+                    eof = not buffer
+                    continue
+                try:
+                    # the top level entries are objects, so a cut-off entry always fails to decode
+                    obj, end = decoder.raw_decode(buffer, pos)
+                except json.JSONDecodeError:
+                    if eof:
+                        raise
+                    # entry is incomplete, read more data
+                    more = f.read(chunk_size)
+                    eof = not more
+                    buffer = buffer[pos:] + more
+                    pos = 0
+                    continue
+                yield obj
+                pos = end
+
+    # JSON values of these field types can be written to the database without conversion
+    JSON_NATIVE_FIELD_TYPES = {
+        "AutoField", "BigAutoField", "SmallAutoField", "IntegerField", "BigIntegerField", "SmallIntegerField",
+        "PositiveIntegerField", "PositiveBigIntegerField", "PositiveSmallIntegerField", "FloatField", "CharField",
+        "TextField", "BooleanField",
+    }
+
+    def bulk_load_json_dump(self, filename: str, model, batch_size: int = 5000) -> int:
+        """ Fast replacement for loaddata for big tables (no signals, no model instances): new objects are inserted
+        and existing objects (same primary key) are updated, as loaddata would do. Each batch is its own short
+        transaction, so the database isn't locked for other requests during the whole import """
+        model_label = model._meta.label_lower
+        pk = model._meta.pk
+        fields = [field for field in model._meta.concrete_fields if not field.primary_key]
+
+        def converter(field):
+            """ Returns a function that converts the JSON value of the field to the database value """
+            if field.is_relation:
+                target = field.target_field
+                if target.get_internal_type() in self.JSON_NATIVE_FIELD_TYPES:
+                    return None
+                return lambda value: target.get_db_prep_save(target.to_python(value), connection)
+            if field.get_internal_type() in self.JSON_NATIVE_FIELD_TYPES:
+                return None
+            return lambda value: field.get_db_prep_save(field.to_python(value), connection)
+
+        pk_converter = converter(pk)
+        converters = [(field.name, converter(field), field.get_default()) for field in fields]
+
+        quote = connection.ops.quote_name
+        columns = [pk.column] + [field.column for field in fields]
+        sql = (
+            f"INSERT INTO {quote(model._meta.db_table)} ({', '.join(quote(c) for c in columns)}) "
+            f"VALUES ({', '.join(['%s'] * len(columns))}) "
+            f"ON CONFLICT({quote(pk.column)}) DO UPDATE SET "
+            + ", ".join(f"{quote(c)} = excluded.{quote(c)}" for c in columns[1:])
+        )
+
+        def save_batch(rows):
+            with transaction.atomic(), connection.cursor() as cursor:
+                cursor.executemany(sql, rows)
+
+        batch = []
+        count = 0
+        for obj in self.iter_json_dump_objects(filename):
+            if obj.get("model") != model_label:
+                raise DeserializationError(f"Invalid model identifier: {obj.get('model')} (expected {model_label})")
+            obj_fields = obj["fields"]
+            row = [obj["pk"] if pk_converter is None else pk_converter(obj["pk"])]
+            for name, convert, default in converters:
+                value = obj_fields.get(name, default)
+                row.append(value if convert is None or value is None else convert(value))
+            batch.append(row)
+            if len(batch) >= batch_size:
+                save_batch(batch)
+                count += len(batch)
+                batch = []
+        if batch:
+            save_batch(batch)
+            count += len(batch)
+        return count
+
+    def load_database_dump(self, data_name: str, bulk_model=None):
+        """ Loads the dump of data_name if it changed since it was last loaded.
+        :param bulk_model: if given, the dump is loaded with bulk_load_json_dump into this model (faster for big tables)
+        """
         database_dump_file = data_name + '_dump.json.gz'
         # "load_db_dump_at_startup" is mountpoint in Docker
         filename = os.path.join("load_db_dump_at_startup", database_dump_file)
@@ -103,15 +207,20 @@ class Backup:
 
         try:
             # This will not remove data and just add data or replace data with the same primary key
-            call_command("loaddata", filename)
+            if bulk_model is None:
+                call_command("loaddata", filename)
+            else:
+                start = time.time()
+                count = self.bulk_load_json_dump(filename, bulk_model)
+                logger.info(f"Bulk loaded {count} objects from {database_dump_file} in {time.time() - start:.1f}s")
         except DeserializationError as e:
             if str(e).find("Invalid model identifier") != -1:
                 logger.error(f"Deserialiser Error: {e}")
                 return False
             else:
                 raise
-        except (CommandError, OperationalError) as e:
-            logger.warning(f"Couldn't load backup: {e}")
+        except (CommandError, OperationalError, IntegrityError, ValidationError, json.JSONDecodeError) as e:
+            logger.warning(f"Couldn't load backup {database_dump_file}: {e}")
             return False
 
         self.__class__.file_changed_last_loaded[database_dump_file] = file_changed

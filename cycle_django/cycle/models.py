@@ -702,7 +702,8 @@ class GPSPoint(models.Model):
 
     @classmethod
     def load_data(cls):
-        backup_instance.load_database_dump(cls.table_name)
+        # The table has millions of points, loaddata takes very long and locks the database the whole time
+        backup_instance.load_database_dump(cls.table_name, bulk_model=cls)
 
 
 class GPSData(models.Model):
