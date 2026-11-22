@@ -445,11 +445,12 @@
   <ul>
     <table  class='table_inner_borders'>
       <tr>
-        <th>Distanc - Duration - Speed</th> <th>Start</th> <th>End</th>
+        <th>Filename</th> <th>Distance</th> <th>Duration</th> <th>Speed</th> <th>Start</th> <th>End</th>
       </tr>
       {% for entry in individual_gps_list %}
         <tr>
-          <td><a href="{{ entry.url }}">{{ entry.Distance|floatformat:2 }} km - {{ entry.Duration|seconds_to_datetime }} - {{ entry.Speed|floatformat:2 }} km/h</a></td>
+          <td><a href="{{ entry.url }}">{{ entry.filename }}</a></td>
+          <td>{{ entry.Distance|floatformat:2 }} km</td> <td> {{ entry.Duration|seconds_to_datetime }}</td> <td>{{ entry.Speed|floatformat:2 }} km/h</td>
           <td>{{entry.start}}</td> <td>{{entry.end}}</td>
         </tr>
     {% empty %}

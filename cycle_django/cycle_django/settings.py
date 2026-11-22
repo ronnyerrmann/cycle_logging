@@ -169,13 +169,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en-gb'
 
 TIME_ZONE = 'Europe/London'
 
 USE_I18N = True
 
-USE_L10N = True
+FORMAT_MODULE_PATH = ['cycle_django.formats']  # Y-m-d H:i (24h) instead of the en-gb/en-us formats
 
 USE_TZ = True
 
