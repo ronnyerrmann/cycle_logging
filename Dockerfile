@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bullseye
+FROM python:3.16-rc-slim-trixie
 
 # Install nginx - update and install in same line, as otherwise different caches
 # Don't install vim as a standard, way too many dep
