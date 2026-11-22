@@ -609,7 +609,7 @@ def analyse_gps_data_sets(
             track = tracks[filename]
             objs.append(track_df[['Times', 'Latitudes_deg', 'Longitudes_deg', 'Altitudes', 'Altitudes_srtm']])
             individual_gps_list.append({
-                'url': track.get_absolute_url(), 'start': track.start_time, 'end': track.end_time
+                'filename': filename, 'url': track.get_absolute_url(), 'start': track.start_time, 'end': track.end_time
             })
 
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
@@ -630,7 +630,7 @@ def analyse_gps_data_sets(
             cos_lats = subset['cos_lat'].to_numpy()
             lons = subset['Longitudes_rad'].to_numpy()
             for nogo in nogos:
-                temp = np.arccos(sin_lats * nogo[0] + cos_lats * nogo[1] * np.cos(lons - nogo[2]))
+                temp = np.arccos(np.clip(sin_lats * nogo[0] + cos_lats * nogo[1] * np.cos(lons - nogo[2]), -1, 1))
                 if np.min(temp) < nogo[3]:
                     tokeep[ii:ii + steps] = np.zeros(steps, dtype=bool)
                     break
@@ -716,17 +716,18 @@ def analyse_gps_data_sets(
         df.loc[df['Duration'].isna(), 'Altitudes'] = np.nan
         # Distance
         distance = np.zeros(df.shape[0])
-        distance[1:] = (np.arccos(
+        distance[1:] = (np.arccos((
             df['sin_lat'] * df['sin_lat'].shift(-1) +
             df['cos_lat'] * df['cos_lat'].shift(-1) * np.cos(df['Longitudes_rad'] - df['Longitudes_rad'].shift(-1))
-        ) * earth_radius)[:-1]
+        ).clip(-1, 1)) * earth_radius)[:-1]   # rounding errors can create values slightly above 1
         df['Distance'] = distance
         df.loc[df['Duration'].isna(), 'Distance'] = np.nan
         # Speed
-        duration_rolling_sum = df['Duration'].rolling(window=5, min_periods=min_periods).sum().to_numpy()
+        # Zero durations (e.g. repeated timestamps) would give inf speeds -> NaN instead
+        duration_rolling_sum = df['Duration'].rolling(window=5, min_periods=min_periods).sum().replace(0, np.nan).to_numpy()
         distance_rolling_sum = df['Distance'].rolling(window=5, min_periods=min_periods).sum().to_numpy()
         df['Speed_5'] = distance_rolling_sum / duration_rolling_sum * 3600
-        duration_rolling_sum = df['Duration'].rolling(window=50, min_periods=min_periods).sum().to_numpy()
+        duration_rolling_sum = df['Duration'].rolling(window=50, min_periods=min_periods).sum().replace(0, np.nan).to_numpy()
         distance_rolling_sum = df['Distance'].rolling(window=50, min_periods=min_periods).sum().to_numpy()
         df['Speed_50'] = distance_rolling_sum / duration_rolling_sum * 3600
 
@@ -737,7 +738,7 @@ def analyse_gps_data_sets(
         duration = df['Duration'].sum()
         individual_gps_list[obj_index]['Distance'] = distance
         individual_gps_list[obj_index]['Duration'] = duration
-        individual_gps_list[obj_index]['Speed'] = distance / duration * 3600
+        individual_gps_list[obj_index]['Speed'] = distance / duration * 3600 if duration > 0 else np.nan
 
         all_positions.append(positions)
         all_df = pandas.concat(
@@ -811,7 +812,7 @@ def analyse_gps_data_sets(
                 separation = np.arccos(
                     df10th.loc[sub_sec, 'sin_lat'] * geoloc['sin_lat'] +
                     df10th.loc[sub_sec, 'cos_lat'] * geoloc['cos_lat'] * np.cos(df10th.loc[sub_sec, 'Longitudes_rad'] - geoloc['Longitudes_rad'])
-                ).to_numpy()
+                ).clip(-1, 1).to_numpy()
                 sub_sub_sec = (separation < df10th.loc[sub_sec, 'place_sep']) & (separation < geoloc['radius'] / earth_radius)
                 if not sub_sub_sec.all():
                     index_to_false = np.where(sub_sec)[0][~sub_sub_sec]
