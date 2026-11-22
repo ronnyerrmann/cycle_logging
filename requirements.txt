@@ -3,7 +3,7 @@ certifi==2026.11.20
 charset-normalizer==3.5.2
 Django==5.2.19
 django-leaflet==0.34.0
-GDAL==3.4.1
+# GDAL==3.4.1   # requires gdal-bin libgdal-dev python3-gdal to be installed on system # only needed on the host machine that creates the SRTM tiles, not in the docker imager
 gpxpy==1.6.2
 gunicorn==27.0.1
 idna==3.20
