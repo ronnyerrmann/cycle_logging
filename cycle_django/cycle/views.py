@@ -233,24 +233,28 @@ class ExtraPlots(BaseDataListView):
 
     def get_dist_time_per_days(self, data_frame):
         dist_per_days = []
+        # Sorted numpy array of the dates: the first date >= x can be found with a binary search,
+        # instead of filtering the whole column for every candidate
+        dates_sorted = np.sort(data_frame['Date_dt'].to_numpy())
+        daily_data = data_frame[data_frame['Date_dt'] >= pandas.to_datetime('2006-09-16')]
         for days in (list(range(1, 8)) + [10, 14, 21] + list(range(30, 91, 20)) + list(range(120, 181, 30)) +
                      [270, 365, 365 * 2, 365 * 4 + 1]):
             result_all = {'days': days}
             for data_source in ['distance', 'duration']:
                 if days < 10:       # needed because of no daily data before that date
-                    dist = data_frame[data_frame['Date_dt'] >= pandas.to_datetime('2006-09-16')][data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
+                    dist = daily_data[data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
                 else:
                     dist = data_frame[data_source].rolling(window=f'{days}D').sum()  # this is only consecutive days
                 dist_sort = dist.sort_values(ascending=False)
                 result = []
-                diff = datetime.timedelta(days=days - 1)
-                for date, value in dist_sort.items():
-                    date_start = data_frame['Date_dt'][(data_frame['Date_dt'] >= date-diff)].min()
+                diff = np.timedelta64(days - 1, 'D')
+                for date, value in zip(dist_sort.index.to_numpy(), dist_sort.to_numpy()):
+                    date_start = dates_sorted[np.searchsorted(dates_sorted, date - diff, side='left')]
                     for start, end, _ in result:
                         if date >= start and date_start <= end:
                             break
                     else:
-                        result.append([date_start, date, value])
+                        result.append([pandas.Timestamp(date_start), pandas.Timestamp(date), value])
                         if len(result) == 5:
                             break
                 if result:
@@ -262,8 +266,18 @@ class ExtraPlots(BaseDataListView):
 
         return dist_per_days
 
+    def get_all_rides(self):
+        # Load all rides only once, they are needed for get_same_numbers and get_same_digits
+        if getattr(self, '_all_rides', None) is None:
+            self._all_rides = list(CycleRides.objects.all())
+        return self._all_rides
+
     def get_same_numbers(self):
         same_numbers = dict()
+        # One query instead of one query per date
+        rides_by_date = dict()
+        for obj in self.get_all_rides():
+            rides_by_date.setdefault(obj.date, obj)
         for column in ['distance', 'duration_td', 'speed']:
             if column in ['distance', 'speed']:
                 # Round to 2 digits and then count same values
@@ -282,7 +296,7 @@ class ExtraPlots(BaseDataListView):
                     dates = self.data_frame.loc[self.data_frame[column] == value, 'date'].sort_values().tolist()
                 result. append({
                     'count': count, 'value': value,
-                    'cycle_obj': [CycleRides.objects.filter(date=date)[0] for date in dates]
+                    'cycle_obj': [rides_by_date[date] for date in dates]
                 })
             same_numbers[column] = result
 
@@ -372,7 +386,7 @@ class ExtraPlots(BaseDataListView):
         times = dict()
         totaltimes = dict()
         speeds = dict()
-        for obj in CycleRides.objects.all():
+        for obj in self.get_all_rides():
             if obj.distance in possible_numbers:
                 add_results(obj.distance, distances)
             if obj.duration.total_seconds() in possible_times_s:
@@ -800,12 +814,16 @@ def analyse_gps_data_sets(
                 time_str = '%Y-%m-%d'
             else:
                 time_str = '%Y-%m-%d'
-            for index, row in all_df.iterrows():
-                if row['Times'] > prev_time:
-                    prev_time = row['Times'] + diff_sec
-                    fig.add_annotation(go.layout.Annotation(
-                        x=row[ax], y=min_alt,
-                        text=datetime.datetime.fromtimestamp(row['Times'], datetime.timezone.utc).strftime(time_str),
+            # Collect the annotations and add them in one go: fig.add_annotation re-validates all existing
+            # annotations each time, which makes adding them one by one quadratic
+            annotations = []
+            # Iterate over numpy arrays instead of DataFrame.iterrows (which creates a Series per row)
+            for time_val, x_val in zip(all_df['Times'].to_numpy(), all_df[ax].to_numpy()):
+                if time_val > prev_time:
+                    prev_time = time_val + diff_sec
+                    annotations.append(dict(
+                        x=x_val, y=min_alt,
+                        text=datetime.datetime.fromtimestamp(time_val, datetime.timezone.utc).strftime(time_str),
                         align='center', showarrow=False, yanchor='bottom', textangle=90, clicktoshow=False,
                         font=dict(color='rgb(125,125,125)', size=10)
                     ))
@@ -813,16 +831,23 @@ def analyse_gps_data_sets(
             df10th = all_df.iloc[::10].copy()
             df10th['place_sep'] = np.zeros(df10th.shape[0]) + earth_radius
             df10th['places'] = df10th.apply(lambda _: '', axis=1)
-            for index_geo, geoloc in df_geoloc.iterrows():
+            # Only places whose box overlaps the box of the track can match, which is usually a tiny subset
+            df_geoloc_near = df_geoloc[
+                (df_geoloc['lat_max'] > df10th['Latitudes_deg'].min()) &
+                (df_geoloc['lat_min'] < df10th['Latitudes_deg'].max()) &
+                (df_geoloc['lon_max'] > df10th['Longitudes_deg'].min()) &
+                (df_geoloc['lon_min'] < df10th['Longitudes_deg'].max())
+            ]
+            for index_geo, geoloc in df_geoloc_near.iterrows():
                 sub_sec = ((geoloc['lat_min'] < df10th['Latitudes_deg']) & (df10th['Latitudes_deg'] < geoloc['lat_max']) &
                            (geoloc['lon_min'] < df10th['Longitudes_deg']) & (df10th['Longitudes_deg'] < geoloc['lon_max'])).to_numpy()
                 if not sub_sec.any():
                     # All false
                     continue
-                separation = np.arccos(
+                separation = np.arccos((
                     df10th.loc[sub_sec, 'sin_lat'] * geoloc['sin_lat'] +
                     df10th.loc[sub_sec, 'cos_lat'] * geoloc['cos_lat'] * np.cos(df10th.loc[sub_sec, 'Longitudes_rad'] - geoloc['Longitudes_rad'])
-                ).clip(-1, 1).to_numpy()
+                ).clip(-1, 1)).to_numpy()
                 sub_sub_sec = (separation < df10th.loc[sub_sec, 'place_sep']) & (separation < geoloc['radius'] / earth_radius)
                 if not sub_sub_sec.all():
                     index_to_false = np.where(sub_sec)[0][~sub_sub_sec]
@@ -839,11 +864,12 @@ def analyse_gps_data_sets(
                     name = name.to_numpy()[0]
                 df10th.loc[((cum_dist - diff_dist) < df10th['Cum_dist']) &
                            (df10th['Cum_dist'] < (cum_dist + diff_dist)), 'place_sep'] = earth_radius
-                fig.add_annotation(go.layout.Annotation(
+                annotations.append(dict(
                     x=cum_dist, y=max_alt, text=name,
                     align='center', showarrow=False, yanchor='top', textangle=90, clicktoshow=False,
                     font=font_places
                 ))
+            fig.update_layout(annotations=annotations)
 
         fig.add_trace(go.Scatter(x=all_df[ax], y=all_df[ay2], name="Speed (5 points)", yaxis="y2",
                                  mode='lines', marker=dict(color='#00FF00'), opacity=0.5))
