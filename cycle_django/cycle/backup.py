@@ -74,8 +74,11 @@ class Backup:
     @staticmethod
     def dump_database_table(table: str):
         # To load last changes on production instance
+        # Natural keys (e.g. the filename of a GPSTrack) instead of the ids, so a dump can be loaded into a database
+        # in which the same objects have different ids. No effect on models without natural_key()
         call_command(
-            "dumpdata", "cycle." + table, output=os.path.join(BACKUP_FOLDER, table + "_dump.json.gz")
+            "dumpdata", "cycle." + table, output=os.path.join(BACKUP_FOLDER, table + "_dump.json.gz"),
+            use_natural_foreign_keys=True, use_natural_primary_keys=True,
         )
 
     def backup_table(self, data_name: str, data: bytes, csv_dump: bool = True):
@@ -133,14 +136,44 @@ class Backup:
     def bulk_load_json_dump(self, filename: str, model, batch_size: int = 5000) -> int:
         """ Fast replacement for loaddata for big tables (no signals, no model instances): new objects are inserted
         and existing objects (same primary key) are updated, as loaddata would do. Each batch is its own short
-        transaction, so the database isn't locked for other requests during the whole import """
+        transaction, so the database isn't locked for other requests during the whole import.
+        Models with a natural_key_field (e.g. GPSTrack.filename) are matched by that field instead of the primary key,
+        as their dumps don't contain the primary key (dumpdata with natural primary keys). Old dumps that have the
+        natural key as primary key ("pk": "track.gpx") are accepted as well """
         model_label = model._meta.label_lower
         pk = model._meta.pk
         fields = [field for field in model._meta.concrete_fields if not field.primary_key]
+        natural_key_field = getattr(model, "natural_key_field", None)
+
+        def natural_key_converter(field):
+            """ Converts the natural key of a foreign key (e.g. ["track.gpx"]) to the primary key of the related
+            object. A single value (instead of a list) is accepted as well: dumps from before the related model got an
+            integer primary key contain e.g. "track.gpx" """
+            related_model = field.related_model
+            pk_by_natural_key = {
+                obj.natural_key(): obj.pk for obj in related_model._default_manager.all()
+            }
+            target_is_native = field.target_field.get_internal_type() in self.JSON_NATIVE_FIELD_TYPES
+
+            def convert(value):
+                if isinstance(value, list):
+                    key = tuple(value)
+                elif target_is_native and isinstance(value, int):
+                    return value    # already the primary key
+                else:
+                    key = (value,)
+                try:
+                    return pk_by_natural_key[key]
+                except KeyError:
+                    raise ValidationError(f"{related_model.__name__} {list(key)} doesn't exist") from None
+
+            return convert
 
         def converter(field):
             """ Returns a function that converts the JSON value of the field to the database value """
             if field.is_relation:
+                if hasattr(field.related_model, "natural_key"):
+                    return natural_key_converter(field)
                 target = field.target_field
                 if target.get_internal_type() in self.JSON_NATIVE_FIELD_TYPES:
                     return None
@@ -151,14 +184,22 @@ class Backup:
 
         pk_converter = converter(pk)
         converters = [(field.name, converter(field), field.get_default()) for field in fields]
+        # Model specific conversions, e.g. for values in old dumps that were stored in a different format
+        model_converters = getattr(model, "dump_value_converters", {})
+        converters = [(name, model_converters.get(name, convert), default) for name, convert, default in converters]
 
         quote = connection.ops.quote_name
-        columns = [pk.column] + [field.column for field in fields]
+        if natural_key_field is None:
+            columns = [pk.column] + [field.column for field in fields]
+            conflict_column = pk.column
+        else:
+            columns = [field.column for field in fields]
+            conflict_column = model._meta.get_field(natural_key_field).column
         sql = (
             f"INSERT INTO {quote(model._meta.db_table)} ({', '.join(quote(c) for c in columns)}) "
             f"VALUES ({', '.join(['%s'] * len(columns))}) "
-            f"ON CONFLICT({quote(pk.column)}) DO UPDATE SET "
-            + ", ".join(f"{quote(c)} = excluded.{quote(c)}" for c in columns[1:])
+            f"ON CONFLICT({quote(conflict_column)}) DO UPDATE SET "
+            + ", ".join(f"{quote(c)} = excluded.{quote(c)}" for c in columns if c != conflict_column)
         )
 
         def save_batch(rows):
@@ -171,7 +212,14 @@ class Backup:
             if obj.get("model") != model_label:
                 raise DeserializationError(f"Invalid model identifier: {obj.get('model')} (expected {model_label})")
             obj_fields = obj["fields"]
-            row = [obj["pk"] if pk_converter is None else pk_converter(obj["pk"])]
+            if natural_key_field is None:
+                row = [obj["pk"] if pk_converter is None else pk_converter(obj["pk"])]
+            else:
+                row = []
+                if natural_key_field not in obj_fields:
+                    if obj.get("pk") is None:
+                        raise ValidationError(f"No {natural_key_field} for {model_label}: {obj}")
+                    obj_fields[natural_key_field] = obj["pk"]   # dump from before the integer primary key
             for name, convert, default in converters:
                 value = obj_fields.get(name, default)
                 row.append(value if convert is None or value is None else convert(value))

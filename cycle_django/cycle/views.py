@@ -594,8 +594,8 @@ def analyse_gps_data_sets(
     if not objs_in:
         return {}
 
-    tracks = {track.filename: track for track in objs_in}
-    # Use a subquery for querysets, as a list of all filenames can exceed the SQL variable limit
+    tracks = {track.pk: track for track in objs_in}
+    # Use a subquery for querysets, as a list of all ids can exceed the SQL variable limit
     track_filter = objs_in.values('pk') if isinstance(objs_in, QuerySet) else list(tracks)
     points = GPSPoint.objects.filter(track__in=track_filter)
     if coords:
@@ -612,21 +612,21 @@ def analyse_gps_data_sets(
 
     points_df = pandas.DataFrame.from_records(
         points.order_by('track__start_time', 'timestamp').values_list(
+            # timestamp is in Unix seconds, e.g. 1269530756
             'track', 'timestamp', 'latitude', 'longitude', 'elevation', 'ele_srtm'
         ),
-        columns=['track', 'timestamp', 'Latitudes_deg', 'Longitudes_deg', 'Altitudes', 'Altitudes_srtm'],
+        columns=['track', 'Times', 'Latitudes_deg', 'Longitudes_deg', 'Altitudes', 'Altitudes_srtm'],
     )
     objs = []
     individual_gps_list = []
     if points_df.shape[0]:
-        points_df['Times'] = pandas.to_datetime(points_df['timestamp'], utc=True).astype('int64') // 10**9  # e.g. 1269530756
         points_df['Altitudes'] = points_df['Altitudes'].astype(np.float64)
         points_df['Altitudes_srtm'] = points_df['Altitudes_srtm'].astype(np.float64).fillna(0)
-        for filename, track_df in points_df.groupby('track', sort=False):
-            track = tracks[filename]
+        for track_id, track_df in points_df.groupby('track', sort=False):
+            track = tracks[track_id]
             objs.append(track_df[['Times', 'Latitudes_deg', 'Longitudes_deg', 'Altitudes', 'Altitudes_srtm']])
             individual_gps_list.append({
-                'filename': filename, 'url': track.get_absolute_url(), 'start': track.start_time, 'end': track.end_time
+                'filename': track.filename, 'url': track.get_absolute_url(), 'start': track.start_time, 'end': track.end_time
             })
 
     def check_no_go(nogos, df: pandas.DataFrame, position: str):
@@ -954,7 +954,7 @@ def gps_detail_view(request, filename=None):
             initial_values['begin_date'] = begin_date
             initial_values['end_date'] = end_date
         elif filename is not None:
-            gpsData = [get_object_or_404(GPSTrack, pk=filename)]
+            gpsData = [get_object_or_404(GPSTrack, filename=filename)]
         else:
             raise ValueError('Parameter unknown.')
         form = GpsDateRangeForm(initial=initial_values)

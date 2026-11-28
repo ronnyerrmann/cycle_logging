@@ -430,7 +430,6 @@ class GPSFilesToIgnore(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.backup()
-        GPSData.objects.filter(filename=self.filename).delete()
         for track in GPSTrack.objects.filter(filename=self.filename):
             track.delete()
 
@@ -443,8 +442,15 @@ class GPSFilesToIgnore(models.Model):
         backup_instance.load_database_dump(cls.table_name)
 
 
+class GPSTrackManager(models.Manager):
+    def get_by_natural_key(self, filename):
+        return self.get(filename=filename)
+
+
 class GPSTrack(models.Model):
-    filename = models.CharField(primary_key=True, max_length=100)
+    # An integer primary key instead of the filename: the key is repeated in every GPSPoint (millions of rows) and in
+    # its index. The dumps use the filename as natural key, so they don't depend on the ids of the database
+    filename = models.CharField(max_length=100, unique=True)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     number_entries = models.IntegerField()
@@ -454,11 +460,17 @@ class GPSTrack(models.Model):
 
     already_tried_files = []
 
+    objects = GPSTrackManager()
+    natural_key_field = 'filename'      # used by Backup.bulk_load_json_dump
+
     class Meta:
         ordering = ['start_time', 'end_time']
 
     def __str__(self):
         return f"{self.filename} - {self.number_entries}"
+
+    def natural_key(self):
+        return (self.filename,)
 
     def get_absolute_url(self):
         """Returns the url to access a detail record for this GPS file."""
@@ -487,7 +499,7 @@ class GPSTrack(models.Model):
     @classmethod
     def load_data(cls):
         # Tracks first, as the points reference them
-        backup_instance.load_database_dump(cls.table_name)
+        backup_instance.load_database_dump(cls.table_name, bulk_model=cls)
         GPSPoint.load_data()
         cls.import_gpx_file_to_database()
 
@@ -625,16 +637,20 @@ class GPSTrack(models.Model):
         known_files = set(cls.objects.values_list('filename', flat=True))
         # Get all gpxfiles that are not in the database
         gpx_files = []
+        seen_files = set()  # the same filename can exist in several folders, but filename is unique in the database
         for folder in GPX_FOLDERS:
             for foldername, subfolders, filenames in os.walk(folder):
-                gpx_files += [
-                    (foldername, filename) for filename in filenames
-                    if filename.endswith(".gpx") and
-                    filename not in gpx_ignore_files and
-                    filename not in known_files and
-                    filename not in cls.already_tried_files and  # don't try to read files again and again
-                    not filename.startswith("tour_wrong_date")  # date in BT747 gpx files needs to be offset by 1C00
-                ]
+                for filename in filenames:
+                    if (
+                        filename.endswith(".gpx") and
+                        filename not in seen_files and
+                        filename not in gpx_ignore_files and
+                        filename not in known_files and
+                        filename not in cls.already_tried_files and  # don't try to read files again and again
+                        not filename.startswith("tour_wrong_date")  # date in BT747 gpx files needs to be offset by 1C00
+                    ):
+                        seen_files.add(filename)
+                        gpx_files.append((foldername, filename))
 
         def to_int_or_none(value):
             return None if np.isnan(value) else int(round(value))
@@ -663,7 +679,7 @@ class GPSTrack(models.Model):
                 GPSPoint.objects.bulk_create([
                     GPSPoint(
                         track=track,
-                        timestamp=row.Timestamp,
+                        timestamp=int(row.Times),
                         latitude=row.Latitude_deg,
                         longitude=row.Longitude_deg,
                         elevation=to_int_or_none(row.Elevation),
@@ -681,8 +697,11 @@ class GPSTrack(models.Model):
 
 
 class GPSPoint(models.Model):
-    track = models.ForeignKey(GPSTrack, on_delete=models.CASCADE, related_name='points')
-    timestamp = models.DateTimeField()
+    # No separate index for the foreign key: the (track, timestamp) index below covers lookups by track
+    track = models.ForeignKey(GPSTrack, on_delete=models.CASCADE, related_name='points', db_index=False)
+    # Unix time in seconds (UTC) instead of a DateTimeField: 4 instead of 19 bytes in the table and in the index,
+    # and no conversion needed when millions of points are loaded for the plots
+    timestamp = models.IntegerField(help_text="Unix time in seconds (UTC), e.g. 1269530756")
     latitude = models.FloatField()
     longitude = models.FloatField()
     elevation = models.IntegerField(null=True, blank=True)
@@ -698,165 +717,30 @@ class GPSPoint(models.Model):
         ]
 
     def __str__(self):
-        return f"Point of {self.track} at {self.timestamp} ({self.latitude}, {self.longitude})"
+        return f"Point of {self.track} at {self.datetime} ({self.latitude}, {self.longitude})"
+
+    @property
+    def datetime(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(self.timestamp, datetime.timezone.utc)
+
+    @staticmethod
+    def timestamp_from_dump(value) -> int:
+        """ Dumps from before the timestamp was stored as number contain e.g. "2026-08-30T12:10:05Z" """
+        if isinstance(value, str):
+            value = datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=datetime.timezone.utc)
+            return int(value.timestamp())
+        return value
+
+    # used by Backup.bulk_load_json_dump
+    dump_value_converters = {'timestamp': timestamp_from_dump}
 
     @classmethod
     def load_data(cls):
         # The table has millions of points, loaddata takes very long and locks the database the whole time
         backup_instance.load_database_dump(cls.table_name, bulk_model=cls)
 
-
-class GPSData(models.Model):
-    filename = models.CharField(primary_key=True, max_length=100)
-    start = models.DateTimeField()
-    end = models.DateTimeField()
-    datetimes = models.TextField()
-    latitudes = models.TextField()
-    longitudes = models.TextField()
-    altitudes = models.TextField()
-    alt_srtm = models.TextField()
-    speeds = models.TextField(null=True)
-
-    table_name = 'GPSData'
-
-    already_tried_files = []
-
-    class Meta:
-        ordering = ['start']
-
-    @property
-    def number_entries(self) -> int:
-        return self.datetimes.count(',') + 1
-
-    def __str__(self):
-        return f"{self.filename} - {self.number_entries}"
-
-    def get_absolute_url(self):
-        """Returns the url to access a detail record for this GPS file."""
-        return reverse('gps_detail', args=[self.filename])
-
-    def backup(self):
-        backup_instance.backup_table(self.table_name, ''.encode(), csv_dump=False)
-
-    def save(self, *args, run_backup=True, **kwargs):
-        super().save(*args, **kwargs)
-        if run_backup:
-            self.backup()
-
-    def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-        self.backup()
-
-    @classmethod
-    def load_data(cls):
-        backup_instance.load_database_dump(cls.table_name)
-
-        cls.import_gpx_file_to_database()
-
-    @classmethod
-    def import_gpx_file_to_database(cls):
-        gpx_ignore_files = GPSFilesToIgnore.objects.values_list('filename', flat=True)
-        # Get all gpxfiles that are not in the database
-        for folder in GPX_FOLDERS:
-            gpx_files = []
-            for foldername, subfolders, filenames in os.walk(folder):
-                gpx_files += [
-                    (foldername, filename) for filename in filenames
-                    if filename.endswith(".gpx") and
-                        filename not in gpx_ignore_files and
-                        filename not in cls.already_tried_files and  # don't try to read files again and again
-                        not GPSData.objects.filter(filename=filename).exists() and
-                        not filename.startswith("tour_wrong_date")  # date in BT747 gpx files needs to be offset by 1C00
-                ]
-        # Read the gpx files
-        for ii, (foldername, filename) in enumerate(gpx_files):
-            bad = False
-            with open(os.path.join(foldername, filename), 'r') as gpx_file:
-                gpx = gpxpy.parse(gpx_file)
-                datetimes = []
-                latitudes = []
-                longitudes = []
-                altitudes = []
-                alt_srtm = []
-                alt_diff = []
-                for track in gpx.tracks:
-                    if bad:
-                        break
-                    for segment in track.segments:
-                        if bad:
-                            break
-                        for point in segment.points:
-                            if not point.time:
-                                logger.warning(f"Point without timestamp in {filename}: {point} - will ignore file")
-                                bad = True
-                                break
-                            if abs(point.latitude) == 90:   # ignore dummy values
-                                continue
-                            if not datetimes:
-                                start = point.time
-                            datetimes.append(int(point.time.timestamp()))
-                            latitudes.append(round(point.latitude, 5))
-                            longitudes.append(round(point.longitude, 5))
-                            altitudes.append(point.elevation)
-                            if hasSrtm:
-                                for i, elevation_data_source in enumerate({elevation_data_30m, elevation_data_90m}):
-                                    try:
-                                        elevation_srtm = elevation_data_source.get_altitude(
-                                            latitude=point.latitude, longitude=point.longitude
-                                        )
-                                    # except KeyError:  # That exception is only internally to srtm
-                                    #     logger.warning(f'No SRTM data for {point.latitude}, {point.longitude}')
-                                    #     elevation_srtm = -1E6
-                                    except srtm.exceptions.NoHeightMapDataException:
-                                        if i == 1:
-                                            logger.warning(f'Cannot read srtm data, will not read the file')
-                                            bad = True
-                                    except AssertionError as e:
-                                        if str(e).startswith('Unexpected number of bytes found in'):
-                                            logger.warning(f'Problem with (zipped) htg file: {e}')
-                                            bad = True
-                                            break
-                                        else:
-                                            raise
-                                    else:   # no exceptions, don't try second elevation_data_source
-                                        break
-                                if bad:
-                                    break
-                                # SRTM data below 0 m has an underflow of the uint to values above 65000
-                                # SRTM data that could not be determined because of too steep landscape is set to 32768
-                                alt_srtm.append(
-                                    -1 if elevation_srtm > 65000 else
-                                    elevation_srtm if elevation_srtm < 30000 else -1 # np.nan
-                                )
-                                diff = elevation_srtm - point.elevation
-                                if abs(diff) < 200:
-                                    alt_diff.append(diff)
-
-                    end = point.time
-                if bad or len(datetimes) < 20:
-                    logger.warning(f"Ignored {len(datetimes)} points from {filename}")
-                    cls.already_tried_files.append(filename)
-                else:
-                    alt_adjust_text = ''
-                    if len(alt_diff) > 50:
-                        alt_adjust = np.median(alt_diff)
-                        if abs(alt_adjust) >= 10:   # Some devices don't record the correct gps elevation
-                            for i in range(len(altitudes)):
-                                altitudes[i] = altitudes[i] + alt_adjust
-                            alt_adjust_text = f', moved altitudes by {alt_adjust:.1f}m to match SRTM'
-                    for i in range(len(altitudes)):
-                        altitudes[i] = int(round(altitudes[i]))
-                    obj = GPSData(
-                        filename=filename, start=start, end=end, datetimes=json.dumps(datetimes),
-                        latitudes=json.dumps(latitudes), longitudes=json.dumps(longitudes),
-                        altitudes=json.dumps(altitudes), alt_srtm=json.dumps(alt_srtm)
-                    )
-                    # not just -1 but -10, as otherwise empty files can be an issue
-                    # obj.save(run_backup=(ii >= len(gpx_files)-(min(10, len(gpx_files)))))
-                    obj.save()
-                    logger.info(f"Loaded {len(datetimes)} points from {filename}{alt_adjust_text}")
-        if gpx_files:
-            cls.backup(GPSData())
 
 class NoGoAreas(models.Model):
     name = models.TextField(primary_key=True)
